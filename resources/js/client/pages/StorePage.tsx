@@ -87,48 +87,78 @@ export function StorePage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
-          <h1 className="text-lg font-bold text-green-700 shrink-0">Kibondo Store</h1>
+        <div className="max-w-6xl mx-auto px-4">
+          {/* Top row */}
+          <div className="h-14 flex items-center justify-between gap-3">
+            <h1 className="text-base font-bold text-green-700 shrink-0">Kibondo Store</h1>
 
-          <input
-            type="text"
-            value={searchInput}
-            onChange={e => setSearchInput(e.target.value)}
-            placeholder="Search products…"
-            className="flex-1 max-w-sm border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-          />
+            {/* Desktop search */}
+            <input
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              placeholder="Search products…"
+              className="hidden md:block flex-1 max-w-sm border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
 
-          <div className="flex items-center gap-3 shrink-0">
-            {customer ? (
-              <>
-                <Link to="/store/orders" className="text-sm text-gray-600 hover:text-green-700">My Orders</Link>
-                <button onClick={logout} className="text-sm text-gray-400 hover:text-gray-600">Sign out</button>
-              </>
-            ) : (
-              <>
-                <Link to="/store/login" className="text-sm text-gray-600 hover:text-green-700">Sign in</Link>
-                <Link to="/store/register" className="text-sm bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">Register</Link>
-              </>
-            )}
-            <button
-              onClick={() => setCartOpen(true)}
-              className="relative bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5"
-            >
-              🛒 Cart
-              {cartCount > 0 && (
-                <span className="bg-green-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{cartCount}</span>
-              )}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Auth links — visible on sm+ */}
+              <div className="hidden sm:flex items-center gap-3">
+                {customer ? (
+                  <>
+                    <Link to="/store/orders" className="text-sm text-gray-600 hover:text-green-700">My Orders</Link>
+                    <button onClick={logout} className="text-sm text-gray-400 hover:text-gray-600">Sign out</button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/store/login" className="text-sm text-gray-600 hover:text-green-700">Sign in</Link>
+                    <Link to="/store/register" className="text-sm bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">Register</Link>
+                  </>
+                )}
+              </div>
+
+              {/* Mobile account icon */}
+              <Link
+                to={customer ? '/store/orders' : '/store/login'}
+                className="sm:hidden flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 text-gray-500 hover:text-green-700"
+                aria-label={customer ? 'My orders' : 'Sign in'}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              </Link>
+
+              {/* Cart button */}
+              <button
+                onClick={() => setCartOpen(true)}
+                className="relative bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5"
+              >
+                <span>🛒</span>
+                <span className="hidden sm:inline">Cart</span>
+                {cartCount > 0 && (
+                  <span className="bg-green-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">{cartCount}</span>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Mobile search row */}
+          <div className="md:hidden pb-3">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              placeholder="Search products…"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
           </div>
         </div>
       </header>
 
       <div className="max-w-6xl mx-auto px-4 py-6">
         {/* Category tabs */}
-        <div className="flex gap-2 flex-wrap mb-6">
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-6 scrollbar-none -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
           <button
             onClick={() => handleCategoryChange('')}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${!selectedCategory ? 'bg-green-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:border-green-400'}`}
+            className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${!selectedCategory ? 'bg-green-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:border-green-400'}`}
           >
             All
           </button>
@@ -136,7 +166,7 @@ export function StorePage() {
             <button
               key={c.id}
               onClick={() => handleCategoryChange(c.id)}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${selectedCategory === c.id ? 'bg-green-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:border-green-400'}`}
+              className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${selectedCategory === c.id ? 'bg-green-600 text-white' : 'bg-white border border-gray-300 text-gray-600 hover:border-green-400'}`}
             >
               {c.name}
             </button>

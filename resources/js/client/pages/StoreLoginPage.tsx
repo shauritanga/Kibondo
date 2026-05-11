@@ -35,7 +35,7 @@ export function StoreLoginPage() {
         <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">Welcome back</h1>
         <p className="text-center text-gray-500 mb-8">Sign in to place your order</p>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-5">
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 space-y-5">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
               {error}
