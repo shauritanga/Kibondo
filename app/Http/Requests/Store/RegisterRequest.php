@@ -15,4 +15,30 @@ class RegisterRequest extends FormRequest
             'password' => 'required|string|min:8|confirmed',
         ];
     }
+
+    public function bodyParameters(): array
+    {
+        return [
+            'name' => [
+                'description' => 'Full name of the customer.',
+                'example'     => 'Amina Juma',
+            ],
+            'phone' => [
+                'description' => 'Mobile phone number. Must be unique across all customers.',
+                'example'     => '+255712345678',
+            ],
+            'email' => [
+                'description' => 'Email address. Must be unique across all customers.',
+                'example'     => 'amina@example.com',
+            ],
+            'password' => [
+                'description' => 'Password (minimum 8 characters).',
+                'example'     => 'secret1234',
+            ],
+            'password_confirmation' => [
+                'description' => 'Must match the password field.',
+                'example'     => 'secret1234',
+            ],
+        ];
+    }
 }

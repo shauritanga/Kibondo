@@ -14,4 +14,22 @@ class ProductSearchRequest extends FormRequest
             'page'        => 'nullable|integer|min:1',
         ];
     }
+
+    public function bodyParameters(): array
+    {
+        return [
+            'category_id' => [
+                'description' => 'Filter products by category UUID.',
+                'example'     => null,
+            ],
+            'search' => [
+                'description' => 'Search products by name (partial match, max 100 chars).',
+                'example'     => 'avocado',
+            ],
+            'page' => [
+                'description' => 'Page number for paginated results.',
+                'example'     => 1,
+            ],
+        ];
+    }
 }

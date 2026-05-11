@@ -49,7 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('users', UserController::class)->middleware('role:admin');
 
     // Categories
-    Route::apiResource('categories', CategoryController::class);
+    Route::apiResource('categories', CategoryController::class)->except(['show']);
 
     // Products
     Route::get('/products/{product}/movements', [ProductController::class, 'movements']);
@@ -61,12 +61,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Customers + nested notes & tasks
     Route::apiResource('customers', CustomerController::class);
-    Route::apiResource('customers.notes', CustomerNoteController::class)->shallow();
-    Route::apiResource('customers.tasks', CustomerTaskController::class)->shallow();
+    Route::apiResource('customers.notes', CustomerNoteController::class)->shallow()->except(['show']);
+    Route::apiResource('customers.tasks', CustomerTaskController::class)->shallow()->except(['show']);
 
     // Sales
     Route::put('/sales/{sale}/status', [SaleController::class, 'updateStatus']);
-    Route::apiResource('sales', SaleController::class);
+    Route::apiResource('sales', SaleController::class)->except(['update']);
 
     // Payments
     Route::apiResource('payments', PaymentController::class)->only(['index', 'store', 'show']);
