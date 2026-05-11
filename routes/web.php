@@ -2,8 +2,8 @@
 
 use Illuminate\Support\Facades\Route;
 
-// All routes are handled by the React SPA.
-// API routes live in routes/api.php under /api/v1/*.
-Route::get('/{any}', function () {
-    return view('app');
-})->where('any', '.*');
+// Client storefront — must be declared before the staff catch-all
+Route::get('/store/{any?}', fn () => view('client'))->where('any', '.*');
+
+// Staff dashboard — catch-all for all other URLs
+Route::get('/{any}', fn () => view('staff'))->where('any', '.*');

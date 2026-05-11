@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerNoteController;
@@ -11,11 +12,32 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\Store\CustomerAuthController;
+use App\Http\Controllers\Store\OrderController;
+use App\Http\Controllers\Store\StoreController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-// Public
-Route::post('/auth/login', [AuthController::class, 'login']);
+// ─── Staff Auth ───────────────────────────────────────────────────────────────
+Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
+
+// ─── Storefront – public ──────────────────────────────────────────────────────
+Route::prefix('store')->middleware('throttle:store-api')->group(function () {
+    Route::get('/products', [StoreController::class, 'products']);
+    Route::get('/categories', [StoreController::class, 'categories']);
+    Route::post('/auth/register', [CustomerAuthController::class, 'register'])->middleware('throttle:auth');
+    Route::post('/auth/login', [CustomerAuthController::class, 'login'])->middleware('throttle:auth');
+});
+
+// ─── Storefront – customer authenticated ─────────────────────────────────────
+Route::prefix('store')->middleware(['auth:customer', 'throttle:store-api'])->group(function () {
+    Route::post('/auth/logout', [CustomerAuthController::class, 'logout']);
+    Route::get('/auth/me', [CustomerAuthController::class, 'me']);
+    Route::get('/orders', [OrderController::class, 'index']);
+    Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:orders');
+    Route::get('/orders/{sale}', [OrderController::class, 'show']);
+    Route::post('/orders/{sale}/confirm', [OrderController::class, 'confirm']);
+});
 
 // Authenticated
 Route::middleware('auth:sanctum')->group(function () {
@@ -51,6 +73,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Offline queue sync
     Route::post('/offline-queue/sync', [OfflineQueueController::class, 'sync']);
+
+    // Campaigns (admin send, all can read)
+    Route::get('/campaigns/recipient-preview', [CampaignController::class, 'recipientPreview']);
+    Route::post('/campaigns/{campaign}/send', [CampaignController::class, 'send']);
+    Route::apiResource('campaigns', CampaignController::class)->only(['index', 'store', 'show', 'destroy']);
 
     // Reports
     Route::prefix('reports')->group(function () {

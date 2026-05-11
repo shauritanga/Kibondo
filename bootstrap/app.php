@@ -1,10 +1,12 @@
 <?php
 
+use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Sentry\Laravel\Integration;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -19,12 +21,19 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
         ]);
 
-        // Ensure API responses are always JSON
         $middleware->api(append: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
+
+        // Force HTTPS in production
+        if (env('APP_ENV') === 'production') {
+            $middleware->prepend(ForceHttps::class);
+        }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Report unhandled exceptions to Sentry
+        Integration::handles($exceptions);
+
         $exceptions->render(function (\Throwable $e, Request $request) {
             if ($request->is('api/*')) {
                 if ($e instanceof \Illuminate\Auth\AuthenticationException) {
@@ -42,6 +51,16 @@ return Application::configure(basePath: dirname(__DIR__))
                         'errors' => $e->errors(),
                     ], 422);
                 }
+                if ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpException) {
+                    return response()->json(['message' => $e->getMessage() ?: 'HTTP error.'], $e->getStatusCode());
+                }
+                if ($e instanceof \Illuminate\Database\QueryException) {
+                    report($e);
+                    return response()->json(['message' => 'A database error occurred. Please try again.'], 500);
+                }
+                // Catch-all: return JSON instead of HTML for all API errors
+                report($e);
+                return response()->json(['message' => 'An unexpected error occurred. Please try again.'], 500);
             }
         });
     })->create();

@@ -1,0 +1,3 @@
+# Add this to the server crontab (crontab -e as www-data or the deploy user):
+# Runs Laravel's scheduler every minute — handles db:backup and any future scheduled tasks
+* * * * * cd /var/www/kibondo && php artisan schedule:run >> /dev/null 2>&1
