@@ -1,58 +1,143 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Kibondo Green Farm
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Business management system for Kibondo Green Farm — a fresh produce supplier in Tanzania. Covers sales, stock, customers, payments, and marketing campaigns for staff, with a separate customer-facing storefront.
 
-## About Laravel
+## What's inside
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+**Staff dashboard** (`/`) — internal web app for the farm team:
+- POS / sales recording with walk-in and account customers
+- Stock management with reorder alerts and stock-in tracking
+- Customer CRM with notes, tasks, and outstanding balances
+- Financial reports — revenue, stock value, payment method breakdown
+- Email campaign composer with per-customer-type targeting
+- User management with role-based access control
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**Customer storefront** (`/store`) — public-facing shop:
+- Browse the product catalog with live stock levels
+- Cart, checkout, and delivery address capture
+- Order history and delivery confirmation
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Tech stack
 
-## Learning Laravel
+| Layer | Technology |
+|---|---|
+| Backend | Laravel 13, PHP 8.2 |
+| Auth | Laravel Sanctum (two guards: `staff` and `customer`) |
+| Database | MySQL / SQLite (tests) |
+| Frontend | React 19, TypeScript, Tailwind CSS v4 |
+| Build | Vite — two independent bundles (staff + client) |
+| Routing | react-router-dom v7 |
+| HTTP client | Axios |
+| Charts | Recharts |
+| Email | Laravel Mail + queue |
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## Project structure
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```
+app/
+├── Http/
+│   ├── Controllers/          # Staff API controllers
+│   │   └── Store/            # Customer storefront controllers
+│   ├── Requests/             # Form request validation
+│   └── Resources/            # API response transformers
+├── Models/                   # Eloquent models
+├── Services/                 # Business logic
+├── Jobs/                     # Queued jobs (campaign sending)
+└── Mail/                     # Mailable classes
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+resources/js/
+├── staff/                    # Staff dashboard SPA
+│   ├── pages/                # DashboardPage, PosPage, ProductsPage,
+│   │                         #   CustomersPage, ReportsPage,
+│   │                         #   CampaignsPage, SettingsPage, LoginPage
+│   ├── components/           # AppShell, PageHeader, StatusBadge,
+│   │                         #   ErrorBanner, FormInput, SearchInput,
+│   │                         #   StatCard, EmptyState, Skeleton
+│   ├── contexts/             # AuthContext, ThemeContext
+│   ├── services/             # Axios API client
+│   └── types/                # TypeScript interfaces
+├── client/                   # Customer storefront SPA
+│   ├── pages/                # StorePage, CheckoutPage, OrdersPage,
+│   │                         #   OrderDetailPage, ConfirmationPage,
+│   │                         #   StoreLoginPage, StoreRegisterPage
+│   ├── contexts/             # StoreAuthContext, CartContext
+│   └── services/             # Axios API client
+└── shared/
+    └── components/           # ErrorBoundary (used by both apps)
 
-## Agentic Development
+routes/
+├── api.php                   # All API routes (staff + store)
+└── web.php                   # SPA catch-all routes
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+tests/Feature/
+└── Store/                    # Customer storefront feature tests
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## API overview
 
-## Contributing
+All endpoints are under `/api/v1/`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+**Staff (requires `auth:sanctum`):**
+```
+POST   /auth/login              POST   /sales
+GET    /auth/me                 GET    /sales/{sale}
+GET    /products                PUT    /sales/{sale}
+POST   /products                GET    /customers
+PUT    /products/{product}      POST   /customers
+GET    /categories              GET    /customers/{id}/notes
+POST   /stock-movements         GET    /customers/{id}/tasks
+GET    /reports/dashboard       GET    /campaigns
+GET    /reports/sales           POST   /campaigns
+GET    /reports/stock-value     POST   /campaigns/{id}/send
+GET    /users                   POST   /offline-queue/sync
+```
 
-## Code of Conduct
+**Customer storefront (public + `auth:sanctum,customer`):**
+```
+POST   /store/auth/register     GET    /store/products
+POST   /store/auth/login        GET    /store/categories
+GET    /store/orders            POST   /store/orders
+GET    /store/orders/{id}       POST   /store/orders/{id}/confirm
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Setup
 
-## Security Vulnerabilities
+```bash
+# 1. Install dependencies
+composer install
+npm install
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+# 2. Configure environment
+cp .env.example .env
+php artisan key:generate
 
-## License
+# 3. Run migrations and seeders
+php artisan migrate --seed
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+# 4. Start development servers
+php artisan serve
+npm run dev
+```
+
+The staff dashboard is served at `http://localhost:8000` and the customer storefront at `http://localhost:8000/store`.
+
+## Testing
+
+```bash
+php artisan test
+```
+
+28 feature tests, 80 assertions. Tests use an in-memory SQLite database and refresh between runs.
+
+## Roles
+
+| Role | Access |
+|---|---|
+| `admin` | Full access — users, settings, all reports |
+| `sales` | POS, sales, customers |
+| `stock_manager` | Products, stock movements |
+| `accountant` | Sales (read), reports, payments |
+
+## Currency
+
+All monetary values are stored and returned in **TZS (Tanzanian Shilling)** as integers.
