@@ -39,10 +39,11 @@ Thumbs.db
 npm-debug.log*
 package-lock.json
 
-# Scribe API docs (auto-generated)
+# Scribe API docs (dev-only, auto-generated)
 /.scribe
 /public/vendor
 /resources/views/scribe
+/config/scribe.php
 
 # Test coverage
 /coverage
