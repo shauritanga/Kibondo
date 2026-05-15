@@ -92,7 +92,7 @@ export function StorePage() {
             <h2 className="text-2xl sm:text-3xl font-bold leading-tight mb-2">
               Premium fresh fruits,<br className="hidden sm:block" /> delivered to your door
             </h2>
-            <p className="text-green-100 text-sm sm:text-base mb-5">Fresh & frozen avocados, seasonal fruits — order online, we deliver.</p>
+            <p className="text-green-100 text-sm sm:text-base mb-5">Fresh & frozen avocados, apples — order online, we deliver.</p>
             <button
               onClick={scrollToGrid}
               className="bg-white text-green-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-green-50 transition-colors text-sm"
@@ -280,9 +280,9 @@ export function StorePage() {
               <p className="text-white font-semibold text-sm mb-4 uppercase tracking-wider">Shop</p>
               <ul className="space-y-2.5 text-sm text-green-200">
                 <li><Link to="/store" className="hover:text-white transition-colors">All products</Link></li>
+                <li><Link to="/store" className="hover:text-white transition-colors">Apples</Link></li>
                 <li><Link to="/store" className="hover:text-white transition-colors">Fresh avocados</Link></li>
                 <li><Link to="/store" className="hover:text-white transition-colors">Frozen avocados</Link></li>
-                <li><Link to="/store" className="hover:text-white transition-colors">Seasonal fruits</Link></li>
               </ul>
             </div>
 
