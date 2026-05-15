@@ -103,8 +103,10 @@ export function ProductsPage() {
       await productsApi.create({
         name: form.name.trim(), category_id: form.category_id,
         unit: `${form.mass.trim()}${form.massUnit}`,
-        price: Number(form.price) || 0, cost_price: 0,
-        stock_qty: Number(form.stock_qty) || 0, min_stock: Number(form.min_stock) || 0,
+        price: Math.round(Number(form.price) || 0),
+        cost_price: 0,
+        stock_qty: Math.round(Number(form.stock_qty) || 0),
+        min_stock: Math.round(Number(form.min_stock) || 0),
         is_active: true,
         image: imageMode === 'upload' ? imageFile : undefined,
         image_url: imageMode === 'url' && imageUrl.trim() ? imageUrl.trim() : undefined,
@@ -113,7 +115,9 @@ export function ProductsPage() {
       setCatalog(updated);
       closeDialog();
     } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Failed to save product.');
+      const errors = err.response?.data?.errors;
+      const first = errors ? Object.values(errors).flat()[0] as string : null;
+      setError(first ?? err.response?.data?.message ?? 'Failed to save product.');
     } finally {
       setSaving(false);
     }
