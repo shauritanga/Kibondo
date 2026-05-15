@@ -89,27 +89,19 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO kibondo;
 
 ---
 
-## Step 5 — Create a system user for the app
-
-```bash
-adduser --disabled-password --gecos "" kibondo
-```
-
----
-
-## Step 6 — Clone the repository
+## Step 5 — Clone the repository
 
 ```bash
 mkdir -p /var/www/kibondo
 cd /var/www/kibondo
 git clone https://github.com/shauritanga/Kibondo.git .
-chown -R kibondo:www-data /var/www/kibondo
+chown -R www-data:www-data /var/www/kibondo
 chmod -R 755 /var/www/kibondo
 ```
 
 ---
 
-## Step 7 — Configure the environment file
+## Step 6 — Configure the environment file
 
 ```bash
 cp .env.example .env
@@ -155,7 +147,7 @@ Save and exit (`Ctrl+X`, `Y`, `Enter`).
 
 ---
 
-## Step 8 — Install PHP dependencies
+## Step 7 — Install PHP dependencies
 
 ```bash
 composer install --no-dev --optimize-autoloader
@@ -163,7 +155,7 @@ composer install --no-dev --optimize-autoloader
 
 ---
 
-## Step 9 — Generate app key and run migrations
+## Step 8 — Generate app key and run migrations
 
 ```bash
 php artisan key:generate
@@ -172,7 +164,7 @@ php artisan migrate --force
 
 ---
 
-## Step 10 — Build frontend assets
+## Step 9 — Build frontend assets
 
 ```bash
 npm install
@@ -181,7 +173,7 @@ npm run build
 
 ---
 
-## Step 11 — Set correct permissions
+## Step 10 — Set correct permissions
 
 ```bash
 chown -R www-data:www-data /var/www/kibondo/storage
@@ -192,7 +184,7 @@ chmod -R 775 /var/www/kibondo/bootstrap/cache
 
 ---
 
-## Step 12 — Optimize Laravel for production
+## Step 11 — Optimize Laravel for production
 
 ```bash
 php artisan config:cache
@@ -203,7 +195,7 @@ php artisan storage:link
 
 ---
 
-## Step 13 — Configure Nginx
+## Step 12 — Configure Nginx
 
 ```bash
 nano /etc/nginx/sites-available/kibondo
@@ -253,7 +245,7 @@ systemctl reload nginx
 
 ---
 
-## Step 14 — Set up the queue worker (for notifications)
+## Step 13 — Set up the queue worker (for notifications)
 
 Install Supervisor if not already installed:
 
@@ -294,7 +286,7 @@ supervisorctl start kibondo-worker:*
 
 ---
 
-## Step 15 — Verify everything is running
+## Step 14 — Verify everything is running
 
 ```bash
 # Nginx
@@ -312,7 +304,7 @@ supervisorctl status
 
 ---
 
-## Step 16 — Open the site
+## Step 15 — Open the site
 
 | URL | Description |
 |-----|-------------|
