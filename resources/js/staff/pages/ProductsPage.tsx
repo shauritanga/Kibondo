@@ -1,4 +1,4 @@
-import { AlertTriangle, Boxes, ImagePlus, Link, PackagePlus, Plus, Upload, WalletCards, X } from 'lucide-react';
+import { AlertTriangle, Boxes, ImagePlus, Link, PackagePlus, Pencil, Plus, Trash2, Upload, WalletCards, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -39,6 +39,10 @@ export function ProductsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [stockInProduct, setStockInProduct] = useState<Product | null>(null);
   const [stockInQty, setStockInQty] = useState('');
@@ -92,7 +96,67 @@ export function ProductsPage() {
     setForm({ ...emptyForm, category_id: categories[0]?.id ?? '' });
     resetImageState();
     setShowForm(false);
+    setEditingProduct(null);
     setError('');
+  }
+
+  function openEdit(product: Product) {
+    const match = product.unit.match(/^(\d+(?:\.\d+)?)(g|kg)$/);
+    setForm({
+      name: product.name,
+      category_id: product.category_id,
+      mass: match ? match[1] : product.unit,
+      massUnit: match ? (match[2] as 'g' | 'kg') : 'g',
+      price: String(product.price),
+      stock_qty: String(product.stock_qty),
+      min_stock: String(product.min_stock),
+    });
+    setImageUrl(product.image_url ?? '');
+    setImageMode(product.image_url ? 'url' : 'upload');
+    setEditingProduct(product);
+    setShowForm(true);
+    setError('');
+  }
+
+  async function handleSaveEdit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingProduct) return;
+    setSaving(true); setError('');
+    try {
+      await productsApi.update(editingProduct.id, {
+        name: form.name.trim(), category_id: form.category_id,
+        unit: `${form.mass.trim()}${form.massUnit}`,
+        price: Math.round(Number(form.price) || 0),
+        stock_qty: Math.round(Number(form.stock_qty) || 0),
+        min_stock: Math.round(Number(form.min_stock) || 0),
+        image: imageMode === 'upload' ? imageFile ?? null : null,
+        image_url: imageMode === 'url' && imageUrl.trim() ? imageUrl.trim() : undefined,
+      });
+      const updated = await productsApi.list();
+      setCatalog(updated);
+      closeDialog();
+      setEditingProduct(null);
+    } catch (err: any) {
+      const errors = err.response?.data?.errors;
+      const first = errors ? Object.values(errors).flat()[0] as string : null;
+      setError(first ?? err.response?.data?.message ?? 'Failed to update product.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(true);
+    try {
+      await productsApi.delete(id);
+      setCatalog((prev) => prev.filter((p) => p.id !== id));
+      setDeletingId(null);
+    } catch (err: any) {
+      setError(err.userMessage ?? 'Failed to delete product.');
+      setDeletingId(null);
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function handleAddProduct(event: FormEvent<HTMLFormElement>) {
@@ -178,7 +242,7 @@ export function ProductsPage() {
               <thead className="border-b border-slate-100 bg-slate-50/70 dark:border-slate-700/50 dark:bg-slate-800/50">
                 <tr>
                   {['Product', 'Stock', 'Unit Price', 'Stock Value', 'Status', ''].map((h) => (
-                    <th key={h} className="table-header px-4 py-3 text-left">{h}</th>
+                    <th key={h} className="table-header px-4 py-3 text-left whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -220,14 +284,49 @@ export function ProductsPage() {
                       <td className="px-4 py-3">
                         <StatusBadge tone={low ? 'red' : 'green'}>{low ? 'Reorder' : 'Healthy'}</StatusBadge>
                       </td>
-                      {/* Action */}
+                      {/* Actions */}
                       <td className="px-4 py-3">
-                        <button
-                          className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-brand-green hover:bg-green-50 dark:border-slate-600 dark:hover:bg-green-900/20"
-                          onClick={() => setStockInProduct(product)}
-                        >
-                          Stock in
-                        </button>
+                        {deletingId === product.id ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-semibold text-red-600 dark:text-red-400">Delete?</span>
+                            <button
+                              onClick={() => handleDelete(product.id)}
+                              disabled={deleting}
+                              className="rounded-md bg-red-500 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-red-600 disabled:opacity-60"
+                            >
+                              {deleting ? '…' : 'Yes'}
+                            </button>
+                            <button
+                              onClick={() => setDeletingId(null)}
+                              className="rounded-md border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300"
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-brand-green hover:bg-green-50 dark:border-slate-600 dark:hover:bg-green-900/20"
+                              onClick={() => setStockInProduct(product)}
+                            >
+                              Stock in
+                            </button>
+                            <button
+                              onClick={() => openEdit(product)}
+                              className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-600 dark:hover:bg-slate-700"
+                              title="Edit product"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                            <button
+                              onClick={() => setDeletingId(product.id)}
+                              className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-red-400 hover:bg-red-50 hover:text-red-600 dark:border-slate-600 dark:hover:bg-red-900/20"
+                              title="Delete product"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -291,8 +390,8 @@ export function ProductsPage() {
             {/* Header */}
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-700">
               <div>
-                <h2 className="font-heading text-base font-bold text-slate-950 dark:text-white">Add product</h2>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Fill in the details to add a new item to your inventory.</p>
+                <h2 className="font-heading text-base font-bold text-slate-950 dark:text-white">{editingProduct ? 'Edit product' : 'Add product'}</h2>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{editingProduct ? 'Update the product details below.' : 'Fill in the details to add a new item to your inventory.'}</p>
               </div>
               <button type="button" onClick={closeDialog} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800">
                 <X size={16} />
@@ -300,7 +399,7 @@ export function ProductsPage() {
             </div>
 
             {/* Scrollable body */}
-            <form onSubmit={handleAddProduct} className="flex min-h-0 flex-1 flex-col">
+            <form onSubmit={editingProduct ? handleSaveEdit : handleAddProduct} className="flex min-h-0 flex-1 flex-col">
               <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
                 {error && <ErrorBanner message={error} />}
 
@@ -415,7 +514,7 @@ export function ProductsPage() {
                 </button>
                 <button type="submit" disabled={saving}
                   className="h-9 rounded-lg bg-brand-green px-5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60">
-                  {saving ? 'Saving…' : 'Add product'}
+                  {saving ? 'Saving…' : editingProduct ? 'Save changes' : 'Add product'}
                 </button>
               </div>
             </form>
