@@ -56,11 +56,36 @@ sudo -u postgres psql
 Inside the PostgreSQL shell:
 
 ```sql
+-- Create the user and database
 CREATE USER kibondo WITH PASSWORD 'choose_a_strong_password';
 CREATE DATABASE kibondo_db OWNER kibondo;
+
+-- Grant full database privileges
 GRANT ALL PRIVILEGES ON DATABASE kibondo_db TO kibondo;
+
+-- Connect to the new database
+\c kibondo_db
+
+-- Transfer public schema ownership to the app user
+ALTER SCHEMA public OWNER TO kibondo;
+
+-- Grant all privileges on the public schema
+GRANT ALL ON SCHEMA public TO kibondo;
+
+-- Grant privileges on all existing tables and sequences
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO kibondo;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO kibondo;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO kibondo;
+
+-- Ensure future tables and sequences are also accessible
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO kibondo;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO kibondo;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO kibondo;
+
 \q
 ```
+
+> **Note:** PostgreSQL 15+ removed the default CREATE privilege on the public schema. The steps above are required — skipping them will cause Laravel migrations to fail with "permission denied for schema public".
 
 ---
 
