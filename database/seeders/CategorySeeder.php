@@ -10,7 +10,7 @@ class CategorySeeder extends Seeder
 {
     public function run(): void
     {
-        $categories = ['Fresh Produce', 'Frozen', 'Fruit'];
+        $categories = ['Frozen Avocados', 'Fresh Avocados', 'Apple'];
 
         foreach ($categories as $name) {
             DB::table('categories')->insertOrIgnore([
