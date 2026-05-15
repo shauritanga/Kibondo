@@ -1,47 +1,74 @@
 import clsx from 'clsx';
-import { AlertTriangle, Boxes, DollarSign, ShoppingCart, TrendingUp, Users } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Boxes, DollarSign, ShoppingCart, TrendingDown, TrendingUp, Users } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { PageError, Skeleton } from '../components/Skeleton';
 import { StatusBadge } from '../components/StatusBadge';
 import { formatMoney, reportsApi } from '../services/api';
 import { CHART_COLORS, type DashboardData } from '../types';
 
-const STATUS_TONE = {
-  completed: 'green',
-  pending: 'amber',
-  partial: 'blue',
-  cancelled: 'red'
-} as const;
+const STATUS_TONE: Record<string, string> = {
+  completed:        'green',
+  pending:          'amber',
+  partial:          'blue',
+  cancelled:        'red',
+  confirmed:        'blue',
+  out_for_delivery: 'amber',
+};
+
+type Period = 'week' | 'month';
+
+function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period) => void }) {
+  return (
+    <div className="flex overflow-hidden rounded-lg border border-slate-200 text-xs font-bold dark:border-slate-700">
+      {(['week', 'month'] as const).map((p) => (
+        <button
+          key={p}
+          onClick={() => onChange(p)}
+          className={p === value
+            ? 'px-3 py-1.5 bg-brand-green text-white'
+            : 'px-3 py-1.5 text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}
+        >
+          {p === 'week' ? '7 Days' : 'This Month'}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [period, setPeriod] = useState<Period>('week');
 
-  async function load() {
+  const load = useCallback(async (p: Period) => {
     setLoading(true);
     setError('');
     try {
-      setData(await reportsApi.dashboard());
+      setData(await reportsApi.dashboard(p));
     } catch (err: any) {
       setError(err.userMessage ?? 'Failed to load dashboard. Please try again.');
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(period); }, [period, load]);
 
   const cards = useMemo(() => {
     if (!data) return [];
     const { kpis } = data;
+    const fmt = (pct: number | null) =>
+      pct === null ? null : `${pct >= 0 ? '+' : ''}${pct}%`;
     return [
-      { label: 'Sales Today', value: kpis.total_sales_today, change: '+0%', money: true, Icon: ShoppingCart },
-      { label: 'Sales Month', value: kpis.total_sales_month, change: '+0%', money: true, Icon: Boxes },
-      { label: 'Customers', value: kpis.total_customers, change: '+0%', money: false, Icon: Users },
-      { label: 'Low Stock', value: kpis.low_stock_count, change: '', money: false, Icon: AlertTriangle },
-      { label: 'Outstanding', value: kpis.outstanding_balance, change: '+0%', money: true, Icon: DollarSign },
+      { label: 'Sales Today', value: kpis.total_sales_today, change: fmt(kpis.sales_today_change), money: true,  Icon: ShoppingCart },
+      { label: 'Sales Month', value: kpis.total_sales_month, change: fmt(kpis.sales_month_change), money: true,  Icon: Boxes },
+      { label: 'Customers',   value: kpis.total_customers,   change: null,                         money: false, Icon: Users },
+      { label: 'Low Stock',   value: kpis.low_stock_count,   change: null,                         money: false, Icon: AlertTriangle },
+      { label: 'Outstanding', value: kpis.outstanding_balance, change: null,                       money: true,  Icon: DollarSign },
     ];
   }, [data]);
 
@@ -74,10 +101,10 @@ export function DashboardPage() {
   }, [data]);
 
   if (error) {
-    return <PageError message={error} onRetry={load} />;
+    return <PageError message={error} onRetry={() => load(period)} />;
   }
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="space-y-3">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
@@ -104,7 +131,7 @@ export function DashboardPage() {
       {/* KPI Cards */}
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         {cards.map(({ label, value, change, money, Icon }) => {
-          const positive = change.startsWith('+');
+          const positive = change !== null && !change.startsWith('-');
           return (
             <div className="card p-5" key={label}>
               <div className="flex items-start justify-between">
@@ -114,10 +141,14 @@ export function DashboardPage() {
               <p className="mt-2 font-heading text-lg font-black tracking-tight text-slate-950 dark:text-white xl:text-xl 2xl:text-2xl">
                 {money ? formatMoney(value) : value.toLocaleString()}
               </p>
-              {change ? (
+              {change !== null ? (
                 <div className="mt-2 flex items-center gap-1.5 text-xs font-semibold">
-                  <TrendingUp size={13} className="text-emerald-500" />
-                  <span className="text-emerald-500">{change} from last month</span>
+                  {positive
+                    ? <TrendingUp size={13} className="text-emerald-500" />
+                    : <TrendingDown size={13} className="text-red-500" />}
+                  <span className={positive ? 'text-emerald-500' : 'text-red-500'}>
+                    {change} vs {label.includes('Today') ? 'yesterday' : 'last month'}
+                  </span>
                 </div>
               ) : (
                 <div className="mt-2 h-4" />
@@ -128,11 +159,11 @@ export function DashboardPage() {
       </div>
 
       {/* Charts row */}
-      <div className="grid gap-4 xl:grid-cols-[1.35fr_1fr]">
+      <div className={`grid gap-4 xl:grid-cols-[1.35fr_1fr] transition-opacity duration-200 ${loading ? 'opacity-50' : ''}`}>
         <section className="card p-3.5">
           <div className="mb-2.5 flex items-center justify-between">
             <h3 className="font-heading text-base font-bold text-slate-950 dark:text-white">Sales Overview</h3>
-            <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 dark:border-slate-700 dark:text-slate-300">This Month</button>
+            <PeriodToggle value={period} onChange={setPeriod} />
           </div>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={salesTrend}>
@@ -153,7 +184,7 @@ export function DashboardPage() {
         <section className="card p-3.5">
           <div className="mb-2.5 flex items-center justify-between">
             <h3 className="font-heading text-base font-bold text-slate-950 dark:text-white">Sales by Product</h3>
-            <button className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 dark:border-slate-700 dark:text-slate-300">This Month</button>
+            <PeriodToggle value={period} onChange={setPeriod} />
           </div>
           <div className="grid items-center gap-3 md:grid-cols-[190px_1fr] xl:grid-cols-1 2xl:grid-cols-[190px_1fr]">
             <ResponsiveContainer width="100%" height={180}>
@@ -184,7 +215,7 @@ export function DashboardPage() {
         <section className="card overflow-hidden">
           <div className="flex items-center justify-between p-3.5">
             <h3 className="font-heading text-base font-bold text-slate-950 dark:text-white">Recent Sales</h3>
-            <button className="text-xs font-bold text-brand-green">View all</button>
+            <button onClick={() => navigate('/pos')} className="text-xs font-bold text-brand-green">View all</button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px]">
@@ -203,7 +234,7 @@ export function DashboardPage() {
                     <td className="px-3 py-2.5 text-slate-500 dark:text-slate-400">{new Date(sale.created_at).toLocaleDateString()}</td>
                     <td className="px-3 py-2.5 dark:text-slate-200">{formatMoney(sale.total_amount)}</td>
                     <td className="px-3 py-2.5">
-                      <StatusBadge tone={STATUS_TONE[sale.status] ?? 'slate'}>{sale.status}</StatusBadge>
+                      <StatusBadge tone={(STATUS_TONE[sale.status] ?? 'slate') as any}>{sale.status}</StatusBadge>
                     </td>
                     <td className="px-3 py-2.5">
                       <StatusBadge tone="slate">{sale.payment_status}</StatusBadge>
@@ -218,7 +249,7 @@ export function DashboardPage() {
         <section className="card overflow-hidden">
           <div className="flex items-center justify-between p-3.5">
             <h3 className="font-heading text-base font-bold text-slate-950 dark:text-white">Low Stock Alert</h3>
-            <button className="text-xs font-bold text-brand-green">View all</button>
+            <button onClick={() => navigate('/products')} className="text-xs font-bold text-brand-green">View all</button>
           </div>
           <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
             {data.low_stock_products.length === 0 && (

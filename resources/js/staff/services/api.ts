@@ -1,6 +1,6 @@
 import axios from 'axios';
 import type {
-  Campaign, Category, Customer, CustomerNote, CustomerTask,
+  AppNotification, AuditLog, Campaign, Category, Customer, CustomerNote, CustomerTask,
   DashboardData, Paginated, Payment, Product,
   Sale, StockMovement, User
 } from '../types';
@@ -51,6 +51,20 @@ export const authApi = {
     const { data } = await http.get<User>('/auth/me');
     return data;
   },
+  updateProfile: async (payload: { name: string; email: string }) => {
+    const { data } = await http.put<User>('/auth/me', payload);
+    return data;
+  },
+  updateAvatar: async (file: File) => {
+    const fd = new FormData();
+    fd.append('avatar', file);
+    const { data } = await http.post<{ avatar_url: string }>('/auth/me/avatar', fd);
+    return data;
+  },
+  updatePassword: async (payload: { current_password: string; password: string; password_confirmation: string }) => {
+    const { data } = await http.put<{ message: string }>('/auth/me/password', payload);
+    return data;
+  },
 };
 
 // ─── Categories ──────────────────────────────────────────────────────────────
@@ -71,12 +85,29 @@ export const productsApi = {
     const { data } = await http.get<{ data: Product }>(`/products/${id}`);
     return data.data;
   },
-  create: async (payload: Partial<Product>) => {
-    const { data } = await http.post<{ data: Product }>('/products', payload);
+  create: async (payload: Partial<Product> & { image?: File | null }) => {
+    const { image, ...rest } = payload;
+    if (image) {
+      const fd = new FormData();
+      Object.entries(rest).forEach(([k, v]) => v != null && fd.append(k, String(v)));
+      fd.append('image', image);
+      const { data } = await http.post<{ data: Product }>('/products', fd);
+      return data.data;
+    }
+    const { data } = await http.post<{ data: Product }>('/products', rest);
     return data.data;
   },
-  update: async (id: string, payload: Partial<Product>) => {
-    const { data } = await http.put<{ data: Product }>(`/products/${id}`, payload);
+  update: async (id: string, payload: Partial<Product> & { image?: File | null }) => {
+    const { image, ...rest } = payload;
+    if (image) {
+      const fd = new FormData();
+      Object.entries(rest).forEach(([k, v]) => v != null && fd.append(k, String(v)));
+      fd.append('image', image);
+      fd.append('_method', 'PUT');
+      const { data } = await http.post<{ data: Product }>(`/products/${id}`, fd);
+      return data.data;
+    }
+    const { data } = await http.put<{ data: Product }>(`/products/${id}`, rest);
     return data.data;
   },
   delete: async (id: string) => http.delete(`/products/${id}`),
@@ -100,8 +131,12 @@ export const stockApi = {
 
 // ─── Customers ───────────────────────────────────────────────────────────────
 export const customersApi = {
-  list: async (params?: { search?: string; type?: string; balance_open?: boolean }) => {
+  list: async (params?: { search?: string; type?: string; balance_status?: string; page?: number }) => {
     const { data } = await http.get<Paginated<Customer>>('/customers', { params });
+    return data;
+  },
+  stats: async () => {
+    const { data } = await http.get<{ total: number; total_spend: number; total_outstanding: number; open_balance_count: number }>('/customers/stats');
     return data;
   },
   get: async (id: string) => {
@@ -169,6 +204,18 @@ export const salesApi = {
     const { data } = await http.put<{ data: Sale }>(`/sales/${id}/status`, { status });
     return data.data;
   },
+  confirm: async (id: string) => {
+    const { data } = await http.post<{ data: Sale }>(`/sales/${id}/confirm`);
+    return data.data;
+  },
+  assign: async (id: string, userId: string) => {
+    const { data } = await http.post<{ data: Sale }>(`/sales/${id}/assign`, { user_id: userId });
+    return data.data;
+  },
+  deliver: async (id: string) => {
+    const { data } = await http.post<{ data: Sale }>(`/sales/${id}/deliver`);
+    return data.data;
+  },
 };
 
 // ─── Payments ────────────────────────────────────────────────────────────────
@@ -185,8 +232,8 @@ export const paymentsApi = {
 
 // ─── Reports ─────────────────────────────────────────────────────────────────
 export const reportsApi = {
-  dashboard: async () => {
-    const { data } = await http.get<{ data: DashboardData }>('/reports/dashboard');
+  dashboard: async (period: 'week' | 'month' = 'week') => {
+    const { data } = await http.get<{ data: DashboardData }>('/reports/dashboard', { params: { period } });
     return data.data;
   },
   sales: async (params?: { from?: string; to?: string; group_by?: string }) => {
@@ -245,10 +292,24 @@ export const campaignsApi = {
   },
 };
 
+// ─── Notifications ───────────────────────────────────────────────────────────
+export const notificationsApi = {
+  list: async (params?: { page?: number }) => {
+    const { data } = await http.get<{
+      data: AppNotification[];
+      unread_count: number;
+      meta: { current_page: number; last_page: number; total: number };
+    }>('/notifications', { params });
+    return data;
+  },
+  markRead: async (id: string) => http.patch(`/notifications/${id}/read`),
+  markAllRead: async () => http.post('/notifications/read-all'),
+};
+
 // ─── Users ───────────────────────────────────────────────────────────────────
 export const usersApi = {
-  list: async () => {
-    const { data } = await http.get<{ data: User[] }>('/users');
+  list: async (params?: { role?: string }) => {
+    const { data } = await http.get<{ data: User[] }>('/users', { params });
     return data.data;
   },
   create: async (payload: { name: string; email: string; password: string; role: string }) => {
@@ -260,4 +321,25 @@ export const usersApi = {
     return data.data;
   },
   delete: async (id: string) => http.delete(`/users/${id}`),
+};
+
+// ─── Audit Logs ──────────────────────────────────────────────────────────────
+export const auditApi = {
+  list: async (params?: Record<string, unknown>) => {
+    const { data } = await http.get<Paginated<AuditLog> & { data: AuditLog[] }>('/audit-logs', { params });
+    return data;
+  },
+  get: async (id: string) => {
+    const { data } = await http.get<{ data: AuditLog }>(`/audit-logs/${id}`);
+    return data.data;
+  },
+  exportCsv: async (params?: Record<string, unknown>) => {
+    const res = await http.get('/audit-logs/export', { params, responseType: 'blob' });
+    const url  = URL.createObjectURL(new Blob([res.data], { type: 'text/csv' }));
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `audit_logs_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };

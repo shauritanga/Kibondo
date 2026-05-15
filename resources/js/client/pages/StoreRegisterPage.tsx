@@ -42,20 +42,30 @@ export function StoreRegisterPage() {
   }
 
   function inputClass(field: string) {
-    return `w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+    return `w-full border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent ${
       errors[field] ? 'border-red-400' : 'border-gray-300'
     }`;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Branded top strip */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
+          <Link to="/store" className="text-sm text-gray-400 hover:text-gray-600">← Back to store</Link>
+          <span className="text-base font-bold text-green-700">Kibondo Store</span>
+          <span className="w-24" />
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <h1 className="text-2xl font-bold text-center text-gray-900 mb-2">Create your account</h1>
         <p className="text-center text-gray-500 mb-8">Register to start placing orders</p>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8 space-y-5">
+        <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-8 space-y-5">
           {errors.general && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+            <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
               {errors.general}
             </div>
           )}
@@ -87,12 +97,13 @@ export function StoreRegisterPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
             <input type="password" required className={inputClass('password_confirmation')} placeholder="Repeat password" {...field('password_confirmation')} />
+            {errors.password_confirmation && <p className="text-red-500 text-xs mt-1">{errors.password_confirmation}</p>}
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
+            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-colors"
           >
             {loading ? 'Creating account…' : 'Create account'}
           </button>
@@ -104,11 +115,7 @@ export function StoreRegisterPage() {
             Sign in
           </Link>
         </p>
-        <p className="text-center mt-4">
-          <Link to="/store" className="text-sm text-gray-400 hover:text-gray-600">
-            ← Continue browsing
-          </Link>
-        </p>
+      </div>
       </div>
     </div>
   );

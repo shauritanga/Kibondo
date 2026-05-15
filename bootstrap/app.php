@@ -18,7 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'role' => RoleMiddleware::class,
+            'role'          => RoleMiddleware::class,
+            'auth.customer' => \App\Http\Middleware\AuthenticateCustomer::class,
         ]);
 
         $middleware->api(append: [

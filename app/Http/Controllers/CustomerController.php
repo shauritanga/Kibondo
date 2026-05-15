@@ -23,26 +23,44 @@ class CustomerController extends Controller
             $query->where('type', $request->type);
         }
 
-        if ($request->boolean('balance_open')) {
-            $query->where('outstanding_balance', '>', 0);
+        if ($request->filled('balance_status')) {
+            if ($request->balance_status === 'open') {
+                $query->where('outstanding_balance', '>', 0);
+            } elseif ($request->balance_status === 'clear') {
+                $query->where('outstanding_balance', '<=', 0);
+            }
         }
 
-        $customers = $query->orderBy('name')->paginate(30);
+        $customers = $query->orderBy('name')->paginate(10);
 
         return response()->json($customers);
+    }
+
+    public function stats(): JsonResponse
+    {
+        return response()->json([
+            'total'              => Customer::count(),
+            'total_spend'        => Customer::sum('total_spend'),
+            'total_outstanding'  => Customer::sum('outstanding_balance'),
+            'open_balance_count' => Customer::where('outstanding_balance', '>', 0)->count(),
+        ]);
     }
 
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'name' => 'required|string|max:200',
-            'type' => 'required|in:retail,wholesale,distributor,hotel,restaurant,repeat_buyer',
-            'phone' => 'nullable|string|max:30',
-            'email' => 'nullable|email|max:180',
-            'location' => 'nullable|string|max:200',
-            'crm_stage' => 'nullable|string|max:100',
-            'crm_score' => 'nullable|integer|min:0|max:100',
-            'next_follow_up' => 'nullable|date',
+            'name'          => 'required|string|max:200',
+            'business_name' => 'nullable|string|max:200',
+            'type'          => 'required|in:retail,wholesale,distributor,hotel,restaurant,repeat_buyer',
+            'phone'         => 'nullable|string|max:30',
+            'alt_phone'     => 'nullable|string|max:30',
+            'email'         => 'nullable|email|max:180',
+            'location'      => 'nullable|string|max:200',
+            'payment_terms' => 'nullable|in:cod,net_7,net_14,net_30',
+            'credit_limit'  => 'nullable|integer|min:0',
+            'crm_stage'     => 'nullable|string|max:100',
+            'crm_score'     => 'nullable|integer|min:0|max:100',
+            'next_follow_up'=> 'nullable|date',
         ]);
 
         $customer = Customer::create($data);
@@ -60,14 +78,18 @@ class CustomerController extends Controller
     public function update(Request $request, Customer $customer): JsonResponse
     {
         $data = $request->validate([
-            'name' => 'sometimes|string|max:200',
-            'type' => 'sometimes|in:retail,wholesale,distributor,hotel,restaurant,repeat_buyer',
-            'phone' => 'nullable|string|max:30',
-            'email' => 'nullable|email|max:180',
-            'location' => 'nullable|string|max:200',
-            'crm_stage' => 'nullable|string|max:100',
-            'crm_score' => 'nullable|integer|min:0|max:100',
-            'next_follow_up' => 'nullable|date',
+            'name'          => 'sometimes|string|max:200',
+            'business_name' => 'nullable|string|max:200',
+            'type'          => 'sometimes|in:retail,wholesale,distributor,hotel,restaurant,repeat_buyer',
+            'phone'         => 'nullable|string|max:30',
+            'alt_phone'     => 'nullable|string|max:30',
+            'email'         => 'nullable|email|max:180',
+            'location'      => 'nullable|string|max:200',
+            'payment_terms' => 'nullable|in:cod,net_7,net_14,net_30',
+            'credit_limit'  => 'nullable|integer|min:0',
+            'crm_stage'     => 'nullable|string|max:100',
+            'crm_score'     => 'nullable|integer|min:0|max:100',
+            'next_follow_up'=> 'nullable|date',
         ]);
 
         $customer->update($data);

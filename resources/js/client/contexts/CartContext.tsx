@@ -6,6 +6,7 @@ export interface CartSnapshot {
   name: string;
   unit: string;
   price: number;
+  image_url?: string | null;
 }
 
 export interface CartItem {
@@ -14,7 +15,7 @@ export interface CartItem {
 }
 
 export function toCartSnapshot(p: StoreProduct): CartSnapshot {
-  return { id: p.id, name: p.name, unit: p.unit, price: p.price };
+  return { id: p.id, name: p.name, unit: p.unit, price: p.price, image_url: p.image_url };
 }
 
 interface CartState {

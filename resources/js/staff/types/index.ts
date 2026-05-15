@@ -2,7 +2,8 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'sales' | 'stock_manager' | 'accountant';
+  role: 'admin' | 'sales' | 'stock_manager' | 'accountant' | 'delivery';
+  avatar_url?: string | null;
   is_active?: boolean;
   created_at?: string;
 }
@@ -17,7 +18,8 @@ export interface Product {
   category_id: string;
   category?: Category;
   name: string;
-  unit: 'crate' | 'kg' | 'box' | 'litre' | 'piece';
+  image_url?: string | null;
+  unit: string;
   price: number;
   cost_price: number;
   stock_qty: number;
@@ -28,14 +30,18 @@ export interface Product {
 export interface Customer {
   id: string;
   name: string;
+  business_name?: string;
   type: 'retail' | 'wholesale' | 'distributor' | 'hotel' | 'restaurant' | 'repeat_buyer';
   phone?: string;
+  alt_phone?: string;
   email?: string;
   location?: string;
+  payment_terms?: 'cod' | 'net_7' | 'net_14' | 'net_30';
   crm_stage?: string;
   crm_score?: number;
   next_follow_up?: string;
   outstanding_balance: number;
+  credit_limit: number;
   total_spend: number;
   sales_count?: number;
 }
@@ -60,12 +66,28 @@ export interface Sale {
   total_amount: number;
   paid_amount: number;
   outstanding: number;
-  status: 'completed' | 'pending' | 'partial' | 'cancelled';
+  status: 'completed' | 'pending' | 'partial' | 'cancelled' | 'confirmed' | 'out_for_delivery';
   payment_status: 'paid' | 'unpaid' | 'partial';
   note?: string;
+  delivery_address?: string | null;
+  assigned_to?: string | null;
+  assignedTo?: { id: string; name: string } | null;
   items?: SaleItem[];
   payments?: Payment[];
   items_count?: number;
+  created_at: string;
+}
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  data: {
+    type: string;
+    sale_id: string;
+    sale_number: string;
+    message: string;
+  };
+  read_at: string | null;
   created_at: string;
 }
 
@@ -130,6 +152,8 @@ export interface DashboardData {
     total_customers: number;
     outstanding_balance: number;
     low_stock_count: number;
+    sales_today_change: number | null;
+    sales_month_change: number | null;
   };
   sales_trend: { date: string; total: number }[];
   payment_mix: { payment_method: string; total: number }[];
@@ -137,6 +161,26 @@ export interface DashboardData {
   recent_sales: Sale[];
   low_stock_products: Product[];
   top_customers: Customer[];
+}
+
+export interface AuditLog {
+  id: string;
+  user_id?: string;
+  user_name?: string;
+  user_email?: string;
+  user_role?: string;
+  action: string;
+  module: string;
+  description?: string;
+  record_id?: string;
+  table_name?: string;
+  old_values?: Record<string, unknown>;
+  new_values?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  ip_address?: string;
+  user_agent?: string;
+  status: 'success' | 'failed';
+  created_at: string;
 }
 
 export interface Campaign {

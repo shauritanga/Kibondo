@@ -8,6 +8,7 @@ interface AuthState {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  setUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -45,8 +46,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }
 
+  function updateUser(u: User) {
+    setUser(u);
+    localStorage.setItem('kibondo_user', JSON.stringify(u));
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout, setUser: updateUser }}>
       {children}
     </AuthContext.Provider>
   );

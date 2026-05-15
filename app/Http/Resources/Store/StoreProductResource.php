@@ -17,6 +17,7 @@ class StoreProductResource extends JsonResource
             'stock_qty'     => $this->stock_qty,
             'category_id'   => $this->category_id,
             'category_name' => $this->category?->name,
+            'image_url'     => $this->image_url,
         ];
     }
 }

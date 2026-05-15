@@ -43,6 +43,7 @@ export interface StoreCustomer {
   name: string;
   email: string;
   phone: string;
+  location?: string | null;
 }
 
 export interface StoreProduct {
@@ -53,6 +54,7 @@ export interface StoreProduct {
   stock_qty: number;
   category_id: string;
   category_name: string;
+  image_url?: string | null;
 }
 
 export interface StoreCategory {
@@ -84,9 +86,23 @@ export interface StoreOrderItem {
 export interface StoreOrderDetail extends StoreOrderSummary {
   subtotal: number;
   discount_amount: number;
-  note: string | null;
+  delivery_address: string | null;
+  assigned_to_name: string | null;
   customer_feedback: string | null;
   items: StoreOrderItem[];
+}
+
+export interface CustomerNotification {
+  id: string;
+  type: string;
+  data: {
+    type: string;
+    sale_id: string;
+    sale_number: string;
+    message: string;
+  };
+  read_at: string | null;
+  created_at: string;
 }
 
 export interface ProductsResponse {
@@ -121,6 +137,21 @@ export const storeAuthApi = {
     const { data } = await http.get<StoreCustomer>('/auth/me');
     return data;
   },
+  updateProfile: async (payload: Partial<Pick<StoreCustomer, 'name' | 'phone' | 'email' | 'location'>>) => {
+    const { data } = await http.put<{ data: StoreCustomer }>('/auth/me', payload);
+    return data.data;
+  },
+};
+
+export const storeNotificationsApi = {
+  list: async () => {
+    const { data } = await http.get<{
+      data: CustomerNotification[];
+      unread_count: number;
+    }>('/notifications');
+    return data;
+  },
+  markRead: async (id: string) => http.patch(`/notifications/${id}/read`),
 };
 
 export const storeOrdersApi = {

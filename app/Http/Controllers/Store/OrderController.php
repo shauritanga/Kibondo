@@ -9,9 +9,13 @@ use App\Http\Resources\Store\OrderDetailResource;
 use App\Http\Resources\Store\OrderSummaryResource;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\User;
+use App\Notifications\DeliveryConfirmedNotification;
+use App\Notifications\OrderPlacedNotification;
 use App\Services\SaleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 /**
  * @group Store – Orders
@@ -54,11 +58,16 @@ class OrderController extends Controller
 
         $sale = $this->sales->createSale([
             'customer_id'     => $customer->id,
-            'note'            => $request->delivery_address,
+            'delivery_address' => $request->delivery_address,
             'status'          => 'pending',
             'discount_amount' => 0,
             'items'           => $items,
         ], null);
+
+        $admins = User::where('role', 'admin')->get();
+        if ($admins->isNotEmpty()) {
+            Notification::send($admins, new OrderPlacedNotification($sale));
+        }
 
         return response()->json([
             'sale_number'  => $sale->sale_number,
@@ -83,7 +92,7 @@ class OrderController extends Controller
     {
         abort_if($sale->customer_id !== $request->user('customer')->id, 403);
 
-        $sale->load('items.product');
+        $sale->load('items.product', 'assignedTo:id,name');
 
         return response()->json(['data' => new OrderDetailResource($sale)]);
     }
@@ -104,6 +113,15 @@ class OrderController extends Controller
             'delivery_confirmed_at' => now(),
             'customer_feedback'     => $request->feedback,
         ]);
+
+        $admins = User::where('role', 'admin')->get();
+        if ($admins->isNotEmpty()) {
+            Notification::send($admins, new DeliveryConfirmedNotification($sale));
+        }
+
+        if ($sale->assigned_to) {
+            User::find($sale->assigned_to)?->notify(new DeliveryConfirmedNotification($sale));
+        }
 
         return response()->json(['message' => 'Thank you for confirming your delivery!']);
     }

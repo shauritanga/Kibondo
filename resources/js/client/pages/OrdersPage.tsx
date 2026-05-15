@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatMoney, storeOrdersApi, type StoreOrderSummary } from '../services/api';
+import { StoreLayout } from '../components/StoreLayout';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  pending:   { label: 'Pending',   color: 'bg-yellow-100 text-yellow-700' },
-  completed: { label: 'Delivered', color: 'bg-green-100 text-green-700' },
-  cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-700' },
-  partial:   { label: 'Partial',   color: 'bg-blue-100 text-blue-700' },
+  pending:          { label: 'Pending',          color: 'bg-yellow-100 text-yellow-700' },
+  confirmed:        { label: 'Confirmed',         color: 'bg-blue-100 text-blue-700' },
+  out_for_delivery: { label: 'Out for Delivery',  color: 'bg-orange-100 text-orange-700' },
+  completed:        { label: 'Delivered',          color: 'bg-green-100 text-green-700' },
+  cancelled:        { label: 'Cancelled',          color: 'bg-red-100 text-red-700' },
+  partial:          { label: 'Partial',            color: 'bg-blue-100 text-blue-700' },
 };
 
 export function OrdersPage() {
@@ -30,15 +33,12 @@ export function OrdersPage() {
   useEffect(() => { load(); }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 h-16 flex items-center gap-4">
-          <Link to="/store" className="text-gray-400 hover:text-gray-600">←</Link>
-          <h1 className="font-bold text-gray-900">My orders</h1>
-        </div>
-      </header>
-
+    <StoreLayout>
       <div className="max-w-2xl mx-auto px-4 py-8">
+        <div className="flex items-center gap-3 mb-6">
+          <Link to="/store" className="text-gray-400 hover:text-gray-600 text-lg">←</Link>
+          <h1 className="font-bold text-gray-900 text-lg">My orders</h1>
+        </div>
         {loading ? (
           <p className="text-center text-gray-400 py-20">Loading…</p>
         ) : error ? (
@@ -78,6 +78,6 @@ export function OrdersPage() {
           </div>
         )}
       </div>
-    </div>
+    </StoreLayout>
   );
 }

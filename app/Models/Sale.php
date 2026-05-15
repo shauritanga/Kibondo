@@ -16,7 +16,8 @@ class Sale extends Model
         'sale_number', 'customer_id', 'user_id',
         'subtotal', 'discount_amount', 'total_amount',
         'paid_amount', 'outstanding', 'status', 'payment_status',
-        'note', 'is_offline_sync', 'synced_at',
+        'note', 'delivery_address', 'assigned_to',
+        'is_offline_sync', 'synced_at',
         'delivery_confirmed_at', 'customer_feedback',
     ];
 
@@ -34,6 +35,11 @@ class Sale extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
     }
 
     public function user(): BelongsTo

@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { formatMoney } from '../services/api';
+import { StoreLayout } from '../components/StoreLayout';
 
 export function ConfirmationPage() {
   const location = useLocation();
@@ -7,9 +8,12 @@ export function ConfirmationPage() {
   const totalAmount: number = location.state?.totalAmount ?? 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-10 max-w-md w-full text-center space-y-5">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto text-3xl">✓</div>
+    <StoreLayout>
+      <div className="flex items-center justify-center py-12 px-4">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-10 max-w-md w-full text-center space-y-5">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
         <h1 className="text-xl font-bold text-gray-900">Order received!</h1>
         <p className="text-gray-500 text-sm">
           We've received your order and will contact you soon to confirm delivery.
@@ -47,6 +51,7 @@ export function ConfirmationPage() {
           </Link>
         </div>
       </div>
-    </div>
+      </div>
+    </StoreLayout>
   );
 }

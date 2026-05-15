@@ -9,9 +9,13 @@ import { DashboardPage } from './pages/DashboardPage';
 import { PosPage } from './pages/PosPage';
 import { ProductsPage } from './pages/ProductsPage';
 import { CustomersPage } from './pages/CustomersPage';
+import { CustomerDetailPage } from './pages/CustomerDetailPage';
 import { CampaignsPage } from './pages/CampaignsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { UsersPage } from './pages/UsersPage';
+import { AuditLogsPage } from './pages/AuditLogsPage';
+import { ProfilePage } from './pages/ProfilePage';
 
 export default function App() {
   return (
@@ -30,9 +34,13 @@ export default function App() {
                       <Route path="/pos" element={<PosPage />} />
                       <Route path="/products" element={<ProductsPage />} />
                       <Route path="/customers" element={<CustomersPage />} />
+                      <Route path="/customers/:id" element={<CustomerDetailPage />} />
                       <Route path="/campaigns" element={<CampaignsPage />} />
                       <Route path="/reports" element={<ReportsPage />} />
+                      <Route path="/users" element={<UsersPage />} />
+                      <Route path="/audit-logs" element={<ProtectedRoute allowedRoles={['admin']}><AuditLogsPage /></ProtectedRoute>} />
                       <Route path="/settings" element={<SettingsPage />} />
+                      <Route path="/profile" element={<ProfilePage />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
                   </AppShell>

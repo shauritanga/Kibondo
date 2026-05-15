@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { formatMoney, storeOrdersApi, type StoreOrderDetail } from '../services/api';
+import { OrderTimeline } from '../components/OrderTimeline';
+import { StoreLayout } from '../components/StoreLayout';
 
 export function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -35,7 +37,6 @@ export function OrderDetailPage() {
     setConfirmError('');
     try {
       await storeOrdersApi.confirm(order.id, feedback);
-      // Only update UI after server confirms success
       setOrder(o => o ? { ...o, delivery_confirmed_at: new Date().toISOString(), customer_feedback: feedback } : o);
       setConfirmDone(true);
     } catch (err: any) {
@@ -45,14 +46,20 @@ export function OrderDetailPage() {
     }
   }
 
-  if (loading) return <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">Loading…</div>;
+  if (loading) return (
+    <StoreLayout>
+      <div className="flex items-center justify-center py-32 text-gray-400">Loading…</div>
+    </StoreLayout>
+  );
 
   if (loadError) return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4 text-center px-4">
-      <p className="text-red-500">{loadError}</p>
-      <button onClick={load} className="text-green-600 font-medium hover:underline">Try again</button>
-      <Link to="/store/orders" className="text-sm text-gray-400 hover:text-gray-600">← Back to orders</Link>
-    </div>
+    <StoreLayout>
+      <div className="flex flex-col items-center justify-center gap-4 text-center px-4 py-32">
+        <p className="text-red-500">{loadError}</p>
+        <button onClick={load} className="text-green-600 font-medium hover:underline">Try again</button>
+        <Link to="/store/orders" className="text-sm text-gray-400 hover:text-gray-600">← Back to orders</Link>
+      </div>
+    </StoreLayout>
   );
 
   if (!order) return null;
@@ -60,35 +67,35 @@ export function OrderDetailPage() {
   const canConfirm = order.status === 'completed' && !order.delivery_confirmed_at;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto px-4 h-16 flex items-center gap-4">
-          <Link to="/store/orders" className="text-gray-400 hover:text-gray-600">←</Link>
+    <StoreLayout>
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <div className="flex items-center gap-3 mb-6">
+          <Link to="/store/orders" className="text-gray-400 hover:text-gray-600 text-lg">←</Link>
           <div>
-            <h1 className="font-bold text-gray-900">{order.sale_number}</h1>
+            <h1 className="text-lg font-bold text-gray-900">{order.sale_number}</h1>
             <p className="text-xs text-gray-400">{new Date(order.created_at).toLocaleString()}</p>
           </div>
         </div>
-      </header>
-
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-        {/* Status */}
-        <div className="bg-white rounded-xl border border-gray-200 p-5 flex items-center justify-between">
-          <div>
-            <p className="text-xs text-gray-400 mb-1">Status</p>
-            <p className="font-semibold capitalize text-gray-900">{order.status}</p>
+        <div className="space-y-6">
+        {/* Order timeline */}
+        <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-gray-900 text-sm">Order progress</h2>
+            <span className="text-sm font-bold text-green-700">{formatMoney(order.total_amount)}</span>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-400 mb-1">Total</p>
-            <p className="font-bold text-green-700">{formatMoney(order.total_amount)}</p>
-          </div>
+          <OrderTimeline
+            status={order.status}
+            createdAt={order.created_at}
+            deliveryConfirmedAt={order.delivery_confirmed_at}
+            assignedToName={order.assigned_to_name}
+          />
         </div>
 
         {/* Delivery address */}
-        {order.note && (
+        {order.delivery_address && (
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <p className="text-xs text-gray-400 mb-1">Delivery address</p>
-            <p className="text-sm text-gray-800">{order.note}</p>
+            <p className="text-sm text-gray-800">{order.delivery_address}</p>
           </div>
         )}
 
@@ -126,7 +133,7 @@ export function OrderDetailPage() {
             <p className="text-sm text-gray-500 mb-4">Have you received your order? Let us know and leave feedback.</p>
 
             {confirmError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{confirmError}</div>
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 mb-4">{confirmError}</div>
             )}
 
             <form onSubmit={handleConfirm} className="space-y-4">
@@ -136,7 +143,7 @@ export function OrderDetailPage() {
                   value={feedback}
                   onChange={e => setFeedback(e.target.value)}
                   rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 resize-none"
                   placeholder="How was your experience? Any comments?"
                 />
               </div>
@@ -156,7 +163,8 @@ export function OrderDetailPage() {
             <p className="text-green-700 font-semibold">Thank you for your feedback!</p>
           </div>
         )}
+        </div>
       </div>
-    </div>
+    </StoreLayout>
   );
 }

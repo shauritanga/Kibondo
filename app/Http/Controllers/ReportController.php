@@ -14,25 +14,25 @@ use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
-    public function dashboard(): JsonResponse
+    public function dashboard(Request $request): JsonResponse
     {
-        $today = now()->toDateString();
+        $period     = $request->input('period', 'week'); // 'week' | 'month'
+        $today      = now()->toDateString();
+        $yesterday  = now()->subDay()->toDateString();
         $monthStart = now()->startOfMonth()->toDateString();
+        $lastMonthStart   = now()->subMonth()->startOfMonth()->toDateString();
+        $lastMonthSameDay = now()->subMonth()->toDateString();
 
-        $totalSalesToday = Sale::whereDate('created_at', $today)
-            ->where('status', '!=', 'cancelled')
-            ->sum('total_amount');
+        // KPIs
+        $totalSalesToday     = Sale::whereDate('created_at', $today)->where('status', '!=', 'cancelled')->sum('total_amount');
+        $totalSalesYesterday = Sale::whereDate('created_at', $yesterday)->where('status', '!=', 'cancelled')->sum('total_amount');
+        $totalSalesMonth     = Sale::whereDate('created_at', '>=', $monthStart)->where('status', '!=', 'cancelled')->sum('total_amount');
+        $totalSalesLastMonth = Sale::whereBetween(DB::raw('DATE(created_at)'), [$lastMonthStart, $lastMonthSameDay])->where('status', '!=', 'cancelled')->sum('total_amount');
 
-        $totalSalesMonth = Sale::whereDate('created_at', '>=', $monthStart)
-            ->where('status', '!=', 'cancelled')
-            ->sum('total_amount');
+        $pct = fn ($now, $prev) => $prev > 0 ? round(($now - $prev) / $prev * 100, 1) : null;
 
-        $totalOrders = Sale::whereDate('created_at', $today)
-            ->where('status', '!=', 'cancelled')
-            ->count();
-
-        $totalCustomers = Customer::count();
-
+        $totalOrders        = Sale::whereDate('created_at', $today)->where('status', '!=', 'cancelled')->count();
+        $totalCustomers     = Customer::count();
         $outstandingBalance = Customer::sum('outstanding_balance');
 
         $lowStockProducts = Product::where('is_active', true)
@@ -40,29 +40,32 @@ class ReportController extends Controller
             ->with('category:id,name')
             ->get(['id', 'name', 'stock_qty', 'min_stock', 'category_id']);
 
-        // Sales trend — last 7 days
+        // Sales trend — 7 days (week) or current month day-by-day (month)
+        $trendFrom = $period === 'month' ? $monthStart : now()->subDays(6)->toDateString();
+
         $salesTrend = Sale::select(
                 DB::raw('DATE(created_at) as date'),
                 DB::raw('SUM(total_amount) as total')
             )
             ->where('status', '!=', 'cancelled')
-            ->whereDate('created_at', '>=', now()->subDays(6)->toDateString())
+            ->whereDate('created_at', '>=', $trendFrom)
             ->groupBy('date')
             ->orderBy('date')
             ->get();
 
-        // Payment method mix
+        // Mix charts — last 7 days (week) or current month (month)
+        $mixFrom = $period === 'month' ? $monthStart : now()->subDays(6)->toDateString();
+
         $paymentMix = Payment::select('payment_method', DB::raw('SUM(amount) as total'))
-            ->whereDate('created_at', '>=', $monthStart)
+            ->whereDate('created_at', '>=', $mixFrom)
             ->groupBy('payment_method')
             ->get();
 
-        // Category sales mix
         $categoryMix = SaleItem::join('products', 'sale_items.product_id', '=', 'products.id')
             ->join('categories', 'products.category_id', '=', 'categories.id')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->where('sales.status', '!=', 'cancelled')
-            ->whereDate('sales.created_at', '>=', $monthStart)
+            ->whereDate('sales.created_at', '>=', $mixFrom)
             ->select('categories.name', DB::raw('SUM(sale_items.line_total) as total'))
             ->groupBy('categories.name')
             ->get();
@@ -81,19 +84,21 @@ class ReportController extends Controller
         return response()->json([
             'data' => [
                 'kpis' => [
-                    'total_sales_today' => $totalSalesToday,
-                    'total_sales_month' => $totalSalesMonth,
+                    'total_sales_today'  => $totalSalesToday,
+                    'total_sales_month'  => $totalSalesMonth,
                     'total_orders_today' => $totalOrders,
-                    'total_customers' => $totalCustomers,
-                    'outstanding_balance' => $outstandingBalance,
-                    'low_stock_count' => $lowStockProducts->count(),
+                    'total_customers'    => $totalCustomers,
+                    'outstanding_balance'=> $outstandingBalance,
+                    'low_stock_count'    => $lowStockProducts->count(),
+                    'sales_today_change' => $pct($totalSalesToday, $totalSalesYesterday),
+                    'sales_month_change' => $pct($totalSalesMonth, $totalSalesLastMonth),
                 ],
-                'sales_trend' => $salesTrend,
-                'payment_mix' => $paymentMix,
-                'category_mix' => $categoryMix,
-                'recent_sales' => $recentSales,
-                'low_stock_products' => $lowStockProducts,
-                'top_customers' => $topCustomers,
+                'sales_trend'       => $salesTrend,
+                'payment_mix'       => $paymentMix,
+                'category_mix'      => $categoryMix,
+                'recent_sales'      => $recentSales,
+                'low_stock_products'=> $lowStockProducts,
+                'top_customers'     => $topCustomers,
             ],
         ]);
     }

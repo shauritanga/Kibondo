@@ -10,12 +10,15 @@ interface Props {
 
 export function StatCard({ label, value, icon: Icon, className }: Props) {
   return (
-    <div className={clsx('card px-4 py-3', className)}>
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">{label}</p>
-        {Icon && <Icon size={16} className="shrink-0 text-slate-400 dark:text-slate-500" />}
+    <div className={clsx('card p-5', className)}>
+      <div className="flex items-start justify-between">
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+        {Icon && <Icon size={18} className="text-slate-400 dark:text-slate-500" />}
       </div>
-      <p className="mt-1 font-heading text-lg font-bold text-slate-950 dark:text-white">{value}</p>
+      <p className="mt-2 font-heading text-lg font-black tracking-tight text-slate-950 dark:text-white xl:text-xl 2xl:text-2xl">
+        {value}
+      </p>
+      <div className="mt-2 h-4" />
     </div>
   );
 }

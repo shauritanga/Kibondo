@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="8" fill="#16a34a"/>
+  <!-- stem -->
+  <line x1="16" y1="26" x2="16" y2="14" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+  <!-- left leaf -->
+  <path d="M16 20 C12 18 9 14 11 9 C13 12 15 15 16 20Z" fill="white"/>
+  <!-- right leaf -->
+  <path d="M16 16 C20 14 23 10 21 5 C19 8 17 11 16 16Z" fill="white"/>
+</svg>

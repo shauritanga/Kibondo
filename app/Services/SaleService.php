@@ -42,6 +42,7 @@ class SaleService
                 'status' => $data['status'] ?? 'completed',
                 'payment_status' => 'unpaid',
                 'note' => $data['note'] ?? null,
+                'delivery_address' => $data['delivery_address'] ?? null,
                 'is_offline_sync' => $data['is_offline_sync'] ?? false,
                 'synced_at' => ($data['is_offline_sync'] ?? false) ? now() : null,
             ]);
