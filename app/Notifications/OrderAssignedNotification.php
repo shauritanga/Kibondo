@@ -16,7 +16,34 @@ class OrderAssignedNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', 'mail', 'fcm'];
+    }
+
+    public function toFcm(object $notifiable): array
+    {
+        if ($this->recipientType === 'delivery') {
+            return [
+                'title' => 'New Delivery Assignment',
+                'body'  => "You have been assigned delivery {$this->sale->sale_number}",
+                'data'  => [
+                    'type'        => 'delivery_assigned',
+                    'sale_id'     => $this->sale->id,
+                    'sale_number' => $this->sale->sale_number,
+                    'url'         => '/pos',
+                ],
+            ];
+        }
+
+        return [
+            'title' => 'Order On Its Way',
+            'body'  => "Your order {$this->sale->sale_number} is out for delivery",
+            'data'  => [
+                'type'        => 'order_out_for_delivery',
+                'sale_id'     => $this->sale->id,
+                'sale_number' => $this->sale->sale_number,
+                'url'         => "/store/orders/{$this->sale->id}",
+            ],
+        ];
     }
 
     public function toDatabase(object $notifiable): array

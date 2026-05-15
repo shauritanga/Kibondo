@@ -152,6 +152,8 @@ export const storeNotificationsApi = {
     return data;
   },
   markRead: async (id: string) => http.patch(`/notifications/${id}/read`),
+  saveFcmToken: async (token: string) => http.post('/auth/fcm-token', { fcm_token: token }),
+  deleteFcmToken: async () => http.delete('/auth/fcm-token'),
 };
 
 export const storeOrdersApi = {

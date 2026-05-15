@@ -16,7 +16,21 @@ class OrderDeliveredNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', 'mail', 'fcm'];
+    }
+
+    public function toFcm(object $notifiable): array
+    {
+        return [
+            'title' => 'Order Delivered',
+            'body'  => "Your order {$this->sale->sale_number} has been delivered — please confirm receipt",
+            'data'  => [
+                'type'        => 'order_delivered',
+                'sale_id'     => $this->sale->id,
+                'sale_number' => $this->sale->sale_number,
+                'url'         => "/store/orders/{$this->sale->id}",
+            ],
+        ];
     }
 
     public function toDatabase(object $notifiable): array

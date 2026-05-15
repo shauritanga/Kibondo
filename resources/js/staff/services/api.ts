@@ -304,6 +304,8 @@ export const notificationsApi = {
   },
   markRead: async (id: string) => http.patch(`/notifications/${id}/read`),
   markAllRead: async () => http.post('/notifications/read-all'),
+  saveFcmToken: async (token: string) => http.post('/auth/fcm-token', { fcm_token: token }),
+  deleteFcmToken: async () => http.delete('/auth/fcm-token'),
 };
 
 // ─── Users ───────────────────────────────────────────────────────────────────

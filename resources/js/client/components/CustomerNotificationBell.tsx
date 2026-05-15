@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { storeNotificationsApi, type CustomerNotification } from '../services/api';
+import { useFcm } from '../../shared/hooks/useFcm';
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -26,6 +27,14 @@ export function CustomerNotificationBell() {
       // Silently ignore
     }
   }
+
+  useFcm({
+    enabled: true,
+    onForegroundMessage: load,
+    onTokenObtained: async (token) => {
+      try { await storeNotificationsApi.saveFcmToken(token); } catch {}
+    },
+  });
 
   useEffect(() => {
     load();

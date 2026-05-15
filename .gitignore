@@ -26,6 +26,9 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+firebase-credentials.json
+/firebase-credentials.json
+
 
 # OS
 .DS_Store
@@ -44,6 +47,7 @@ package-lock.json
 /public/vendor
 /resources/views/scribe
 /config/scribe.php
+web.config
 
 # Test coverage
 /coverage

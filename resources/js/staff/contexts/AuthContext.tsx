@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { authApi } from '../services/api';
+import { authApi, notificationsApi } from '../services/api';
 import type { User } from '../types';
 
 interface AuthState {
@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
+    try { await notificationsApi.deleteFcmToken(); } catch {}
     try { await authApi.logout(); } catch {}
     localStorage.removeItem('kibondo_token');
     localStorage.removeItem('kibondo_user');

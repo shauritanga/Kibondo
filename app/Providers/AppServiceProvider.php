@@ -2,8 +2,10 @@
 
 namespace App\Providers;
 
+use App\Channels\FcmChannel;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
@@ -14,6 +16,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureRateLimiting();
+
+        $this->app->resolving(ChannelManager::class, function (ChannelManager $manager) {
+            $manager->extend('fcm', fn ($app) => $app->make(FcmChannel::class));
+        });
     }
 
     private function configureRateLimiting(): void

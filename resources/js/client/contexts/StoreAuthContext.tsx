@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { storeAuthApi, TOKEN_KEY, CUSTOMER_KEY, type StoreCustomer } from '../services/api';
+import { storeAuthApi, storeNotificationsApi, TOKEN_KEY, CUSTOMER_KEY, type StoreCustomer } from '../services/api';
 
 interface StoreAuthState {
   customer: StoreCustomer | null;
@@ -51,6 +51,7 @@ export function StoreAuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
+    try { await storeNotificationsApi.deleteFcmToken(); } catch {}
     try { await storeAuthApi.logout(); } catch {}
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(CUSTOMER_KEY);

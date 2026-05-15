@@ -20,6 +20,8 @@ class User extends Authenticatable
         'password',
         'role',
         'is_active',
+        'fcm_token',
+        'fcm_token_updated_at',
     ];
 
     protected $hidden = [
@@ -29,8 +31,9 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'password' => 'hashed',
-            'is_active' => 'boolean',
+            'password'             => 'hashed',
+            'is_active'            => 'boolean',
+            'fcm_token_updated_at' => 'datetime',
         ];
     }
 

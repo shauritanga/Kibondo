@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { notificationsApi } from '../services/api';
 import type { AppNotification } from '../types';
+import { useFcm } from '../../shared/hooks/useFcm';
 
 function timeAgo(dateStr: string): string {
   const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -29,6 +30,14 @@ export function NotificationBell() {
       // Silently ignore — notification polling failures should not disrupt the UI
     }
   }
+
+  useFcm({
+    enabled: true,
+    onForegroundMessage: load,
+    onTokenObtained: async (token) => {
+      try { await notificationsApi.saveFcmToken(token); } catch {}
+    },
+  });
 
   useEffect(() => {
     load();

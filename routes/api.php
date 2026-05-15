@@ -13,8 +13,10 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\FcmTokenController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Store\CustomerAuthController;
+use App\Http\Controllers\Store\CustomerFcmTokenController;
 use App\Http\Controllers\Store\CustomerNotificationController;
 use App\Http\Controllers\Store\OrderController;
 use App\Http\Controllers\Store\StoreController;
@@ -43,6 +45,8 @@ Route::prefix('store')->middleware(['auth.customer', 'throttle:store-api'])->gro
     Route::post('/orders/{sale}/confirm', [OrderController::class, 'confirm']);
     Route::get('/notifications', [CustomerNotificationController::class, 'index']);
     Route::patch('/notifications/{id}/read', [CustomerNotificationController::class, 'markRead']);
+    Route::post('/auth/fcm-token', [CustomerFcmTokenController::class, 'store']);
+    Route::delete('/auth/fcm-token', [CustomerFcmTokenController::class, 'destroy']);
 });
 
 // Authenticated
@@ -79,6 +83,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/sales/{sale}/deliver',  [SaleController::class, 'deliver'])->middleware('role:admin,delivery');
     Route::put('/sales/{sale}/status', [SaleController::class, 'updateStatus']);
     Route::apiResource('sales', SaleController::class)->except(['update']);
+
+    // FCM token management
+    Route::post('/auth/fcm-token', [FcmTokenController::class, 'store']);
+    Route::delete('/auth/fcm-token', [FcmTokenController::class, 'destroy']);
 
     // Staff notifications (read-all must precede {id} route)
     Route::post('/notifications/read-all',       [NotificationController::class, 'markAllRead']);

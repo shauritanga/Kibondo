@@ -18,16 +18,18 @@ class Customer extends Authenticatable
         'name', 'business_name', 'type', 'phone', 'alt_phone', 'email', 'password',
         'location', 'payment_terms', 'crm_stage', 'crm_score', 'next_follow_up',
         'outstanding_balance', 'credit_limit', 'total_spend',
+        'fcm_token', 'fcm_token_updated_at',
     ];
 
     protected $hidden = ['password', 'remember_token'];
 
     protected $casts = [
-        'crm_score'           => 'integer',
-        'outstanding_balance' => 'integer',
-        'credit_limit'        => 'integer',
-        'total_spend'         => 'integer',
-        'next_follow_up'      => 'date',
+        'crm_score'            => 'integer',
+        'outstanding_balance'  => 'integer',
+        'credit_limit'         => 'integer',
+        'total_spend'          => 'integer',
+        'next_follow_up'       => 'date',
+        'fcm_token_updated_at' => 'datetime',
     ];
 
     public function sales(): HasMany
