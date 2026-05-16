@@ -21,6 +21,7 @@ use App\Http\Controllers\Store\CustomerFcmTokenController;
 use App\Http\Controllers\Store\CustomerNotificationController;
 use App\Http\Controllers\Store\OrderController;
 use App\Http\Controllers\Store\StoreController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -32,6 +33,7 @@ Route::prefix('store')->middleware('throttle:store-api')->group(function () {
     Route::get('/products', [StoreController::class, 'products']);
     Route::get('/categories', [StoreController::class, 'categories']);
     Route::get('/delivery-zones', [DeliveryZoneController::class, 'publicIndex']);
+    Route::get('/settings/social-links', [SettingController::class, 'socialLinks']);
     Route::post('/auth/register', [CustomerAuthController::class, 'register'])->middleware('throttle:auth');
     Route::post('/auth/login', [CustomerAuthController::class, 'login'])->middleware('throttle:auth');
     Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:orders');
@@ -46,6 +48,8 @@ Route::prefix('store')->middleware(['auth.customer', 'throttle:store-api'])->gro
     Route::get('/orders/{sale}', [OrderController::class, 'show']);
     Route::post('/orders/{sale}/confirm', [OrderController::class, 'confirm']);
     Route::get('/notifications', [CustomerNotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [CustomerNotificationController::class, 'markAllRead']);
+    Route::delete('/notifications/read', [CustomerNotificationController::class, 'clearRead']);
     Route::patch('/notifications/{id}/read', [CustomerNotificationController::class, 'markRead']);
     Route::post('/auth/fcm-token', [CustomerFcmTokenController::class, 'store']);
     Route::delete('/auth/fcm-token', [CustomerFcmTokenController::class, 'destroy']);
@@ -68,6 +72,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('delivery-zones', [DeliveryZoneController::class, 'store']);
         Route::put('delivery-zones/{deliveryZone}', [DeliveryZoneController::class, 'update']);
         Route::delete('delivery-zones/{deliveryZone}', [DeliveryZoneController::class, 'destroy']);
+
+        Route::get('/settings', [SettingController::class, 'index']);
+        Route::put('/settings/social-links', [SettingController::class, 'updateSocialLinks']);
     });
 
     // Categories

@@ -5,7 +5,7 @@ import type {
   Sale, StockMovement, User
 } from '../types';
 
-const http = axios.create({ baseURL: '/api/v1' });
+export const http = axios.create({ baseURL: '/api/v1' });
 
 // Inject token on every request
 http.interceptors.request.use((config) => {

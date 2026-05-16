@@ -161,8 +161,22 @@ export const storeNotificationsApi = {
     return data;
   },
   markRead: async (id: string) => http.patch(`/notifications/${id}/read`),
+  markAllRead: async () => http.post('/notifications/read-all'),
+  clearRead: async () => http.delete('/notifications/read'),
   saveFcmToken: async (token: string) => http.post('/auth/fcm-token', { fcm_token: token }),
   deleteFcmToken: async () => http.delete('/auth/fcm-token'),
+};
+
+export interface StoreSocialLink {
+  label: string;
+  url: string;
+}
+
+export const storeSettingsApi = {
+  socialLinks: async (): Promise<StoreSocialLink[]> => {
+    const { data } = await http.get<StoreSocialLink[]>('/settings/social-links');
+    return data;
+  },
 };
 
 export const storeDeliveryZonesApi = {

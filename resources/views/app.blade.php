@@ -15,8 +15,9 @@
     <meta property="og:url" content="{{ config('app.url') }}" />
 
     <meta name="theme-color" content="#16a34a" />
+    <link rel="icon" href="/icon-192.png" type="image/png" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.json" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />

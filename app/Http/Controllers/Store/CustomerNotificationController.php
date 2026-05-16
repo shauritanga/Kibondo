@@ -36,4 +36,18 @@ class CustomerNotificationController extends Controller
 
         return response()->json(['message' => 'Notification marked as read.']);
     }
+
+    public function markAllRead(Request $request): JsonResponse
+    {
+        $request->user('customer')->unreadNotifications->markAsRead();
+
+        return response()->json(['message' => 'All notifications marked as read.']);
+    }
+
+    public function clearRead(Request $request): JsonResponse
+    {
+        $request->user('customer')->readNotifications()->delete();
+
+        return response()->json(['message' => 'Read notifications cleared.']);
+    }
 }

@@ -135,9 +135,7 @@ class SaleController extends Controller
             'table_name'  => 'sales',
         ]);
 
-        if ($sale->customer_id) {
-            $sale->refresh()->customer->notify(new OrderConfirmedNotification($sale));
-        }
+        $this->notifyBuyer($sale->refresh(), new OrderConfirmedNotification($sale));
 
         return response()->json(['data' => $sale->refresh()]);
     }
@@ -201,9 +199,7 @@ class SaleController extends Controller
             'table_name'  => 'sales',
         ]);
 
-        if ($sale->customer_id) {
-            $sale->customer->notify(new OrderDeliveredNotification($sale));
-        }
+        $this->notifyBuyer($sale, new OrderDeliveredNotification($sale));
 
         return response()->json(['data' => $sale]);
     }
@@ -236,11 +232,19 @@ class SaleController extends Controller
             'table_name'  => 'sales',
         ]);
 
-        if ($sale->customer_id) {
-            $sale->customer->notify(new OrderCancelledNotification($sale));
-        }
+        $this->notifyBuyer($sale, new OrderCancelledNotification($sale));
 
         return response()->json(['data' => $sale]);
+    }
+
+    private function notifyBuyer(Sale $sale, \Illuminate\Notifications\Notification $notification): void
+    {
+        if ($sale->customer_id) {
+            $sale->customer->notify($notification);
+        } elseif ($sale->guest_email) {
+            Notification::route('mail', [$sale->guest_email => $sale->guest_name ?? 'Customer'])
+                ->notify($notification);
+        }
     }
 
     public function destroy(Sale $sale): JsonResponse

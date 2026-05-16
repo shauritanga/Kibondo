@@ -16,13 +16,15 @@ export function CustomerNotificationBell() {
   const [open, setOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<CustomerNotification[]>([]);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   async function load() {
     try {
       const res = await storeNotificationsApi.list();
       setUnreadCount(res.unread_count);
-      setNotifications(res.data.slice(0, 8));
+      setNotifications(res.data.slice(0, 10));
     } catch {
       // Silently ignore
     }
@@ -52,12 +54,24 @@ export function CustomerNotificationBell() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [open]);
 
-  async function markAllRead() {
-    const unread = notifications.filter(n => !n.read_at);
-    setNotifications(prev => prev.map(n => n.read_at ? n : { ...n, read_at: new Date().toISOString() }));
-    setUnreadCount(0);
-    for (const n of unread) {
-      try { await storeNotificationsApi.markRead(n.id); } catch {}
+  async function handleMarkAllRead() {
+    setMarkingAll(true);
+    try {
+      await storeNotificationsApi.markAllRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
+      setUnreadCount(0);
+    } finally {
+      setMarkingAll(false);
+    }
+  }
+
+  async function handleClearRead() {
+    setClearing(true);
+    try {
+      await storeNotificationsApi.clearRead();
+      setNotifications(prev => prev.filter(n => !n.read_at));
+    } finally {
+      setClearing(false);
     }
   }
 
@@ -78,7 +92,6 @@ export function CustomerNotificationBell() {
         className="relative flex items-center justify-center w-9 h-9 rounded-lg border border-gray-200 text-gray-500 hover:text-green-700 hover:border-green-300 transition-colors"
         aria-label="Notifications"
       >
-        {/* Bell SVG */}
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
           <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -94,11 +107,26 @@ export function CustomerNotificationBell() {
         <div className="absolute right-0 top-11 w-72 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <span className="text-sm font-semibold text-gray-800">Notifications</span>
-            {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-xs text-green-600 font-medium hover:underline">
-                Mark all read
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  disabled={markingAll}
+                  className="text-xs text-green-600 font-medium hover:underline disabled:opacity-50"
+                >
+                  {markingAll ? 'Marking…' : 'Mark all read'}
+                </button>
+              )}
+              {notifications.some(n => n.read_at) && (
+                <button
+                  onClick={handleClearRead}
+                  disabled={clearing}
+                  className="text-xs text-gray-400 hover:text-gray-600 hover:underline disabled:opacity-50"
+                >
+                  {clearing ? 'Clearing…' : 'Clear read'}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
@@ -111,8 +139,10 @@ export function CustomerNotificationBell() {
                   onClick={() => handleClick(n)}
                   className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex gap-2.5 items-start"
                 >
-                  <span className="mt-1.5 shrink-0 w-2 h-2 rounded-full flex-none" style={{ background: n.read_at ? 'transparent' : '#22c55e' }} />
-                  <div>
+                  {!n.read_at && (
+                    <span className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-green-500 flex-none" />
+                  )}
+                  <div className={!n.read_at ? '' : 'ml-[18px]'}>
                     <p className="text-xs font-medium text-gray-800 leading-snug">{n.data.message}</p>
                     <p className="text-[11px] text-gray-400 mt-0.5">{timeAgo(n.created_at)}</p>
                   </div>

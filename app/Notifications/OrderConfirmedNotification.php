@@ -16,7 +16,9 @@ class OrderConfirmedNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail', 'fcm'];
+        return $notifiable instanceof \App\Models\Customer
+            ? ['database', 'mail', 'fcm']
+            : ['mail'];
     }
 
     public function toFcm(object $notifiable): array

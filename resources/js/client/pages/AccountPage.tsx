@@ -5,7 +5,7 @@ import { storeAuthApi } from '../services/api';
 import { StoreLayout } from '../components/StoreLayout';
 
 export function AccountPage() {
-  const { customer, updateCustomer } = useStoreAuth();
+  const { customer, updateCustomer, logout } = useStoreAuth();
 
   const [form, setForm] = useState({
     name:     customer?.name     ?? '',
@@ -122,6 +122,17 @@ export function AccountPage() {
               {saving ? 'Saving…' : 'Save changes'}
             </button>
           </form>
+        </div>
+
+        <div className="mt-6 bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h2 className="text-base font-bold text-gray-900 mb-1">Sign out</h2>
+          <p className="text-sm text-gray-500 mb-4">You'll need to sign in again to place orders or view your order history.</p>
+          <button
+            onClick={logout}
+            className="w-full border border-red-200 text-red-600 hover:bg-red-50 font-semibold py-2.5 rounded-xl transition-colors text-sm"
+          >
+            Sign out
+          </button>
         </div>
       </div>
     </StoreLayout>
