@@ -165,6 +165,17 @@ export interface Payment {
   created_at: string;
 }
 
+export interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  category: string;
+  expense_date: string;
+  user?: Pick<User, 'id' | 'name'>;
+  note?: string | null;
+  created_at: string;
+}
+
 export interface StockMovement {
   id: string;
   product_id: string;

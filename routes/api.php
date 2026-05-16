@@ -8,6 +8,7 @@ use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerNoteController;
 use App\Http\Controllers\CustomerTaskController;
 use App\Http\Controllers\DeliveryZoneController;
+use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\OfflineQueueController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
@@ -147,6 +148,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/',        [AuditController::class, 'index']);
         Route::get('/export',  [AuditController::class, 'export']);
         Route::get('/{auditLog}', [AuditController::class, 'show']);
+    });
+
+    // Expenses
+    Route::middleware('role:admin,accountant')->group(function () {
+        Route::apiResource('expenses', ExpenseController::class);
     });
 
     // Reports

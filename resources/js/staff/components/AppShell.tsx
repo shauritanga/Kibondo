@@ -9,6 +9,7 @@ import {
   Moon,
   Package,
   PanelLeft,
+  Receipt,
   Settings,
   ShoppingCart,
   Sun,
@@ -26,16 +27,17 @@ import { useTheme } from '../contexts/ThemeContext';
 import { NotificationBell } from './NotificationBell';
 
 const navItems = [
-  { label: 'Dashboard',   path: '/',            icon: Home,          adminOnly: false },
-  { label: 'Sales',       path: '/pos',          icon: ShoppingCart,  adminOnly: false },
-  { label: 'Customers',   path: '/customers',    icon: Users,         adminOnly: false },
-  { label: 'Campaigns',   path: '/campaigns',    icon: Mail,          adminOnly: false },
-  { label: 'Packages',        path: '/products',         icon: Package,       adminOnly: false },
-  { label: 'Warehouse',       path: '/warehouse',        icon: Warehouse,     adminOnly: false },
-  { label: 'Delivery Zones',  path: '/delivery-zones',   icon: Truck,         adminOnly: true  },
-  { label: 'Reports',         path: '/reports',          icon: BarChart3,     adminOnly: false },
-  { label: 'Users & Roles',   path: '/users',            icon: Settings,      adminOnly: false },
-  { label: 'Audit Logs',      path: '/audit-logs',       icon: ClipboardList, adminOnly: true  },
+  { label: 'Dashboard',      path: '/',               icon: Home,          adminOnly: false, roles: null },
+  { label: 'Sales',          path: '/pos',             icon: ShoppingCart,  adminOnly: false, roles: null },
+  { label: 'Customers',      path: '/customers',       icon: Users,         adminOnly: false, roles: null },
+  { label: 'Campaigns',      path: '/campaigns',       icon: Mail,          adminOnly: false, roles: null },
+  { label: 'Packages',       path: '/products',        icon: Package,       adminOnly: false, roles: null },
+  { label: 'Warehouse',      path: '/warehouse',       icon: Warehouse,     adminOnly: false, roles: null },
+  { label: 'Delivery Zones', path: '/delivery-zones',  icon: Truck,         adminOnly: true,  roles: null },
+  { label: 'Expenses',       path: '/expenses',        icon: Receipt,       adminOnly: false, roles: ['admin', 'accountant'] },
+  { label: 'Reports',        path: '/reports',         icon: BarChart3,     adminOnly: false, roles: null },
+  { label: 'Users & Roles',  path: '/users',           icon: Settings,      adminOnly: false, roles: null },
+  { label: 'Audit Logs',     path: '/audit-logs',      icon: ClipboardList, adminOnly: true,  roles: null },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -109,7 +111,11 @@ export function AppShell({ children }: { children: ReactNode }) {
 
           {/* Nav */}
           <nav className="flex-1 space-y-1">
-            {navItems.filter(item => !item.adminOnly || user?.role === 'admin').map((item) => (
+            {navItems.filter(item => {
+              if (item.roles) return item.roles.includes(user?.role ?? '');
+              if (item.adminOnly) return user?.role === 'admin';
+              return true;
+            }).map((item) => (
               <NavLink
                 key={item.label}
                 to={item.path}

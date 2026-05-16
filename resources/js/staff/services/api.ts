@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type {
   AppNotification, AuditLog, Campaign, Category, Customer, CustomerNote, CustomerTask,
-  DashboardData, DeliveryZone, Material, MaterialMovement, PackagingRun, Paginated,
+  DashboardData, DeliveryZone, Expense, Material, MaterialMovement, PackagingRun, Paginated,
   Payment, Product, ProductRecipe, Sale, StockMovement, User
 } from '../types';
 
@@ -388,6 +388,29 @@ export const packagingRunsApi = {
     const { data } = await http.post<{ data: { packaging_run: PackagingRun; product_stock_after: number; material_stock_after: number } }>('/packaging-runs', payload);
     return data.data;
   },
+};
+
+// ─── Expenses ────────────────────────────────────────────────────────────────
+export const expensesApi = {
+  list: async (params?: { category?: string; from?: string; to?: string; page?: number }) => {
+    const { data } = await http.get<{
+      data: Expense[];
+      current_page: number;
+      last_page: number;
+      total: number;
+      summary: { total_amount: number; by_category: Record<string, number> };
+    }>('/expenses', { params });
+    return data;
+  },
+  create: async (payload: { description: string; amount: number; category: string; expense_date: string; note?: string }) => {
+    const { data } = await http.post<{ data: Expense }>('/expenses', payload);
+    return data.data;
+  },
+  update: async (id: string, payload: Partial<{ description: string; amount: number; category: string; expense_date: string; note: string | null }>) => {
+    const { data } = await http.put<{ data: Expense }>(`/expenses/${id}`, payload);
+    return data.data;
+  },
+  delete: async (id: string) => http.delete(`/expenses/${id}`),
 };
 
 // ─── Settings ────────────────────────────────────────────────────────────────

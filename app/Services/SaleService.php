@@ -4,12 +4,16 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\Sale;
+use App\Services\MaterialService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SaleService
 {
-    public function __construct(private StockService $stock) {}
+    public function __construct(
+        private StockService $stock,
+        private MaterialService $materials,
+    ) {}
 
     public function createSale(array $data, ?string $userId): Sale
     {
@@ -68,6 +72,24 @@ class SaleService
                 ]);
 
                 $this->stock->stockOut($product, $item['quantity'], $userId, $sale->id);
+
+                $product->loadMissing('recipe.material');
+                if ($product->recipe && $product->recipe->material) {
+                    $toConsume = (int) round($item['quantity'] * $product->recipe->quantity_per_unit);
+                    if ($toConsume > 0) {
+                        try {
+                            $this->materials->consume(
+                                $product->recipe->material,
+                                $toConsume,
+                                $userId,
+                                $sale->id,
+                                "Auto-consumed from sale {$sale->sale_number}"
+                            );
+                        } catch (\InvalidArgumentException) {
+                            // Material stock already at zero — don't block the sale
+                        }
+                    }
+                }
             }
 
             // Update customer total spend
