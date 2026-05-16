@@ -52,6 +52,8 @@ export interface StoreProduct {
   description?: string | null;
   unit: string;
   price: number;
+  promo_price?: number | null;
+  promo_percent?: number | null;
   stock_qty: number;
   category_id: string;
   category_name: string;

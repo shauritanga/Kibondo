@@ -217,7 +217,14 @@ export function StorePage() {
                       <span className="text-[10px] bg-green-50 text-green-700 font-medium px-2 py-0.5 rounded-full self-start leading-tight">{p.category_name}</span>
                       <Link to={`/store/products/${p.id}`} className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2 hover:text-green-700 transition-colors">{p.name}</Link>
                       <p className="text-xs text-gray-400">{p.unit}</p>
-                      <p className="text-green-700 font-bold text-sm mt-auto">{formatMoney(p.price)}</p>
+                      {p.promo_price ? (
+                        <div className="flex items-baseline gap-1.5 mt-auto flex-wrap">
+                          <span className="text-green-700 font-bold text-sm">{formatMoney(p.promo_price)}</span>
+                          <span className="text-xs text-gray-400 line-through">{formatMoney(p.price)}</span>
+                        </div>
+                      ) : (
+                        <p className="text-green-700 font-bold text-sm mt-auto">{formatMoney(p.price)}</p>
+                      )}
 
                       {outOfStock ? (
                         <button disabled className="mt-1 w-full bg-gray-100 text-gray-400 text-xs font-medium py-2 rounded-lg cursor-not-allowed">

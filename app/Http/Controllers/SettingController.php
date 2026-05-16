@@ -32,4 +32,16 @@ class SettingController extends Controller
 
         return response()->json(['message' => 'Social links saved.']);
     }
+
+    public function getPromo(): JsonResponse
+    {
+        return response()->json(['promo_percentage' => (int) Setting::get('promo_percentage', '0')]);
+    }
+
+    public function updatePromo(Request $request): JsonResponse
+    {
+        $request->validate(['promo_percentage' => 'required|integer|min:0|max:99']);
+        Setting::set('promo_percentage', (string) $request->promo_percentage);
+        return response()->json(['message' => 'Promo updated.']);
+    }
 }

@@ -14,6 +14,7 @@ use App\Models\Customer;
 use App\Models\User;
 use App\Notifications\DeliveryConfirmedNotification;
 use App\Notifications\OrderPlacedNotification;
+use App\Models\Setting;
 use App\Services\SaleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -38,7 +39,9 @@ class OrderController extends Controller
             $customer = null;
         }
 
-        $items = collect($request->items)->map(function ($item) use ($customer) {
+        $promoPercent = (int) Setting::get('promo_percentage', '0');
+
+        $items = collect($request->items)->map(function ($item) use ($customer, $promoPercent) {
             $product = Product::where('id', $item['product_id'])
                 ->where('is_active', true)
                 ->firstOrFail();
@@ -55,10 +58,14 @@ class OrderController extends Controller
                 ]);
             }
 
+            $unitPrice = $promoPercent > 0
+                ? (int) round($product->price * (1 - $promoPercent / 100))
+                : $product->price;
+
             return [
                 'product_id' => $product->id,
                 'quantity'   => $item['quantity'],
-                'unit_price' => $product->price,
+                'unit_price' => $unitPrice,
             ];
         })->toArray();
 

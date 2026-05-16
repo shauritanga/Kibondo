@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { AlertTriangle, Bell, Building2, DatabaseBackup, Globe, ShieldAlert, Zap } from 'lucide-react';
+import { AlertTriangle, Bell, Building2, DatabaseBackup, Globe, Percent, ShieldAlert, Zap } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { FormInput } from '../components/FormInput';
 import { ErrorBanner } from '../components/ErrorBanner';
-import { http } from '../services/api';
+import { http, settingsApi } from '../services/api';
 
 function SectionTitle({ icon: Icon, title }: { icon: typeof Bell; title: string }) {
   return (
@@ -74,8 +74,15 @@ export function SettingsPage() {
   const [socialSuccess, setSocialSuccess] = useState('');
   const [socialError, setSocialError] = useState('');
 
+  // Promo discount
+  const [promoPercent, setPromoPercent] = useState('0');
+  const [promoSaving, setPromoSaving] = useState(false);
+  const [promoSuccess, setPromoSuccess] = useState('');
+  const [promoError, setPromoError] = useState('');
+
   useEffect(() => {
     http.get('/settings').then(res => setSocialLinks(res.data.social_links ?? [])).catch(() => {});
+    settingsApi.getPromo().then(d => setPromoPercent(String(d.promo_percentage))).catch(() => {});
   }, []);
 
   async function saveSocialLinks(e: FormEvent) {
@@ -101,6 +108,21 @@ export function SettingsPage() {
 
   function updateSocialLink(i: number, field: 'label' | 'url', value: string) {
     setSocialLinks(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: value } : l));
+  }
+
+  async function savePromo(e: FormEvent) {
+    e.preventDefault();
+    setPromoSaving(true); setPromoSuccess(''); setPromoError('');
+    try {
+      const pct = Math.max(0, Math.min(99, parseInt(promoPercent) || 0));
+      await settingsApi.updatePromo(pct);
+      setPromoPercent(String(pct));
+      setPromoSuccess(pct === 0 ? 'Promotion disabled.' : `${pct}% discount is now live on the store.`);
+    } catch {
+      setPromoError('Failed to save. Please try again.');
+    } finally {
+      setPromoSaving(false);
+    }
   }
 
   async function saveCompany(e: FormEvent) {
@@ -254,6 +276,48 @@ export function SettingsPage() {
                 {socialSaving ? 'Saving…' : 'Save links'}
               </button>
             </div>
+          </form>
+        </div>
+
+        {/* Storewide promotion */}
+        <div className="card px-5 py-4 lg:col-span-2">
+          <SectionTitle icon={Percent} title="Storewide promotion" />
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4 -mt-2">
+            Set a discount percentage to apply to all products on the store. Set to 0 to disable.
+          </p>
+          {promoError && <ErrorBanner message={promoError} />}
+          {promoSuccess && (
+            <div className="mb-4 rounded-lg bg-green-50 px-4 py-2.5 text-xs font-semibold text-green-700 dark:bg-green-900/20 dark:text-green-400">
+              {promoSuccess}
+            </div>
+          )}
+          <form onSubmit={savePromo} className="flex items-end gap-4">
+            <div className="w-40">
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Discount (%)</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={promoPercent}
+                  onChange={e => setPromoPercent(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 pr-8 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-green"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">%</span>
+              </div>
+            </div>
+            {parseInt(promoPercent) > 0 && (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 pb-2">
+                e.g. TZS 10,000 → <strong className="text-green-700">TZS {(10000 * (1 - parseInt(promoPercent) / 100)).toLocaleString()}</strong>
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={promoSaving}
+              className="h-9 rounded-lg bg-brand-green px-5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {promoSaving ? 'Saving…' : parseInt(promoPercent) > 0 ? 'Apply discount' : 'Save (disable)'}
+            </button>
           </form>
         </div>
 

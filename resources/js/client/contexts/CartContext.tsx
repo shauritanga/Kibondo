@@ -6,6 +6,7 @@ export interface CartSnapshot {
   name: string;
   unit: string;
   price: number;
+  promo_price?: number | null;
   image_url?: string | null;
 }
 
@@ -15,7 +16,7 @@ export interface CartItem {
 }
 
 export function toCartSnapshot(p: StoreProduct): CartSnapshot {
-  return { id: p.id, name: p.name, unit: p.unit, price: p.price, image_url: p.image_url };
+  return { id: p.id, name: p.name, unit: p.unit, price: p.price, promo_price: p.promo_price, image_url: p.image_url };
 }
 
 interface CartState {
@@ -82,7 +83,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
-  const cartTotal = cart.reduce((sum, i) => sum + i.product.price * i.quantity, 0);
+  const cartTotal = cart.reduce((sum, i) => sum + (i.product.promo_price ?? i.product.price) * i.quantity, 0);
 
   return (
     <CartContext.Provider value={{ cart, addToCart, updateQty, clearCart, cartCount, cartTotal }}>

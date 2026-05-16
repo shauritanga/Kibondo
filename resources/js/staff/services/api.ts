@@ -390,6 +390,18 @@ export const packagingRunsApi = {
   },
 };
 
+// ─── Settings ────────────────────────────────────────────────────────────────
+export const settingsApi = {
+  getPromo: async () => {
+    const { data } = await http.get<{ promo_percentage: number }>('/store/settings/promo');
+    return data;
+  },
+  updatePromo: async (promoPercentage: number) => {
+    const { data } = await http.put('/settings/promo', { promo_percentage: promoPercentage });
+    return data;
+  },
+};
+
 // ─── Audit Logs ──────────────────────────────────────────────────────────────
 export const auditApi = {
   list: async (params?: Record<string, unknown>) => {

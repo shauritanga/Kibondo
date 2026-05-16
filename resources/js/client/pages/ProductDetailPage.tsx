@@ -110,7 +110,21 @@ export function ProductDetailPage() {
                 {product.name}
               </h1>
 
-              <p className="text-2xl font-bold text-green-700">{formatMoney(product.price)}</p>
+              {product.promo_price ? (
+                <div className="space-y-1">
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-2xl font-bold text-green-700">{formatMoney(product.promo_price)}</span>
+                    <span className="text-base text-gray-400 line-through">{formatMoney(product.price)}</span>
+                  </div>
+                  {product.promo_percent && (
+                    <span className="inline-block bg-red-50 text-red-600 text-xs font-bold px-2.5 py-1 rounded-full">
+                      {product.promo_percent}% OFF
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="text-2xl font-bold text-green-700">{formatMoney(product.price)}</p>
+              )}
 
               <p className="text-sm text-gray-400">per {product.unit}</p>
 

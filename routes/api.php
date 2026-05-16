@@ -38,6 +38,7 @@ Route::prefix('store')->middleware('throttle:store-api')->group(function () {
     Route::get('/categories', [StoreController::class, 'categories']);
     Route::get('/delivery-zones', [DeliveryZoneController::class, 'publicIndex']);
     Route::get('/settings/social-links', [SettingController::class, 'socialLinks']);
+    Route::get('/settings/promo', [SettingController::class, 'getPromo']);
     Route::post('/auth/register', [CustomerAuthController::class, 'register'])->middleware('throttle:auth');
     Route::post('/auth/login', [CustomerAuthController::class, 'login'])->middleware('throttle:auth');
     Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:orders');
@@ -79,6 +80,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings/social-links', [SettingController::class, 'updateSocialLinks']);
+        Route::put('/settings/promo', [SettingController::class, 'updatePromo']);
     });
 
     // Categories
