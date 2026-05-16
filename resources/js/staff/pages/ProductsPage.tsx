@@ -12,12 +12,12 @@ import { categoriesApi, formatMoney, materialsApi, packagingRunsApi, productsApi
 import type { Category, Material, Product } from '../types';
 
 type ProductForm = {
-  name: string; category_id: string;
+  name: string; category_id: string; description: string;
   price: string; stock_qty: string; min_stock: string;
 };
 
 const emptyForm: ProductForm = {
-  name: '', category_id: '',
+  name: '', category_id: '', description: '',
   price: '', stock_qty: '', min_stock: '',
 };
 
@@ -116,6 +116,7 @@ export function ProductsPage() {
     setForm({
       name: product.name,
       category_id: product.category_id,
+      description: product.description ?? '',
       price: String(product.price),
       stock_qty: String(product.stock_qty),
       min_stock: String(product.min_stock),
@@ -142,6 +143,7 @@ export function ProductsPage() {
         : editingProduct.unit;
       await productsApi.update(editingProduct.id, {
         name: form.name.trim(), category_id: form.category_id,
+        description: form.description.trim() || null,
         unit,
         price: Math.round(Number(form.price) || 0),
         stock_qty: Math.round(Number(form.stock_qty) || 0),
@@ -195,6 +197,7 @@ export function ProductsPage() {
         : 'unit';
       const created = await productsApi.create({
         name: form.name.trim(), category_id: form.category_id,
+        description: form.description.trim() || null,
         unit,
         price: Math.round(Number(form.price) || 0),
         cost_price: 0,
@@ -475,6 +478,20 @@ export function ProductsPage() {
                   placeholder="e.g. Fresh Avocados Grade C"
                   autoFocus
                 />
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                    Description <span className="font-normal text-slate-400">(optional — shown to customers)</span>
+                  </label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => updateField('description', e.target.value)}
+                    placeholder="e.g. Hand-picked fresh avocados, perfect for salads and guacamole."
+                    rows={3}
+                    maxLength={2000}
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700/50 px-3 py-2 text-xs text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-green resize-none"
+                  />
+                </div>
 
                 <FormSelect label="Category" value={form.category_id} onChange={(e) => updateField('category_id', e.target.value)}>
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}

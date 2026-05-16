@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { StoreLayout } from '../components/StoreLayout';
 import { storeCatalogApi, type StoreCategory, type StoreProduct, formatMoney } from '../services/api';
 import { useCart } from '../contexts/CartContext';
@@ -198,7 +199,7 @@ export function StorePage() {
                 return (
                   <div key={p.id} className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden hover:shadow-md transition-shadow">
                     {/* Image area */}
-                    <div className="relative">
+                    <Link to={`/store/products/${p.id}`} className="relative block">
                       {p.image_url ? (
                         <img src={p.image_url} alt={p.name} className="w-full h-36 object-cover" />
                       ) : (
@@ -209,12 +210,12 @@ export function StorePage() {
                           <span className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">Out of stock</span>
                         </div>
                       )}
-                    </div>
+                    </Link>
 
                     {/* Card content */}
                     <div className="p-3 flex flex-col flex-1 gap-1.5">
                       <span className="text-[10px] bg-green-50 text-green-700 font-medium px-2 py-0.5 rounded-full self-start leading-tight">{p.category_name}</span>
-                      <p className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">{p.name}</p>
+                      <Link to={`/store/products/${p.id}`} className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2 hover:text-green-700 transition-colors">{p.name}</Link>
                       <p className="text-xs text-gray-400">{p.unit}</p>
                       <p className="text-green-700 font-bold text-sm mt-auto">{formatMoney(p.price)}</p>
 

@@ -25,6 +25,7 @@ export interface Product {
   category_id: string;
   category?: Category;
   name: string;
+  description?: string | null;
   image_url?: string | null;
   unit: string;
   price: number;

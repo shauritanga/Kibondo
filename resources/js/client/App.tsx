@@ -12,6 +12,7 @@ import { OrdersPage } from './pages/OrdersPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { AccountPage } from './pages/AccountPage';
 import { CartPage } from './pages/CartPage';
+import { ProductDetailPage } from './pages/ProductDetailPage';
 
 export default function App() {
   return (
@@ -19,7 +20,8 @@ export default function App() {
       <StoreAuthProvider>
         <CartProvider>
           <Routes>
-            <Route path="/store"          element={<StorePage />} />
+            <Route path="/store"                element={<StorePage />} />
+            <Route path="/store/products/:id"  element={<ProductDetailPage />} />
             <Route path="/store/login"    element={<StoreLoginPage />} />
             <Route path="/store/register" element={<StoreRegisterPage />} />
             <Route path="/store/cart"         element={<CartPage />} />

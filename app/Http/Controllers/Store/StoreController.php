@@ -49,6 +49,17 @@ class StoreController extends Controller
         ]);
     }
 
+    public function show(Product $product): JsonResponse
+    {
+        if (! $product->is_active) {
+            abort(404);
+        }
+
+        $product->load('category');
+
+        return response()->json(['data' => new StoreProductResource($product)]);
+    }
+
     public function categories(): JsonResponse
     {
         return response()->json([

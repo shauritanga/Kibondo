@@ -34,6 +34,7 @@ Route::post('/auth/login', [AuthController::class, 'login'])->middleware('thrott
 // ─── Storefront – public ──────────────────────────────────────────────────────
 Route::prefix('store')->middleware('throttle:store-api')->group(function () {
     Route::get('/products', [StoreController::class, 'products']);
+    Route::get('/products/{product}', [StoreController::class, 'show']);
     Route::get('/categories', [StoreController::class, 'categories']);
     Route::get('/delivery-zones', [DeliveryZoneController::class, 'publicIndex']);
     Route::get('/settings/social-links', [SettingController::class, 'socialLinks']);

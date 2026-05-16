@@ -49,6 +49,7 @@ export interface StoreCustomer {
 export interface StoreProduct {
   id: string;
   name: string;
+  description?: string | null;
   unit: string;
   price: number;
   stock_qty: number;
@@ -125,6 +126,10 @@ export const storeCatalogApi = {
   products: async (params?: { category_id?: string; search?: string; page?: number; sort?: string }) => {
     const { data } = await http.get<ProductsResponse>('/products', { params });
     return data;
+  },
+  product: async (id: string) => {
+    const { data } = await http.get<{ data: StoreProduct }>(`/products/${id}`);
+    return data.data;
   },
   categories: async () => {
     const { data } = await http.get<{ data: StoreCategory[] }>('/categories');
