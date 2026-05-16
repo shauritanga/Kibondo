@@ -41,6 +41,7 @@ export function WarehousePage() {
   // Movement recording modal
   const [movementModal, setMovementModal] = useState<MovementModalState>(null);
   const [movQty, setMovQty] = useState('');
+  const [movCostPerUnit, setMovCostPerUnit] = useState('');
   const [movNote, setMovNote] = useState('');
   const [movSaving, setMovSaving] = useState(false);
   const [movError, setMovError] = useState('');
@@ -109,6 +110,7 @@ export function WarehousePage() {
   function openMovement(material: Material, type: 'purchase' | 'adjusted' | 'damaged') {
     setMovementModal({ material, type });
     setMovQty('');
+    setMovCostPerUnit(type === 'purchase' ? String(material.cost_per_unit) : '');
     setMovNote('');
     setMovError('');
   }
@@ -120,9 +122,11 @@ export function WarehousePage() {
     try {
       const qty = parseInt(movQty);
       if (!qty || qty < 1) { setMovError('Quantity must be at least 1.'); setMovSaving(false); return; }
+      const unitCost = movementModal.type === 'purchase' ? parseInt(movCostPerUnit) || undefined : undefined;
       await materialsApi.recordMovement(movementModal.material.id, {
         movement_type: movementModal.type,
         quantity: qty,
+        unit_cost: unitCost,
         note: movNote || undefined,
       });
       setMovementModal(null);
@@ -359,6 +363,32 @@ export function WarehousePage() {
                   </p>
                 )}
               </div>
+              {movementModal.type === 'purchase' && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                    Cost per {movementModal.material.unit} (TZS)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={movCostPerUnit}
+                    onChange={e => setMovCostPerUnit(e.target.value)}
+                    placeholder="0"
+                    className="w-full rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-green"
+                  />
+                  {movQty && movCostPerUnit && parseInt(movCostPerUnit) !== movementModal.material.cost_per_unit && (
+                    <p className="mt-1 text-[11px] text-amber-600">
+                      New avg cost:{' '}
+                      {(() => {
+                        const existing = movementModal.material.stock_qty * movementModal.material.cost_per_unit;
+                        const incoming = parseInt(movQty) * parseInt(movCostPerUnit);
+                        const total = movementModal.material.stock_qty + parseInt(movQty);
+                        return total > 0 ? Math.round((existing + incoming) / total).toLocaleString() : parseInt(movCostPerUnit).toLocaleString();
+                      })()} TZS/{movementModal.material.unit}
+                    </p>
+                  )}
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Note (optional)</label>
                 <input

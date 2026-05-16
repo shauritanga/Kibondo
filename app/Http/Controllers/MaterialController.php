@@ -89,13 +89,14 @@ class MaterialController extends Controller
         $data = $request->validate([
             'movement_type' => 'required|in:purchase,adjusted,damaged',
             'quantity'      => 'required|integer|min:1',
+            'unit_cost'     => 'nullable|integer|min:0',
             'note'          => 'nullable|string|max:500',
         ]);
 
         $userId = $request->user()->id;
 
         $movement = match ($data['movement_type']) {
-            'purchase' => $this->service->purchase($material, $data['quantity'], $userId, $data['note'] ?? null),
+            'purchase' => $this->service->purchase($material, $data['quantity'], $userId, $data['note'] ?? null, $data['unit_cost'] ?? null),
             'adjusted' => $this->service->adjust($material, $data['quantity'], $userId, $data['note'] ?? null),
             'damaged'  => $this->service->damaged($material, $data['quantity'], $userId, $data['note'] ?? null),
         };

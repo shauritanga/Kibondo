@@ -363,7 +363,7 @@ export const materialsApi = {
     const { data } = await http.get<Paginated<MaterialMovement>>(`/materials/${id}/movements`);
     return data;
   },
-  recordMovement: async (id: string, payload: { movement_type: 'purchase' | 'adjusted' | 'damaged'; quantity: number; note?: string }) => {
+  recordMovement: async (id: string, payload: { movement_type: 'purchase' | 'adjusted' | 'damaged'; quantity: number; unit_cost?: number; note?: string }) => {
     const { data } = await http.post<{ movement: MaterialMovement; stock_qty_after: number }>(`/materials/${id}/movements`, payload);
     return data;
   },

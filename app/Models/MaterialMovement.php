@@ -19,6 +19,7 @@ class MaterialMovement extends Model
         'quantity',
         'quantity_before',
         'quantity_after',
+        'unit_cost',
         'reference_id',
         'note',
     ];
@@ -27,6 +28,7 @@ class MaterialMovement extends Model
         'quantity'        => 'integer',
         'quantity_before' => 'integer',
         'quantity_after'  => 'integer',
+        'unit_cost'       => 'integer',
     ];
 
     public function material(): BelongsTo

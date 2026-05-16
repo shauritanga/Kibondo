@@ -14,9 +14,10 @@ class MaterialService
         int $quantity,
         ?string $userId,
         ?string $referenceId = null,
-        ?string $note = null
+        ?string $note = null,
+        ?int $unitCost = null
     ): MaterialMovement {
-        return DB::transaction(function () use ($material, $type, $quantity, $userId, $referenceId, $note) {
+        return DB::transaction(function () use ($material, $type, $quantity, $userId, $referenceId, $note, $unitCost) {
             $before = $material->stock_qty;
             $after  = $before + $quantity;
 
@@ -33,6 +34,7 @@ class MaterialService
                 'quantity'        => $quantity,
                 'quantity_before' => $before,
                 'quantity_after'  => $after,
+                'unit_cost'       => $unitCost,
                 'reference_id'    => $referenceId,
                 'note'            => $note,
             ]);
@@ -43,9 +45,18 @@ class MaterialService
         });
     }
 
-    public function purchase(Material $material, int $qty, ?string $userId, ?string $note = null): MaterialMovement
+    public function purchase(Material $material, int $qty, ?string $userId, ?string $note = null, ?int $unitCost = null): MaterialMovement
     {
-        return $this->recordMovement($material, 'purchase', abs($qty), $userId, null, $note);
+        if ($unitCost !== null) {
+            $totalQty = $material->stock_qty + abs($qty);
+            $newCost = $totalQty > 0
+                ? (int) round(($material->stock_qty * $material->cost_per_unit + abs($qty) * $unitCost) / $totalQty)
+                : $unitCost;
+            $material->update(['cost_per_unit' => $newCost]);
+            $material->refresh();
+        }
+
+        return $this->recordMovement($material, 'purchase', abs($qty), $userId, null, $note, $unitCost);
     }
 
     public function consume(Material $material, int $qty, ?string $userId, ?string $referenceId = null, ?string $note = null): MaterialMovement
