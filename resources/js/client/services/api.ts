@@ -86,10 +86,19 @@ export interface StoreOrderItem {
 export interface StoreOrderDetail extends StoreOrderSummary {
   subtotal: number;
   discount_amount: number;
+  delivery_cost: number | null;
   delivery_address: string | null;
+  billing_address: string | null;
+  payment_method: string | null;
   assigned_to_name: string | null;
   customer_feedback: string | null;
   items: StoreOrderItem[];
+}
+
+export interface StoreDeliveryZone {
+  id: string;
+  name: string;
+  delivery_cost: number;
 }
 
 export interface CustomerNotification {
@@ -113,7 +122,7 @@ export interface ProductsResponse {
 }
 
 export const storeCatalogApi = {
-  products: async (params?: { category_id?: string; search?: string; page?: number }) => {
+  products: async (params?: { category_id?: string; search?: string; page?: number; sort?: string }) => {
     const { data } = await http.get<ProductsResponse>('/products', { params });
     return data;
   },
@@ -156,9 +165,26 @@ export const storeNotificationsApi = {
   deleteFcmToken: async () => http.delete('/auth/fcm-token'),
 };
 
+export const storeDeliveryZonesApi = {
+  list: async () => {
+    const { data } = await http.get<{ data: StoreDeliveryZone[] }>('/delivery-zones');
+    return data.data;
+  },
+};
+
 export const storeOrdersApi = {
-  place: async (payload: { delivery_address: string; items: { product_id: string; quantity: number }[] }) => {
-    const { data } = await http.post<{ sale_number: string; total_amount: number; message: string }>('/orders', payload);
+  place: async (payload: {
+    delivery_address: string;
+    delivery_zone_id?: string;
+    guest_name?: string;
+    guest_email?: string;
+    guest_phone?: string;
+    guest_company?: string;
+    billing_address?: string;
+    payment_method?: 'cash' | 'selcom';
+    items: { product_id: string; quantity: number }[];
+  }) => {
+    const { data } = await http.post<{ sale_number: string; total_amount: number; payment_method: string; message: string }>('/orders', payload);
     return data;
   },
   list: async () => {

@@ -11,6 +11,7 @@ import {
   Settings,
   ShoppingCart,
   Sun,
+  Truck,
   User,
   Users,
   X
@@ -27,10 +28,11 @@ const navItems = [
   { label: 'Sales',       path: '/pos',          icon: ShoppingCart,  adminOnly: false },
   { label: 'Customers',   path: '/customers',    icon: Users,         adminOnly: false },
   { label: 'Campaigns',   path: '/campaigns',    icon: Mail,          adminOnly: false },
-  { label: 'Stock',       path: '/products',     icon: Boxes,         adminOnly: false },
-  { label: 'Reports',     path: '/reports',      icon: BarChart3,     adminOnly: false },
-  { label: 'Users & Roles', path: '/users',      icon: Settings,      adminOnly: false },
-  { label: 'Audit Logs',  path: '/audit-logs',   icon: ClipboardList, adminOnly: true  },
+  { label: 'Stock',           path: '/products',         icon: Boxes,         adminOnly: false },
+  { label: 'Delivery Zones',  path: '/delivery-zones',   icon: Truck,         adminOnly: true  },
+  { label: 'Reports',         path: '/reports',          icon: BarChart3,     adminOnly: false },
+  { label: 'Users & Roles',   path: '/users',            icon: Settings,      adminOnly: false },
+  { label: 'Audit Logs',      path: '/audit-logs',       icon: ClipboardList, adminOnly: true  },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -86,8 +88,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           {/* Header */}
           <div className="mb-7 flex items-center justify-between">
             <div className="flex min-w-0 items-center gap-3">
-              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-green text-base font-black text-white shadow-lg shadow-green-900/20">
-                KG
+              <div className="shrink-0 h-10 w-10 rounded-xl overflow-hidden shadow-lg shadow-green-900/20">
+                <img src="/kibodo-logo.png" alt="Kibondo" className="h-full w-full object-contain" />
               </div>
               <div className={clsx(
                 'min-w-0 overflow-hidden transition-[opacity,max-width] duration-300 ease-in-out',

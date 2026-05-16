@@ -11,6 +11,7 @@ import { ConfirmationPage } from './pages/ConfirmationPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { OrderDetailPage } from './pages/OrderDetailPage';
 import { AccountPage } from './pages/AccountPage';
+import { CartPage } from './pages/CartPage';
 
 export default function App() {
   return (
@@ -21,8 +22,9 @@ export default function App() {
             <Route path="/store"          element={<StorePage />} />
             <Route path="/store/login"    element={<StoreLoginPage />} />
             <Route path="/store/register" element={<StoreRegisterPage />} />
-            <Route path="/store/checkout"     element={<StoreRequireAuth><CheckoutPage /></StoreRequireAuth>} />
-            <Route path="/store/confirmation" element={<StoreRequireAuth><ConfirmationPage /></StoreRequireAuth>} />
+            <Route path="/store/cart"         element={<CartPage />} />
+            <Route path="/store/checkout"     element={<CheckoutPage />} />
+            <Route path="/store/confirmation" element={<ConfirmationPage />} />
             <Route path="/store/orders"       element={<StoreRequireAuth><OrdersPage /></StoreRequireAuth>} />
             <Route path="/store/orders/:id"   element={<StoreRequireAuth><OrderDetailPage /></StoreRequireAuth>} />
             <Route path="/store/account"      element={<StoreRequireAuth><AccountPage /></StoreRequireAuth>} />

@@ -13,6 +13,7 @@ use App\Services\AuditService;
 use App\Services\SaleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 class SaleController extends Controller
@@ -102,7 +103,29 @@ class SaleController extends Controller
     {
         abort_unless($sale->status === 'pending', 422, 'Only pending orders can be confirmed.');
 
-        $sale->update(['status' => 'confirmed']);
+        $request->validate([
+            'delivery_cost' => 'sometimes|integer|min:0',
+        ]);
+
+        DB::transaction(function () use ($request, $sale) {
+            $updates = ['status' => 'confirmed'];
+
+            if ($request->has('delivery_cost') && $sale->delivery_cost === null) {
+                $cost     = $request->integer('delivery_cost');
+                $newTotal = $sale->subtotal - $sale->discount_amount + $cost;
+
+                $updates['delivery_cost'] = $cost;
+                $updates['total_amount']  = $newTotal;
+                $updates['outstanding']   = max(0, $newTotal - $sale->paid_amount);
+
+                if ($sale->customer_id) {
+                    $sale->customer()->increment('outstanding_balance', $cost);
+                    $sale->customer()->increment('total_spend', $cost);
+                }
+            }
+
+            $sale->update($updates);
+        });
 
         AuditService::log([
             'action'      => 'order_confirmed',
@@ -113,10 +136,10 @@ class SaleController extends Controller
         ]);
 
         if ($sale->customer_id) {
-            $sale->customer->notify(new OrderConfirmedNotification($sale));
+            $sale->refresh()->customer->notify(new OrderConfirmedNotification($sale));
         }
 
-        return response()->json(['data' => $sale]);
+        return response()->json(['data' => $sale->refresh()]);
     }
 
     public function assign(Request $request, Sale $sale): JsonResponse

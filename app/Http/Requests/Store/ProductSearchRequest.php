@@ -12,6 +12,7 @@ class ProductSearchRequest extends FormRequest
             'category_id' => 'nullable|uuid',
             'search'      => 'nullable|string|max:100',
             'page'        => 'nullable|integer|min:1',
+            'sort'        => 'nullable|in:name_asc,price_asc,price_desc,newest',
         ];
     }
 

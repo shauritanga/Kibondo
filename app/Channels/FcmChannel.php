@@ -22,7 +22,8 @@ class FcmChannel
 
         ['title' => $title, 'body' => $body, 'data' => $data] = $notification->toFcm($notifiable);
 
-        $message = CloudMessage::withTarget('token', $token)
+        $message = CloudMessage::new()
+            ->withToken($token)
             ->withNotification(FcmNotification::create($title, $body))
             ->withData(array_map('strval', $data));
 

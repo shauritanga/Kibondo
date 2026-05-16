@@ -44,6 +44,8 @@ export function SaleDrawer({
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [payError, setPayError] = useState('');
 
+  const [deliveryCostInput, setDeliveryCostInput] = useState('');
+
   useEffect(() => {
     if (!saleId) { setSale(null); return; }
     setLoading(true);
@@ -53,6 +55,7 @@ export function SaleDrawer({
     setAssignUserId('');
     setPayAmount('');
     setPayError('');
+    setDeliveryCostInput('');
     salesApi.get(saleId)
       .then(setSale)
       .catch(() => setLoadError('Failed to load sale details.'))
@@ -168,10 +171,19 @@ export function SaleDrawer({
 
               {/* Meta section */}
               <div className="px-5 py-4 space-y-2">
-                <Row label="Customer" value={sale.customer?.name ?? '—'} />
+                <Row label="Customer" value={sale.customer?.name ?? sale.guest_name ?? '—'} />
+                {sale.guest_phone && !sale.customer && <Row label="Phone" value={sale.guest_phone} />}
+                {sale.guest_email && <Row label="Email" value={sale.guest_email} />}
+                {sale.guest_company && <Row label="Company" value={sale.guest_company} />}
                 <Row label="Date" value={new Date(sale.created_at).toLocaleString()} />
+                {sale.payment_method && (
+                  <Row label="Payment method" value={sale.payment_method === 'selcom' ? 'Selcom Mobile Money' : 'Cash on Delivery'} />
+                )}
                 {sale.delivery_address && (
                   <Row label="Delivery address" value={sale.delivery_address} />
+                )}
+                {sale.billing_address && (
+                  <Row label="Billing address" value={sale.billing_address} />
                 )}
                 {sale.assignedTo && (
                   <Row label="Assigned driver" value={sale.assignedTo.name} />
@@ -212,6 +224,18 @@ export function SaleDrawer({
                     <div className="flex justify-between text-slate-500">
                       <span>Discount</span>
                       <span>− {formatMoney(sale.discount_amount)}</span>
+                    </div>
+                  )}
+                  {sale.delivery_cost != null && sale.delivery_cost > 0 && (
+                    <div className="flex justify-between text-slate-500">
+                      <span>Delivery</span>
+                      <span>+ {formatMoney(sale.delivery_cost)}</span>
+                    </div>
+                  )}
+                  {sale.delivery_cost == null && sale.delivery_address && (
+                    <div className="flex justify-between text-amber-600">
+                      <span>Delivery</span>
+                      <span className="italic">TBD</span>
                     </div>
                   )}
                   <div className="flex justify-between font-bold text-slate-950 dark:text-white">
@@ -273,13 +297,34 @@ export function SaleDrawer({
                   <div className="flex flex-wrap gap-2">
                     {/* Confirm Order */}
                     {isAdmin && sale.status === 'pending' && (
-                      <button
-                        onClick={() => runAction(() => salesApi.confirm(sale.id))}
-                        disabled={actionLoading}
-                        className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50"
-                      >
-                        {actionLoading ? 'Working…' : 'Confirm Order'}
-                      </button>
+                      <div className="w-full space-y-2">
+                        {sale.delivery_cost == null && sale.delivery_address && (
+                          <div>
+                            <label className="text-xs font-bold text-slate-500 dark:text-slate-400">
+                              Delivery cost (TZS) — customer will see this
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              value={deliveryCostInput}
+                              onChange={e => setDeliveryCostInput(e.target.value)}
+                              placeholder="e.g. 3000"
+                              className="mt-1 h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                            />
+                          </div>
+                        )}
+                        <button
+                          onClick={() => {
+                            const needsCost = sale.delivery_cost == null && Boolean(sale.delivery_address);
+                            const cost = needsCost ? parseInt(deliveryCostInput, 10) : undefined;
+                            runAction(() => salesApi.confirm(sale.id, cost !== undefined && !isNaN(cost) ? cost : undefined));
+                          }}
+                          disabled={actionLoading || (sale.delivery_cost == null && Boolean(sale.delivery_address) && !deliveryCostInput)}
+                          className="h-9 rounded-lg bg-blue-600 px-4 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {actionLoading ? 'Working…' : 'Confirm Order'}
+                        </button>
+                      </div>
                     )}
 
                     {/* Assign & Dispatch */}

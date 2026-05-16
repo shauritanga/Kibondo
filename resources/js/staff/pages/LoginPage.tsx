@@ -32,8 +32,8 @@ export function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-brand-light px-4 dark:bg-slate-950">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-brand-green text-xl font-black text-white shadow-lg shadow-green-900/20">
-            KG
+          <div className="mx-auto mb-4 h-16 w-16 rounded-2xl overflow-hidden shadow-lg shadow-green-900/20">
+            <img src="/kibodo-logo.png" alt="Kibondo" className="h-full w-full object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-slate-950 dark:text-white">Kibondo Green Farm</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Sign in to your account</p>

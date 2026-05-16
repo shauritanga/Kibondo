@@ -53,7 +53,7 @@ export function StoreRegisterPage() {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
           <Link to="/store" className="text-sm text-gray-400 hover:text-gray-600">← Back to store</Link>
-          <span className="text-base font-bold text-green-700">Kibondo Store</span>
+          <img src="/kibodo-logo.png" alt="Kibondo Store" className="h-8 w-auto object-contain" />
           <span className="w-24" />
         </div>
       </div>

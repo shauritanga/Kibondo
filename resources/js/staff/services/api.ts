@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type {
   AppNotification, AuditLog, Campaign, Category, Customer, CustomerNote, CustomerTask,
-  DashboardData, Paginated, Payment, Product,
+  DashboardData, DeliveryZone, Paginated, Payment, Product,
   Sale, StockMovement, User
 } from '../types';
 
@@ -204,8 +204,9 @@ export const salesApi = {
     const { data } = await http.put<{ data: Sale }>(`/sales/${id}/status`, { status });
     return data.data;
   },
-  confirm: async (id: string) => {
-    const { data } = await http.post<{ data: Sale }>(`/sales/${id}/confirm`);
+  confirm: async (id: string, deliveryCost?: number) => {
+    const payload = deliveryCost !== undefined ? { delivery_cost: deliveryCost } : {};
+    const { data } = await http.post<{ data: Sale }>(`/sales/${id}/confirm`, payload);
     return data.data;
   },
   assign: async (id: string, userId: string) => {
@@ -304,6 +305,7 @@ export const notificationsApi = {
   },
   markRead: async (id: string) => http.patch(`/notifications/${id}/read`),
   markAllRead: async () => http.post('/notifications/read-all'),
+  clearRead: async () => http.delete('/notifications/read'),
   saveFcmToken: async (token: string) => http.post('/auth/fcm-token', { fcm_token: token }),
   deleteFcmToken: async () => http.delete('/auth/fcm-token'),
 };
@@ -323,6 +325,23 @@ export const usersApi = {
     return data.data;
   },
   delete: async (id: string) => http.delete(`/users/${id}`),
+};
+
+// ─── Delivery Zones ──────────────────────────────────────────────────────────
+export const deliveryZonesApi = {
+  list: async () => {
+    const { data } = await http.get<{ data: DeliveryZone[] }>('/delivery-zones');
+    return data.data;
+  },
+  create: async (payload: { name: string; delivery_cost: number; is_active?: boolean }) => {
+    const { data } = await http.post<{ data: DeliveryZone }>('/delivery-zones', payload);
+    return data.data;
+  },
+  update: async (id: string, payload: Partial<DeliveryZone>) => {
+    const { data } = await http.put<{ data: DeliveryZone }>(`/delivery-zones/${id}`, payload);
+    return data.data;
+  },
+  delete: async (id: string) => http.delete(`/delivery-zones/${id}`),
 };
 
 // ─── Audit Logs ──────────────────────────────────────────────────────────────

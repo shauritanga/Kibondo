@@ -1,11 +1,14 @@
 import { Link, useLocation } from 'react-router-dom';
 import { formatMoney } from '../services/api';
+import { useStoreAuth } from '../contexts/StoreAuthContext';
 import { StoreLayout } from '../components/StoreLayout';
 
 export function ConfirmationPage() {
   const location = useLocation();
+  const { customer } = useStoreAuth();
   const saleNumber: string = location.state?.saleNumber ?? '—';
   const totalAmount: number = location.state?.totalAmount ?? 0;
+  const paymentMethod: string = location.state?.paymentMethod ?? 'cash';
 
   return (
     <StoreLayout>
@@ -19,7 +22,7 @@ export function ConfirmationPage() {
           We've received your order and will contact you soon to confirm delivery.
         </p>
 
-        <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm">
+        <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm text-left">
           <div className="flex justify-between">
             <span className="text-gray-500">Order number</span>
             <span className="font-semibold text-gray-900">{saleNumber}</span>
@@ -32,20 +35,37 @@ export function ConfirmationPage() {
           )}
           <div className="flex justify-between">
             <span className="text-gray-500">Payment</span>
-            <span className="font-semibold text-gray-900">Cash on delivery</span>
+            <span className="font-semibold text-gray-900">
+              {paymentMethod === 'selcom' ? 'Selcom Mobile Money' : 'Cash on delivery'}
+            </span>
           </div>
         </div>
 
+        {/* Selcom payment instructions */}
+        {paymentMethod === 'selcom' && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-left">
+            <p className="font-semibold text-blue-800 mb-2 text-sm">Complete your Selcom payment</p>
+            <ol className="text-sm text-blue-700 space-y-1.5 list-decimal list-inside">
+              <li>Open your Selcom app or dial <strong>*150*00#</strong></li>
+              <li>Send <strong>{formatMoney(totalAmount)}</strong> to merchant number</li>
+              <li>Use reference: <strong>{saleNumber}</strong></li>
+            </ol>
+            <p className="text-xs text-blue-500 mt-3">Your order will be confirmed once payment is received.</p>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3 pt-2">
-          <Link
-            to="/store/orders"
-            className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors"
-          >
-            View my orders
-          </Link>
+          {customer ? (
+            <Link
+              to="/store/orders"
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors"
+            >
+              View my orders
+            </Link>
+          ) : null}
           <Link
             to="/store"
-            className="text-sm text-gray-400 hover:text-gray-600"
+            className={`${customer ? 'text-sm text-gray-400 hover:text-gray-600' : 'bg-green-600 hover:bg-green-700 text-white font-semibold py-2.5 rounded-xl transition-colors'}`}
           >
             Continue shopping
           </Link>

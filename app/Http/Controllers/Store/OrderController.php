@@ -7,8 +7,10 @@ use App\Http\Requests\Store\ConfirmDeliveryRequest;
 use App\Http\Requests\Store\PlaceOrderRequest;
 use App\Http\Resources\Store\OrderDetailResource;
 use App\Http\Resources\Store\OrderSummaryResource;
+use App\Models\DeliveryZone;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\Customer;
 use App\Models\User;
 use App\Notifications\DeliveryConfirmedNotification;
 use App\Notifications\OrderPlacedNotification;
@@ -31,8 +33,12 @@ class OrderController extends Controller
     public function store(PlaceOrderRequest $request): JsonResponse
     {
         $customer = $request->user('customer');
+        // Guard against Sanctum bleeding a staff session into the customer guard
+        if (!($customer instanceof Customer)) {
+            $customer = null;
+        }
 
-        $items = collect($request->items)->map(function ($item) {
+        $items = collect($request->items)->map(function ($item) use ($customer) {
             $product = Product::where('id', $item['product_id'])
                 ->where('is_active', true)
                 ->firstOrFail();
@@ -56,12 +62,27 @@ class OrderController extends Controller
             ];
         })->toArray();
 
+        $deliveryZone = null;
+        if ($request->filled('delivery_zone_id')) {
+            $deliveryZone = DeliveryZone::where('id', $request->delivery_zone_id)
+                ->where('is_active', true)
+                ->first();
+        }
+
         $sale = $this->sales->createSale([
-            'customer_id'     => $customer->id,
+            'customer_id'      => $customer?->id,
+            'guest_name'       => $customer ? null : $request->guest_name,
+            'guest_phone'      => $customer ? null : $request->guest_phone,
+            'guest_email'      => $customer ? null : $request->guest_email,
+            'guest_company'    => $customer ? null : $request->guest_company,
             'delivery_address' => $request->delivery_address,
-            'status'          => 'pending',
-            'discount_amount' => 0,
-            'items'           => $items,
+            'billing_address'  => $request->billing_address,
+            'delivery_zone_id' => $deliveryZone?->id,
+            'delivery_cost'    => $deliveryZone?->delivery_cost,
+            'payment_method'   => $request->payment_method ?? 'cash',
+            'status'           => 'pending',
+            'discount_amount'  => 0,
+            'items'            => $items,
         ], null);
 
         $admins = User::where('role', 'admin')->get();
@@ -70,9 +91,10 @@ class OrderController extends Controller
         }
 
         return response()->json([
-            'sale_number'  => $sale->sale_number,
-            'total_amount' => $sale->total_amount,
-            'message'      => 'Order placed successfully. We will contact you to confirm delivery.',
+            'sale_number'    => $sale->sale_number,
+            'total_amount'   => $sale->total_amount,
+            'payment_method' => $sale->payment_method,
+            'message'        => 'Order placed successfully. We will contact you to confirm delivery.',
         ], 201);
     }
 

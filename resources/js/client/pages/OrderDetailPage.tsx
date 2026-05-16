@@ -110,6 +110,25 @@ export function OrderDetailPage() {
               <p className="text-sm font-semibold text-gray-800">{formatMoney(item.line_total)}</p>
             </div>
           ))}
+          {/* Subtotal + delivery breakdown */}
+          <div className="px-5 py-3 space-y-1">
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Subtotal</span>
+              <span>{formatMoney(order.subtotal)}</span>
+            </div>
+            {order.delivery_cost != null && order.delivery_cost > 0 && (
+              <div className="flex justify-between text-sm text-gray-500">
+                <span>Delivery</span>
+                <span>+ {formatMoney(order.delivery_cost)}</span>
+              </div>
+            )}
+            {order.delivery_cost == null && (
+              <div className="flex justify-between text-sm text-amber-600">
+                <span>Delivery</span>
+                <span className="italic text-xs">Pending confirmation</span>
+              </div>
+            )}
+          </div>
           <div className="flex justify-between px-5 py-3 font-bold text-gray-900">
             <span>Total</span>
             <span className="text-green-700">{formatMoney(order.total_amount)}</span>

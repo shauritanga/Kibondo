@@ -2,17 +2,27 @@
 
 namespace App\Http\Requests\Store;
 
+use App\Models\Customer;
 use Illuminate\Foundation\Http\FormRequest;
 
 class PlaceOrderRequest extends FormRequest
 {
     public function rules(): array
     {
+        $isGuest = !($this->user('customer') instanceof Customer);
+
         return [
             'delivery_address'         => 'required|string|max:500',
+            'delivery_zone_id'         => 'nullable|uuid|exists:delivery_zones,id',
             'items'                    => 'required|array|min:1',
             'items.*.product_id'       => 'required|uuid|exists:products,id',
             'items.*.quantity'         => 'required|integer|min:1',
+            'guest_name'               => $isGuest ? 'required|string|max:100' : 'nullable|string|max:100',
+            'guest_phone'              => $isGuest ? 'required|string|max:30' : 'nullable|string|max:30',
+            'guest_email'              => 'nullable|email|max:255',
+            'guest_company'            => 'nullable|string|max:100',
+            'billing_address'          => 'nullable|string|max:1000',
+            'payment_method'           => 'nullable|in:cash,selcom',
         ];
     }
 

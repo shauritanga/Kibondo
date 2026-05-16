@@ -55,14 +55,29 @@ export interface SaleItem {
   line_total: number;
 }
 
+export interface DeliveryZone {
+  id: string;
+  name: string;
+  delivery_cost: number;
+  is_active: boolean;
+}
+
 export interface Sale {
   id: string;
   sale_number: string;
   customer_id?: string;
   customer?: Customer;
+  guest_name?: string | null;
+  guest_phone?: string | null;
+  guest_email?: string | null;
+  guest_company?: string | null;
+  billing_address?: string | null;
+  payment_method?: string | null;
   user?: User;
   subtotal: number;
   discount_amount: number;
+  delivery_zone_id?: string | null;
+  delivery_cost?: number | null;
   total_amount: number;
   paid_amount: number;
   outstanding: number;

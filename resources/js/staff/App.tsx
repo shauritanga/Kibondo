@@ -15,6 +15,7 @@ import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { UsersPage } from './pages/UsersPage';
 import { AuditLogsPage } from './pages/AuditLogsPage';
+import { DeliveryZonesPage } from './pages/DeliveryZonesPage';
 import { ProfilePage } from './pages/ProfilePage';
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
                       <Route path="/campaigns" element={<CampaignsPage />} />
                       <Route path="/reports" element={<ReportsPage />} />
                       <Route path="/users" element={<UsersPage />} />
+                      <Route path="/delivery-zones" element={<ProtectedRoute allowedRoles={['admin']}><DeliveryZonesPage /></ProtectedRoute>} />
                       <Route path="/audit-logs" element={<ProtectedRoute allowedRoles={['admin']}><AuditLogsPage /></ProtectedRoute>} />
                       <Route path="/settings" element={<SettingsPage />} />
                       <Route path="/profile" element={<ProfilePage />} />

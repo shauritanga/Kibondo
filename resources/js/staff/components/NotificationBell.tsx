@@ -19,6 +19,7 @@ export function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [markingAll, setMarkingAll] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   async function load() {
@@ -76,6 +77,16 @@ export function NotificationBell() {
     }
   }
 
+  async function handleClearRead() {
+    setClearing(true);
+    try {
+      await notificationsApi.clearRead();
+      setNotifications(prev => prev.filter(x => !x.read_at));
+    } finally {
+      setClearing(false);
+    }
+  }
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -95,15 +106,26 @@ export function NotificationBell() {
         <div className="absolute right-0 top-11 w-80 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-700">
             <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">Notifications</span>
-            {unreadCount > 0 && (
-              <button
-                onClick={handleMarkAllRead}
-                disabled={markingAll}
-                className="text-xs text-brand-green hover:underline disabled:opacity-50"
-              >
-                {markingAll ? 'Marking…' : 'Mark all read'}
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <button
+                  onClick={handleMarkAllRead}
+                  disabled={markingAll}
+                  className="text-xs text-brand-green hover:underline disabled:opacity-50"
+                >
+                  {markingAll ? 'Marking…' : 'Mark all read'}
+                </button>
+              )}
+              {notifications.some(n => n.read_at) && (
+                <button
+                  onClick={handleClearRead}
+                  disabled={clearing}
+                  className="text-xs text-slate-400 hover:text-slate-600 hover:underline disabled:opacity-50"
+                >
+                  {clearing ? 'Clearing…' : 'Clear read'}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-96 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">

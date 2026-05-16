@@ -31,7 +31,15 @@ class StoreController extends Controller
             $query->where('name', 'ilike', '%' . $request->search . '%');
         }
 
-        $paginated = $query->orderBy('name')->paginate(24);
+        $sort = $request->input('sort', 'name_asc');
+        match ($sort) {
+            'price_asc'  => $query->orderBy('price'),
+            'price_desc' => $query->orderByDesc('price'),
+            'newest'     => $query->orderByDesc('created_at'),
+            default      => $query->orderBy('name'),
+        };
+
+        $paginated = $query->paginate(24);
 
         return response()->json([
             'data'          => StoreProductResource::collection($paginated->items()),

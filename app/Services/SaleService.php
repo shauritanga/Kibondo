@@ -26,25 +26,34 @@ class SaleService
                 }
             }
 
-            $subtotal = collect($items)->sum(fn($i) => $i['quantity'] * $i['unit_price']);
-            $discount = $data['discount_amount'] ?? 0;
-            $total = $subtotal - $discount;
+            $subtotal     = collect($items)->sum(fn($i) => $i['quantity'] * $i['unit_price']);
+            $discount     = $data['discount_amount'] ?? 0;
+            $deliveryCost = $data['delivery_cost'] ?? 0;
+            $total        = $subtotal - $discount + $deliveryCost;
 
             $sale = Sale::create([
-                'sale_number' => $this->nextSaleNumber(),
-                'customer_id' => $data['customer_id'] ?? null,
-                'user_id' => $userId,
-                'subtotal' => $subtotal,
-                'discount_amount' => $discount,
-                'total_amount' => $total,
-                'paid_amount' => 0,
-                'outstanding' => $total,
-                'status' => $data['status'] ?? 'completed',
-                'payment_status' => 'unpaid',
-                'note' => $data['note'] ?? null,
+                'sale_number'      => $this->nextSaleNumber(),
+                'customer_id'      => $data['customer_id'] ?? null,
+                'guest_name'       => $data['guest_name'] ?? null,
+                'guest_phone'      => $data['guest_phone'] ?? null,
+                'guest_email'      => $data['guest_email'] ?? null,
+                'guest_company'    => $data['guest_company'] ?? null,
+                'user_id'          => $userId,
+                'subtotal'         => $subtotal,
+                'discount_amount'  => $discount,
+                'delivery_zone_id' => $data['delivery_zone_id'] ?? null,
+                'delivery_cost'    => $data['delivery_cost'] ?? null,
+                'total_amount'     => $total,
+                'paid_amount'      => 0,
+                'outstanding'      => $total,
+                'status'           => $data['status'] ?? 'completed',
+                'payment_status'   => 'unpaid',
+                'note'             => $data['note'] ?? null,
                 'delivery_address' => $data['delivery_address'] ?? null,
-                'is_offline_sync' => $data['is_offline_sync'] ?? false,
-                'synced_at' => ($data['is_offline_sync'] ?? false) ? now() : null,
+                'billing_address'  => $data['billing_address'] ?? null,
+                'payment_method'   => $data['payment_method'] ?? 'cash',
+                'is_offline_sync'  => $data['is_offline_sync'] ?? false,
+                'synced_at'        => ($data['is_offline_sync'] ?? false) ? now() : null,
             ]);
 
             foreach ($items as $item) {

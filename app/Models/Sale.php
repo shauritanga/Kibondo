@@ -8,22 +8,24 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+
 class Sale extends Model
 {
     use HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'sale_number', 'customer_id', 'user_id',
+        'sale_number', 'customer_id', 'guest_name', 'guest_phone', 'guest_email', 'guest_company', 'user_id',
         'subtotal', 'discount_amount', 'total_amount',
         'paid_amount', 'outstanding', 'status', 'payment_status',
-        'note', 'delivery_address', 'assigned_to',
-        'is_offline_sync', 'synced_at',
+        'note', 'delivery_address', 'billing_address', 'delivery_zone_id', 'delivery_cost', 'assigned_to',
+        'is_offline_sync', 'synced_at', 'payment_method',
         'delivery_confirmed_at', 'customer_feedback',
     ];
 
     protected $casts = [
         'subtotal' => 'integer',
         'discount_amount' => 'integer',
+        'delivery_cost' => 'integer',
         'total_amount' => 'integer',
         'paid_amount' => 'integer',
         'outstanding' => 'integer',
@@ -35,6 +37,11 @@ class Sale extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function deliveryZone(): BelongsTo
+    {
+        return $this->belongsTo(DeliveryZone::class);
     }
 
     public function assignedTo(): BelongsTo
