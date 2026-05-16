@@ -1,8 +1,8 @@
 import axios from 'axios';
 import type {
   AppNotification, AuditLog, Campaign, Category, Customer, CustomerNote, CustomerTask,
-  DashboardData, DeliveryZone, Paginated, Payment, Product,
-  Sale, StockMovement, User
+  DashboardData, DeliveryZone, Material, MaterialMovement, PackagingRun, Paginated,
+  Payment, Product, ProductRecipe, Sale, StockMovement, User
 } from '../types';
 
 export const http = axios.create({ baseURL: '/api/v1' });
@@ -344,6 +344,52 @@ export const deliveryZonesApi = {
   delete: async (id: string) => http.delete(`/delivery-zones/${id}`),
 };
 
+// ─── Materials (Warehouse) ───────────────────────────────────────────────────
+export const materialsApi = {
+  list: async (params?: { search?: string }) => {
+    const { data } = await http.get<{ data: Material[] }>('/materials', { params });
+    return data.data;
+  },
+  create: async (payload: Omit<Material, 'id' | 'is_low_stock'>) => {
+    const { data } = await http.post<{ data: Material }>('/materials', payload);
+    return data.data;
+  },
+  update: async (id: string, payload: Partial<Omit<Material, 'id' | 'stock_qty' | 'is_low_stock'>>) => {
+    const { data } = await http.put<{ data: Material }>(`/materials/${id}`, payload);
+    return data.data;
+  },
+  delete: async (id: string) => http.delete(`/materials/${id}`),
+  movements: async (id: string) => {
+    const { data } = await http.get<Paginated<MaterialMovement>>(`/materials/${id}/movements`);
+    return data;
+  },
+  recordMovement: async (id: string, payload: { movement_type: 'purchase' | 'adjusted' | 'damaged'; quantity: number; note?: string }) => {
+    const { data } = await http.post<{ movement: MaterialMovement; stock_qty_after: number }>(`/materials/${id}/movements`, payload);
+    return data;
+  },
+};
+
+// ─── Product Recipes ─────────────────────────────────────────────────────────
+export const recipesApi = {
+  upsert: async (productId: string, payload: { material_id: string; quantity_per_unit: number }) => {
+    const { data } = await http.put<{ data: ProductRecipe }>(`/products/${productId}/recipe`, payload);
+    return data.data;
+  },
+  remove: async (productId: string) => http.delete(`/products/${productId}/recipe`),
+};
+
+// ─── Packaging Runs ──────────────────────────────────────────────────────────
+export const packagingRunsApi = {
+  list: async () => {
+    const { data } = await http.get<Paginated<PackagingRun>>('/packaging-runs');
+    return data;
+  },
+  create: async (payload: { product_id: string; units_produced: number; notes?: string }) => {
+    const { data } = await http.post<{ data: { packaging_run: PackagingRun; product_stock_after: number; material_stock_after: number } }>('/packaging-runs', payload);
+    return data.data;
+  },
+};
+
 // ─── Audit Logs ──────────────────────────────────────────────────────────────
 export const auditApi = {
   list: async (params?: Record<string, unknown>) => {
@@ -364,3 +410,4 @@ export const auditApi = {
     URL.revokeObjectURL(url);
   },
 };
+

@@ -12,7 +12,7 @@ class ProductController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Product::with('category')->where('is_active', true);
+        $query = Product::with(['category', 'recipe.material'])->where('is_active', true);
 
         if ($request->filled('search')) {
             $query->where('name', 'ilike', '%' . $request->search . '%');
@@ -63,12 +63,12 @@ class ProductController extends Controller
             'new_values'  => $product->only('name', 'unit', 'price', 'stock_qty'),
         ]);
 
-        return response()->json(['data' => $product->load('category')], 201);
+        return response()->json(['data' => $product->load(['category', 'recipe.material'])], 201);
     }
 
     public function show(Product $product): JsonResponse
     {
-        return response()->json(['data' => $product->load('category')]);
+        return response()->json(['data' => $product->load(['category', 'recipe.material'])]);
     }
 
     public function update(Request $request, Product $product): JsonResponse
@@ -109,7 +109,7 @@ class ProductController extends Controller
             'new_values'  => $product->only('name', 'unit', 'price', 'stock_qty', 'is_active'),
         ]);
 
-        return response()->json(['data' => $product->load('category')]);
+        return response()->json(['data' => $product->load(['category', 'recipe.material'])]);
     }
 
     public function destroy(Product $product): JsonResponse

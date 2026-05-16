@@ -8,8 +8,8 @@ import { TablePageSkeleton } from '../components/Skeleton';
 import { SearchInput } from '../components/SearchInput';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
-import { categoriesApi, formatMoney, productsApi, stockApi } from '../services/api';
-import type { Category, Product } from '../types';
+import { categoriesApi, formatMoney, materialsApi, packagingRunsApi, productsApi, recipesApi, stockApi } from '../services/api';
+import type { Category, Material, Product } from '../types';
 
 type ProductForm = {
   name: string; category_id: string;
@@ -49,11 +49,24 @@ export function ProductsPage() {
   const [stockInNote, setStockInNote] = useState('');
   const [stockInSaving, setStockInSaving] = useState(false);
 
+  // Materials for recipe picker
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [recipeForm, setRecipeForm] = useState({ material_id: '', quantity_per_unit: '' });
+  const [recipeSaving, setRecipeSaving] = useState(false);
+
+  // Packaging run modal
+  const [packagingProduct, setPackagingProduct] = useState<Product | null>(null);
+  const [packagingUnits, setPackagingUnits] = useState('');
+  const [packagingNotes, setPackagingNotes] = useState('');
+  const [packagingSaving, setPackagingSaving] = useState(false);
+  const [packagingError, setPackagingError] = useState('');
+
   useEffect(() => {
-    Promise.all([productsApi.list(), categoriesApi.list()])
-      .then(([prods, cats]) => {
+    Promise.all([productsApi.list(), categoriesApi.list(), materialsApi.list()])
+      .then(([prods, cats, mats]) => {
         setCatalog(prods);
         setCategories(cats);
+        setMaterials(mats);
         if (cats.length) setForm((f) => ({ ...f, category_id: cats[0].id }));
       })
       .catch((err: any) => {
@@ -97,6 +110,7 @@ export function ProductsPage() {
     resetImageState();
     setShowForm(false);
     setEditingProduct(null);
+    setRecipeForm({ material_id: '', quantity_per_unit: '' });
     setError('');
   }
 
@@ -113,6 +127,10 @@ export function ProductsPage() {
     });
     setImageUrl(product.image_url ?? '');
     setImageMode(product.image_url ? 'url' : 'upload');
+    setRecipeForm({
+      material_id: product.recipe?.material_id ?? '',
+      quantity_per_unit: product.recipe?.quantity_per_unit ? String(product.recipe.quantity_per_unit) : '',
+    });
     setEditingProduct(product);
     setShowForm(true);
     setError('');
@@ -132,6 +150,14 @@ export function ProductsPage() {
         image: imageMode === 'upload' ? imageFile ?? null : null,
         image_url: imageMode === 'url' && imageUrl.trim() ? imageUrl.trim() : undefined,
       });
+      if (recipeForm.material_id && recipeForm.quantity_per_unit) {
+        await recipesApi.upsert(editingProduct.id, {
+          material_id: recipeForm.material_id,
+          quantity_per_unit: parseFloat(recipeForm.quantity_per_unit),
+        });
+      } else if (!recipeForm.material_id && editingProduct.recipe) {
+        await recipesApi.remove(editingProduct.id);
+      }
       const updated = await productsApi.list();
       setCatalog(updated);
       closeDialog();
@@ -164,7 +190,7 @@ export function ProductsPage() {
     if (!form.name.trim()) return;
     setSaving(true); setError('');
     try {
-      await productsApi.create({
+      const created = await productsApi.create({
         name: form.name.trim(), category_id: form.category_id,
         unit: `${form.mass.trim()}${form.massUnit}`,
         price: Math.round(Number(form.price) || 0),
@@ -175,6 +201,12 @@ export function ProductsPage() {
         image: imageMode === 'upload' ? imageFile : undefined,
         image_url: imageMode === 'url' && imageUrl.trim() ? imageUrl.trim() : undefined,
       });
+      if (recipeForm.material_id && recipeForm.quantity_per_unit) {
+        await recipesApi.upsert(created.id, {
+          material_id: recipeForm.material_id,
+          quantity_per_unit: parseFloat(recipeForm.quantity_per_unit),
+        });
+      }
       const updated = await productsApi.list();
       setCatalog(updated);
       closeDialog();
@@ -184,6 +216,26 @@ export function ProductsPage() {
       setError(first ?? err.response?.data?.message ?? 'Failed to save product.');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePackagingRun(e: FormEvent) {
+    e.preventDefault();
+    if (!packagingProduct) return;
+    setPackagingSaving(true); setPackagingError('');
+    try {
+      await packagingRunsApi.create({
+        product_id: packagingProduct.id,
+        units_produced: parseInt(packagingUnits),
+        notes: packagingNotes || undefined,
+      });
+      const updated = await productsApi.list();
+      setCatalog(updated);
+      setPackagingProduct(null); setPackagingUnits(''); setPackagingNotes('');
+    } catch (err: any) {
+      setPackagingError(err.response?.data?.message ?? 'Failed to create packaging run.');
+    } finally {
+      setPackagingSaving(false);
     }
   }
 
@@ -305,12 +357,22 @@ export function ProductsPage() {
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5">
-                            <button
-                              className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-brand-green hover:bg-green-50 dark:border-slate-600 dark:hover:bg-green-900/20"
-                              onClick={() => setStockInProduct(product)}
-                            >
-                              Stock in
-                            </button>
+                            {product.recipe ? (
+                              <button
+                                className="rounded-lg border border-brand-green bg-green-50 px-2.5 py-1.5 text-[11px] font-bold text-brand-green hover:bg-green-100 dark:border-green-700 dark:bg-green-900/20 dark:hover:bg-green-900/40"
+                                onClick={() => { setPackagingProduct(product); setPackagingUnits(''); setPackagingNotes(''); setPackagingError(''); }}
+                                title="Create packages from raw material"
+                              >
+                                Package
+                              </button>
+                            ) : (
+                              <button
+                                className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-bold text-brand-green hover:bg-green-50 dark:border-slate-600 dark:hover:bg-green-900/20"
+                                onClick={() => setStockInProduct(product)}
+                              >
+                                Stock in
+                              </button>
+                            )}
                             <button
                               onClick={() => openEdit(product)}
                               className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:border-slate-600 dark:hover:bg-slate-700"
@@ -504,6 +566,53 @@ export function ProductsPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Recipe section */}
+                {materials.length > 0 && (
+                  <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Recipe <span className="font-normal text-slate-400">(optional)</span>
+                    </p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-3">
+                      Link this package to a raw material so you can run packaging production jobs.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Raw material</label>
+                        <select
+                          value={recipeForm.material_id}
+                          onChange={e => setRecipeForm(p => ({ ...p, material_id: e.target.value }))}
+                          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-green"
+                        >
+                          <option value="">— None —</option>
+                          {materials.map(m => (
+                            <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                          Qty per unit ({materials.find(m => m.id === recipeForm.material_id)?.unit ?? '—'})
+                        </label>
+                        <input
+                          type="number"
+                          min="0.001"
+                          step="0.001"
+                          value={recipeForm.quantity_per_unit}
+                          onChange={e => setRecipeForm(p => ({ ...p, quantity_per_unit: e.target.value }))}
+                          placeholder="e.g. 2.000"
+                          disabled={!recipeForm.material_id}
+                          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-green disabled:opacity-50"
+                        />
+                      </div>
+                    </div>
+                    {recipeForm.material_id && recipeForm.quantity_per_unit && (
+                      <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+                        Each unit uses <strong>{recipeForm.quantity_per_unit} {materials.find(m => m.id === recipeForm.material_id)?.unit}</strong> of <strong>{materials.find(m => m.id === recipeForm.material_id)?.name}</strong>
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Footer */}
@@ -521,6 +630,66 @@ export function ProductsPage() {
           </div>
         </div>
       )}
+
+      {/* Packaging run modal */}
+      {packagingProduct && (() => {
+        const recipe = packagingProduct.recipe;
+        const material = materials.find(m => m.id === recipe?.material_id);
+        const needed = recipe && packagingUnits ? Math.ceil(parseInt(packagingUnits) * recipe.quantity_per_unit) : 0;
+        const enough = material ? material.stock_qty >= needed : false;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl dark:border dark:border-slate-700 dark:bg-slate-800">
+              <div className="mb-4 flex items-start justify-between">
+                <div>
+                  <h3 className="font-heading text-base font-bold text-slate-950 dark:text-white">Create packages</h3>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{packagingProduct.name}</p>
+                </div>
+                <button onClick={() => setPackagingProduct(null)} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700">
+                  <X size={16} />
+                </button>
+              </div>
+              {recipe && material && (
+                <div className="mb-4 rounded-lg bg-slate-50 dark:bg-slate-700/40 px-4 py-3 text-xs text-slate-500 dark:text-slate-400 space-y-1">
+                  <p>Recipe: <strong className="text-slate-700 dark:text-slate-200">{recipe.quantity_per_unit} {material.unit}</strong> of <strong className="text-slate-700 dark:text-slate-200">{material.name}</strong> per unit</p>
+                  <p>Available: <strong className={`${material.stock_qty < needed ? 'text-red-600' : 'text-green-600'}`}>{material.stock_qty.toLocaleString()} {material.unit}</strong></p>
+                  {packagingUnits && needed > 0 && (
+                    <p>Will use: <strong className={`${!enough ? 'text-red-600' : 'text-slate-700 dark:text-slate-200'}`}>{needed.toLocaleString()} {material.unit}</strong>
+                      {!enough && <span className="ml-1 text-red-500 font-bold">— not enough!</span>}
+                    </p>
+                  )}
+                </div>
+              )}
+              {packagingError && <div className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 dark:bg-red-900/20 dark:text-red-400">{packagingError}</div>}
+              <form onSubmit={handlePackagingRun} className="space-y-3">
+                <FormInput
+                  label="Units to produce"
+                  autoFocus
+                  type="number"
+                  min="1"
+                  value={packagingUnits}
+                  onChange={e => setPackagingUnits(e.target.value)}
+                  placeholder="e.g. 50"
+                />
+                <FormInput
+                  label="Notes (optional)"
+                  value={packagingNotes}
+                  onChange={e => setPackagingNotes(e.target.value)}
+                  placeholder="e.g. Morning batch"
+                />
+                <div className="flex gap-2 pt-1">
+                  <button type="button" className="h-9 flex-1 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 dark:border-slate-600 dark:text-slate-300"
+                    onClick={() => setPackagingProduct(null)}>Cancel</button>
+                  <button type="submit" disabled={!packagingUnits || !enough || packagingSaving}
+                    className="h-9 flex-1 rounded-lg bg-brand-green text-xs font-bold text-white disabled:opacity-60">
+                    {packagingSaving ? 'Running…' : 'Confirm'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Stock-in modal */}
       {stockInProduct && (

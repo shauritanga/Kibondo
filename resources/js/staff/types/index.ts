@@ -13,6 +13,13 @@ export interface Category {
   name: string;
 }
 
+export interface ProductRecipe {
+  material_id: string;
+  material_name: string;
+  material_unit: string;
+  quantity_per_unit: number;
+}
+
 export interface Product {
   id: string;
   category_id: string;
@@ -25,6 +32,43 @@ export interface Product {
   stock_qty: number;
   min_stock: number;
   is_active: boolean;
+  recipe?: ProductRecipe | null;
+}
+
+export interface Material {
+  id: string;
+  name: string;
+  unit: string;
+  stock_qty: number;
+  min_stock: number;
+  cost_per_unit: number;
+  is_low_stock?: boolean;
+}
+
+export interface MaterialMovement {
+  id: string;
+  material_id: string;
+  movement_type: 'purchase' | 'consumed' | 'adjusted' | 'damaged';
+  quantity: number;
+  quantity_before: number;
+  quantity_after: number;
+  reference_id?: string | null;
+  note?: string | null;
+  user?: Pick<User, 'id' | 'name'>;
+  created_at: string;
+}
+
+export interface PackagingRun {
+  id: string;
+  product_id: string;
+  product?: Pick<Product, 'id' | 'name' | 'unit'>;
+  material_id: string;
+  material?: Pick<Material, 'id' | 'name' | 'unit'>;
+  units_produced: number;
+  material_consumed: number;
+  user?: Pick<User, 'id' | 'name'>;
+  notes?: string | null;
+  created_at: string;
 }
 
 export interface Customer {

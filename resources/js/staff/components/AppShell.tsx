@@ -14,6 +14,7 @@ import {
   Truck,
   User,
   Users,
+  Warehouse,
   X
 } from 'lucide-react';
 import { ReactNode, useEffect, useRef, useState } from 'react';
@@ -29,6 +30,7 @@ const navItems = [
   { label: 'Customers',   path: '/customers',    icon: Users,         adminOnly: false },
   { label: 'Campaigns',   path: '/campaigns',    icon: Mail,          adminOnly: false },
   { label: 'Stock',           path: '/products',         icon: Boxes,         adminOnly: false },
+  { label: 'Warehouse',       path: '/warehouse',        icon: Warehouse,     adminOnly: false },
   { label: 'Delivery Zones',  path: '/delivery-zones',   icon: Truck,         adminOnly: true  },
   { label: 'Reports',         path: '/reports',          icon: BarChart3,     adminOnly: false },
   { label: 'Users & Roles',   path: '/users',            icon: Settings,      adminOnly: false },

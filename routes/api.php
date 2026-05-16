@@ -14,6 +14,9 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\StockMovementController;
+use App\Http\Controllers\MaterialController;
+use App\Http\Controllers\PackagingRunController;
+use App\Http\Controllers\ProductRecipeController;
 use App\Http\Controllers\FcmTokenController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Store\CustomerAuthController;
@@ -87,6 +90,20 @@ Route::middleware('auth:sanctum')->group(function () {
     // Stock movements
     Route::get('/stock-movements', [StockMovementController::class, 'index']);
     Route::post('/stock-movements', [StockMovementController::class, 'store'])->middleware('role:admin,stock_manager');
+
+    // Warehouse — raw materials (view all staff, mutations admin only)
+    Route::get('materials', [MaterialController::class, 'index']);
+    Route::get('materials/{material}/movements', [MaterialController::class, 'movements']);
+    Route::middleware('role:admin,stock_manager')->group(function () {
+        Route::post('materials', [MaterialController::class, 'store']);
+        Route::put('materials/{material}', [MaterialController::class, 'update']);
+        Route::delete('materials/{material}', [MaterialController::class, 'destroy']);
+        Route::post('materials/{material}/movements', [MaterialController::class, 'recordMovement']);
+        Route::put('products/{product}/recipe', [ProductRecipeController::class, 'upsert']);
+        Route::delete('products/{product}/recipe', [ProductRecipeController::class, 'destroy']);
+        Route::post('packaging-runs', [PackagingRunController::class, 'store']);
+        Route::get('packaging-runs', [PackagingRunController::class, 'index']);
+    });
 
     // Customers + nested notes & tasks
     Route::get('customers/stats', [CustomerController::class, 'stats']);
