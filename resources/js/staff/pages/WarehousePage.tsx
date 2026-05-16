@@ -166,15 +166,12 @@ export function WarehousePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Warehouse"
-        subtitle="Raw materials purchased and held in stock before packaging."
-        action={
-          <button onClick={openAdd} className="h-9 rounded-lg bg-brand-green px-4 text-xs font-bold text-white hover:opacity-90">
-            + Add material
-          </button>
-        }
-      />
+      <div className="flex items-start justify-between gap-4">
+        <PageHeader title="Warehouse" subtitle="Raw materials purchased and held in stock before packaging." />
+        <button onClick={openAdd} className="shrink-0 h-9 rounded-lg bg-brand-green px-4 text-xs font-bold text-white hover:opacity-90">
+          + Add material
+        </button>
+      </div>
 
       {error && <ErrorBanner message={error} />}
 

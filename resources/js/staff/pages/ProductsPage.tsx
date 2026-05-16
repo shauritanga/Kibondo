@@ -1,4 +1,4 @@
-import { AlertTriangle, Boxes, ImagePlus, Link, PackagePlus, Pencil, Plus, Trash2, Upload, WalletCards, X } from 'lucide-react';
+import { AlertTriangle, Boxes, ImagePlus, Link, Package, PackagePlus, Pencil, Plus, Trash2, Upload, WalletCards, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -13,13 +13,11 @@ import type { Category, Material, Product } from '../types';
 
 type ProductForm = {
   name: string; category_id: string;
-  mass: string; massUnit: 'g' | 'kg';
   price: string; stock_qty: string; min_stock: string;
 };
 
 const emptyForm: ProductForm = {
   name: '', category_id: '',
-  mass: '', massUnit: 'g',
   price: '', stock_qty: '', min_stock: '',
 };
 
@@ -115,12 +113,9 @@ export function ProductsPage() {
   }
 
   function openEdit(product: Product) {
-    const match = product.unit.match(/^(\d+(?:\.\d+)?)(g|kg)$/);
     setForm({
       name: product.name,
       category_id: product.category_id,
-      mass: match ? match[1] : product.unit,
-      massUnit: match ? (match[2] as 'g' | 'kg') : 'g',
       price: String(product.price),
       stock_qty: String(product.stock_qty),
       min_stock: String(product.min_stock),
@@ -141,9 +136,13 @@ export function ProductsPage() {
     if (!editingProduct) return;
     setSaving(true); setError('');
     try {
+      const selectedMaterial = materials.find(m => m.id === recipeForm.material_id);
+      const unit = recipeForm.quantity_per_unit && selectedMaterial
+        ? `${recipeForm.quantity_per_unit}${selectedMaterial.unit}`
+        : editingProduct.unit;
       await productsApi.update(editingProduct.id, {
         name: form.name.trim(), category_id: form.category_id,
-        unit: `${form.mass.trim()}${form.massUnit}`,
+        unit,
         price: Math.round(Number(form.price) || 0),
         stock_qty: Math.round(Number(form.stock_qty) || 0),
         min_stock: Math.round(Number(form.min_stock) || 0),
@@ -190,9 +189,13 @@ export function ProductsPage() {
     if (!form.name.trim()) return;
     setSaving(true); setError('');
     try {
+      const selectedMaterial = materials.find(m => m.id === recipeForm.material_id);
+      const unit = recipeForm.quantity_per_unit && selectedMaterial
+        ? `${recipeForm.quantity_per_unit}${selectedMaterial.unit}`
+        : 'unit';
       const created = await productsApi.create({
         name: form.name.trim(), category_id: form.category_id,
-        unit: `${form.mass.trim()}${form.massUnit}`,
+        unit,
         price: Math.round(Number(form.price) || 0),
         cost_price: 0,
         stock_qty: Math.round(Number(form.stock_qty) || 0),
@@ -264,21 +267,21 @@ export function ProductsPage() {
   return (
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
-        <PageHeader title="Stock" subtitle="Monitor product levels, stock value, and items that need replenishment." />
+        <PageHeader title="Packages" subtitle="Finished packages available for sale. Stock is built via packaging runs from warehouse materials." />
         <button
           className="inline-flex shrink-0 h-9 items-center justify-center gap-2 rounded-lg bg-brand-green px-4 text-xs font-bold text-white"
           onClick={() => setShowForm(true)}
         >
-          <Plus size={15} /> Add product
+          <Plus size={15} /> Add package
         </button>
       </div>
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="Total products"  value={catalog.length}           icon={Boxes} />
+        <StatCard label="Total packages"   value={catalog.length}           icon={Package} />
         <StatCard label="Stock value"     value={formatMoney(stockValue)}  icon={WalletCards} />
         <StatCard label="Low stock"       value={lowStockProducts.length}  icon={AlertTriangle} />
-        <StatCard label="Reorder units"   value={reorderUnits}             icon={PackagePlus} />
+        <StatCard label="Repackage units"  value={reorderUnits}             icon={PackagePlus} />
       </div>
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px] xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -286,7 +289,7 @@ export function ProductsPage() {
         {/* Inventory table */}
         <section className="card min-w-0 overflow-hidden">
           <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-700/50">
-            <SearchInput value={query} onChange={setQuery} placeholder="Search products…" className="w-full max-w-xs" />
+            <SearchInput value={query} onChange={setQuery} placeholder="Search packages…" className="w-full max-w-xs" />
           </div>
 
           <div className="overflow-x-auto">
@@ -397,7 +400,7 @@ export function ProductsPage() {
             </table>
             {filteredProducts.length === 0 && (
               <p className="p-6 text-center text-xs font-semibold text-slate-400 dark:text-slate-500">
-                No products match your search.
+                No packages match your search.
               </p>
             )}
           </div>
@@ -407,7 +410,7 @@ export function ProductsPage() {
         <aside className="card p-4">
           <div className="mb-3 flex items-center gap-2">
             <AlertTriangle size={15} className="text-amber-500" />
-            <h3 className="font-heading text-sm font-bold text-slate-950 dark:text-white">Needs restocking</h3>
+            <h3 className="font-heading text-sm font-bold text-slate-950 dark:text-white">Needs repackaging</h3>
             {lowStockProducts.length > 0 && (
               <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-amber-100 px-1.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                 {lowStockProducts.length}
@@ -436,7 +439,7 @@ export function ProductsPage() {
             })}
             {lowStockProducts.length === 0 && (
               <p className="py-6 text-center text-xs font-semibold text-slate-400 dark:text-slate-500">
-                All products are well stocked.
+                All packages are well stocked.
               </p>
             )}
           </div>
@@ -452,8 +455,8 @@ export function ProductsPage() {
             {/* Header */}
             <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-700">
               <div>
-                <h2 className="font-heading text-base font-bold text-slate-950 dark:text-white">{editingProduct ? 'Edit product' : 'Add product'}</h2>
-                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{editingProduct ? 'Update the product details below.' : 'Fill in the details to add a new item to your inventory.'}</p>
+                <h2 className="font-heading text-base font-bold text-slate-950 dark:text-white">{editingProduct ? 'Edit package' : 'Add package'}</h2>
+                <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{editingProduct ? 'Update the package details below.' : 'Define a new package that customers can order.'}</p>
               </div>
               <button type="button" onClick={closeDialog} className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800">
                 <X size={16} />
@@ -477,36 +480,56 @@ export function ProductsPage() {
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </FormSelect>
 
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Mass <span className="font-normal text-slate-400">(weight per unit sold)</span>
-                  </span>
-                  <div className="flex gap-2">
-                    <input
-                      type="number"
-                      min="1"
-                      required
-                      value={form.mass}
-                      onChange={(e) => updateField('mass', e.target.value)}
-                      placeholder="e.g. 230"
-                      className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-                    />
-                    <select
-                      value={form.massUnit}
-                      onChange={(e) => updateField('massUnit', e.target.value as 'g' | 'kg')}
-                      className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
-                    >
-                      <option value="g">g</option>
-                      <option value="kg">kg</option>
-                    </select>
+                {/* Recipe section — defines what this product is made from */}
+                {materials.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Recipe</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-3">
+                      Which raw material and how much is used to produce one unit of this package.
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Raw material</label>
+                        <select
+                          value={recipeForm.material_id}
+                          onChange={e => setRecipeForm(p => ({ ...p, material_id: e.target.value }))}
+                          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-green"
+                        >
+                          <option value="">— None —</option>
+                          {materials.map(m => (
+                            <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
+                          Qty per unit ({materials.find(m => m.id === recipeForm.material_id)?.unit ?? '—'})
+                        </label>
+                        <input
+                          type="number"
+                          min="0.001"
+                          step="0.001"
+                          value={recipeForm.quantity_per_unit}
+                          onChange={e => setRecipeForm(p => ({ ...p, quantity_per_unit: e.target.value }))}
+                          placeholder="e.g. 2.000"
+                          disabled={!recipeForm.material_id}
+                          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-green disabled:opacity-50"
+                        />
+                      </div>
+                    </div>
+                    {recipeForm.material_id && recipeForm.quantity_per_unit && (
+                      <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+                        Each unit uses <strong>{recipeForm.quantity_per_unit} {materials.find(m => m.id === recipeForm.material_id)?.unit}</strong> of <strong>{materials.find(m => m.id === recipeForm.material_id)?.name}</strong>
+                      </p>
+                    )}
                   </div>
-                </div>
+                )}
 
                 <FormInput label="Selling price (TZS)" type="number" min="0" required value={form.price} onChange={(e) => updateField('price', e.target.value)} placeholder="e.g. 26,000" />
 
                 <div className="grid grid-cols-2 gap-4">
-                  <FormInput label="Opening stock (kg)" type="number" min="0" required value={form.stock_qty} onChange={(e) => updateField('stock_qty', e.target.value)} placeholder="e.g. 40" />
-                  <FormInput label="Min stock (kg)" type="number" min="0" value={form.min_stock} onChange={(e) => updateField('min_stock', e.target.value)} placeholder="e.g. 10" />
+                  <FormInput label="Opening stock (units)" type="number" min="0" required value={form.stock_qty} onChange={(e) => updateField('stock_qty', e.target.value)} placeholder="e.g. 40" />
+                  <FormInput label="Min stock (units)" type="number" min="0" value={form.min_stock} onChange={(e) => updateField('min_stock', e.target.value)} placeholder="e.g. 10" />
                 </div>
 
                 {/* Image picker */}
@@ -567,52 +590,6 @@ export function ProductsPage() {
                   )}
                 </div>
 
-                {/* Recipe section */}
-                {materials.length > 0 && (
-                  <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
-                    <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Recipe <span className="font-normal text-slate-400">(optional)</span>
-                    </p>
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-3">
-                      Link this package to a raw material so you can run packaging production jobs.
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Raw material</label>
-                        <select
-                          value={recipeForm.material_id}
-                          onChange={e => setRecipeForm(p => ({ ...p, material_id: e.target.value }))}
-                          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-green"
-                        >
-                          <option value="">— None —</option>
-                          {materials.map(m => (
-                            <option key={m.id} value={m.id}>{m.name} ({m.unit})</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                          Qty per unit ({materials.find(m => m.id === recipeForm.material_id)?.unit ?? '—'})
-                        </label>
-                        <input
-                          type="number"
-                          min="0.001"
-                          step="0.001"
-                          value={recipeForm.quantity_per_unit}
-                          onChange={e => setRecipeForm(p => ({ ...p, quantity_per_unit: e.target.value }))}
-                          placeholder="e.g. 2.000"
-                          disabled={!recipeForm.material_id}
-                          className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 text-xs font-semibold text-slate-800 dark:text-slate-100 focus:outline-none focus:border-brand-green disabled:opacity-50"
-                        />
-                      </div>
-                    </div>
-                    {recipeForm.material_id && recipeForm.quantity_per_unit && (
-                      <p className="mt-2 text-[11px] text-slate-400 dark:text-slate-500">
-                        Each unit uses <strong>{recipeForm.quantity_per_unit} {materials.find(m => m.id === recipeForm.material_id)?.unit}</strong> of <strong>{materials.find(m => m.id === recipeForm.material_id)?.name}</strong>
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Footer */}
@@ -623,7 +600,7 @@ export function ProductsPage() {
                 </button>
                 <button type="submit" disabled={saving}
                   className="h-9 rounded-lg bg-brand-green px-5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60">
-                  {saving ? 'Saving…' : editingProduct ? 'Save changes' : 'Add product'}
+                  {saving ? 'Saving…' : editingProduct ? 'Save changes' : 'Add package'}
                 </button>
               </div>
             </form>
