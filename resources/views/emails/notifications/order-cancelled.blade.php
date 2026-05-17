@@ -21,7 +21,7 @@
       <div class="header-brand">Kibondo Green Farm</div>
       <div class="header-tagline">Fresh produce, direct from the farm</div>
     </div>
-    <div class="greeting">Hello {{ $customer->name }},</div>
+    <div class="greeting">Hello {{ $customer_name }},</div>
     <div class="body">
       <p>We regret to inform you that your order <strong>{{ $sale->sale_number }}</strong> has been cancelled.</p>
       <p>If you have any questions about this cancellation, please contact us directly. We apologise for any inconvenience.</p>

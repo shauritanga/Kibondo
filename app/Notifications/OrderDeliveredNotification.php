@@ -49,6 +49,6 @@ class OrderDeliveredNotification extends Notification implements ShouldQueue
     {
         return (new MailMessage)
             ->subject("Your order {$this->sale->sale_number} has arrived")
-            ->view('emails.notifications.order-delivered', ['sale' => $this->sale, 'customer' => $notifiable]);
+            ->view('emails.notifications.order-delivered', ['sale' => $this->sale, 'customer_name' => $notifiable instanceof \App\Models\Customer ? $notifiable->name : ($this->sale->guest_name ?? 'Customer')]);
     }
 }

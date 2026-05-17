@@ -26,7 +26,7 @@
       <div class="header-brand">Kibondo Green Farm</div>
       <div class="header-tagline">Fresh produce, direct from the farm</div>
     </div>
-    <div class="greeting">Hello {{ $customer->name }},</div>
+    <div class="greeting">Hello {{ $customer_name }},</div>
     <div class="body">
       <p>Great news! We have confirmed your order and are preparing it for delivery.</p>
       <div class="badge">✓ Order Confirmed</div>
