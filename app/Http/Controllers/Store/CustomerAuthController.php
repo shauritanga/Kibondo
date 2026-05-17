@@ -10,6 +10,7 @@ use App\Models\Customer;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -32,10 +33,10 @@ class CustomerAuthController extends Controller
 
         event(new Registered($customer));
 
-        $token = $customer->createToken('store')->plainTextToken;
+        Auth::guard('customer')->login($customer);
+        $request->session()->regenerate();
 
         return response()->json([
-            'token'    => $token,
             'customer' => new CustomerResource($customer),
             'message'  => 'Registration successful. Please check your email to verify your account.',
         ], 201);
@@ -51,31 +52,46 @@ class CustomerAuthController extends Controller
             ]);
         }
 
-        $token = $customer->createToken('store')->plainTextToken;
+        Auth::guard('customer')->login($customer);
+        $request->session()->regenerate();
 
         return response()->json([
-            'token'    => $token,
             'customer' => new CustomerResource($customer),
         ]);
     }
 
     public function logout(Request $request): JsonResponse
     {
-        $request->user('customer')->currentAccessToken()->delete();
+        Auth::guard('customer')->logout();
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->json(['message' => 'Logged out.']);
     }
 
     public function me(Request $request): JsonResponse
     {
-        return response()->json(new CustomerResource($request->user('customer')));
+        return response()->json(new CustomerResource(Auth::guard('customer')->user()));
     }
 
     public function verifyEmail(Request $request, string $id, string $hash): JsonResponse
     {
         $customer = Customer::findOrFail($id);
 
-        abort_unless(hash_equals(sha1($customer->email), $hash), 403, 'Invalid verification link.');
+        $expires = (int) $request->query('expires', 0);
+
+        abort_unless($expires > 0 && $expires >= now()->timestamp, 403, 'Verification link has expired.');
+
+        $expected = hash_hmac(
+            'sha256',
+            $customer->getKey() . '|' . $customer->getEmailForVerification() . '|' . $expires,
+            config('app.key')
+        );
+
+        abort_unless(hash_equals($expected, $hash), 403, 'Invalid verification link.');
         abort_if($customer->hasVerifiedEmail(), 422, 'Email already verified.');
 
         $customer->markEmailAsVerified();

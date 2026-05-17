@@ -129,7 +129,7 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
     Route::post('/sales/{sale}/confirm',  [SaleController::class, 'confirm'])->middleware('role:admin');
     Route::post('/sales/{sale}/assign',   [SaleController::class, 'assign'])->middleware('role:admin');
     Route::post('/sales/{sale}/deliver',  [SaleController::class, 'deliver'])->middleware('role:admin,delivery');
-    Route::put('/sales/{sale}/status', [SaleController::class, 'updateStatus']);
+    Route::put('/sales/{sale}/status', [SaleController::class, 'updateStatus'])->middleware('role:admin,accountant');
     Route::apiResource('sales', SaleController::class)->except(['update']);
 
     // FCM token management

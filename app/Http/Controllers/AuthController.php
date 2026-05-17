@@ -78,6 +78,11 @@ class AuthController extends Controller
             return response()->json(['message' => 'Code expired. Please log in again.'], 422);
         }
 
+        if ($payload['ip'] !== $request->ip()) {
+            Cache::forget($cacheKey);
+            return response()->json(['message' => 'Session mismatch. Please log in again.'], 422);
+        }
+
         $attemptsKey = "otp_attempts:{$request->challenge_token}";
         $attempts    = (int) Cache::get($attemptsKey, 0);
 
@@ -201,6 +206,7 @@ class AuthController extends Controller
         Cache::put("otp:{$challengeToken}", [
             'user_id'  => $user->id,
             'otp_hash' => hash('sha256', $otp),
+            'ip'       => request()->ip(),
         ], now()->addMinutes(10));
 
         $user->notify(new StaffLoginOtpNotification($otp));

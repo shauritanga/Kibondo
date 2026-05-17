@@ -38,7 +38,7 @@ class PaymentController extends Controller
     {
         $request->validate([
             'sale_id' => 'required|uuid|exists:sales,id',
-            'amount' => 'required|integer|min:1',
+            'amount' => 'required|integer|min:1|max:999999999',
             'payment_method' => 'required|in:cash,mobile_money,card,credit,bank_transfer',
             'reference' => 'nullable|string|max:100',
             'note' => 'nullable|string|max:500',

@@ -23,17 +23,31 @@ class ReportController extends Controller
         $lastMonthStart   = now()->subMonth()->startOfMonth()->toDateString();
         $lastMonthSameDay = now()->subMonth()->toDateString();
 
-        // KPIs
-        $totalSalesToday     = Sale::whereDate('created_at', $today)->where('status', '!=', 'cancelled')->sum('total_amount');
-        $totalSalesYesterday = Sale::whereDate('created_at', $yesterday)->where('status', '!=', 'cancelled')->sum('total_amount');
-        $totalSalesMonth     = Sale::whereDate('created_at', '>=', $monthStart)->where('status', '!=', 'cancelled')->sum('total_amount');
-        $totalSalesLastMonth = Sale::whereBetween(DB::raw('DATE(created_at)'), [$lastMonthStart, $lastMonthSameDay])->where('status', '!=', 'cancelled')->sum('total_amount');
+        // KPIs — collapse five separate sale queries into one aggregate
+        $saleStats = DB::table('sales')
+            ->where('status', '!=', 'cancelled')
+            ->selectRaw("
+                SUM(CASE WHEN DATE(created_at) = ? THEN total_amount ELSE 0 END) AS today_revenue,
+                SUM(CASE WHEN DATE(created_at) = ? THEN total_amount ELSE 0 END) AS yesterday_revenue,
+                SUM(CASE WHEN DATE(created_at) >= ? THEN total_amount ELSE 0 END) AS month_revenue,
+                SUM(CASE WHEN DATE(created_at) BETWEEN ? AND ? THEN total_amount ELSE 0 END) AS last_month_revenue,
+                COUNT(CASE WHEN DATE(created_at) = ? THEN 1 END) AS today_orders
+            ", [$today, $yesterday, $monthStart, $lastMonthStart, $lastMonthSameDay, $today])
+            ->first();
+
+        $totalSalesToday     = (int) $saleStats->today_revenue;
+        $totalSalesYesterday = (int) $saleStats->yesterday_revenue;
+        $totalSalesMonth     = (int) $saleStats->month_revenue;
+        $totalSalesLastMonth = (int) $saleStats->last_month_revenue;
+        $totalOrders         = (int) $saleStats->today_orders;
 
         $pct = fn ($now, $prev) => $prev > 0 ? round(($now - $prev) / $prev * 100, 1) : null;
 
-        $totalOrders        = Sale::whereDate('created_at', $today)->where('status', '!=', 'cancelled')->count();
-        $totalCustomers     = Customer::count();
-        $outstandingBalance = Customer::sum('outstanding_balance');
+        $customerStats  = DB::table('customers')->whereNull('deleted_at')
+            ->selectRaw('COUNT(*) AS cnt, COALESCE(SUM(outstanding_balance), 0) AS balance')
+            ->first();
+        $totalCustomers     = (int) $customerStats->cnt;
+        $outstandingBalance = (int) $customerStats->balance;
 
         $lowStockProducts = Product::where('is_active', true)
             ->whereColumn('stock_qty', '<=', 'min_stock')
@@ -103,11 +117,24 @@ class ReportController extends Controller
         ]);
     }
 
+    private function validateDateRange(string $from, string $to, int $maxDays = 366): ?JsonResponse
+    {
+        if ($from > $to) {
+            return response()->json(['message' => 'from date must be before to date.'], 422);
+        }
+        if (now()->parse($from)->diffInDays(now()->parse($to)) > $maxDays) {
+            return response()->json(['message' => "Date range cannot exceed {$maxDays} days."], 422);
+        }
+        return null;
+    }
+
     public function sales(Request $request): JsonResponse
     {
-        $from = $request->get('from', now()->startOfMonth()->toDateString());
-        $to = $request->get('to', now()->toDateString());
+        $from    = $request->get('from', now()->startOfMonth()->toDateString());
+        $to      = $request->get('to',   now()->toDateString());
         $groupBy = $request->get('group_by', 'day');
+
+        if ($err = $this->validateDateRange($from, $to)) return $err;
 
         $dateTrunc = match ($groupBy) {
             'week' => "DATE_TRUNC('week', created_at)",
@@ -134,7 +161,9 @@ class ReportController extends Controller
     public function salesByProduct(Request $request): JsonResponse
     {
         $from = $request->get('from', now()->startOfMonth()->toDateString());
-        $to = $request->get('to', now()->toDateString());
+        $to   = $request->get('to',   now()->toDateString());
+
+        if ($err = $this->validateDateRange($from, $to)) return $err;
 
         $rows = SaleItem::join('products', 'sale_items.product_id', '=', 'products.id')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
@@ -156,9 +185,11 @@ class ReportController extends Controller
 
     public function bestSellers(Request $request): JsonResponse
     {
-        $limit = $request->get('limit', 5);
-        $from = $request->get('from', now()->startOfMonth()->toDateString());
-        $to = $request->get('to', now()->toDateString());
+        $limit = min((int) $request->get('limit', 5), 50);
+        $from  = $request->get('from', now()->startOfMonth()->toDateString());
+        $to    = $request->get('to',   now()->toDateString());
+
+        if ($err = $this->validateDateRange($from, $to)) return $err;
 
         $rows = SaleItem::join('products', 'sale_items.product_id', '=', 'products.id')
             ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
@@ -181,27 +212,31 @@ class ReportController extends Controller
     public function stockMovementSummary(Request $request): JsonResponse
     {
         $from = $request->get('from', now()->startOfMonth()->toDateString());
-        $to = $request->get('to', now()->toDateString());
+        $to   = $request->get('to',   now()->toDateString());
 
-        $inTypes  = ['stock_in', 'returned'];
-        $outTypes = ['stock_out', 'sale', 'damaged'];
+        if ($from > $to) {
+            return response()->json(['message' => 'from date must be before to date.'], 422);
+        }
+        if (now()->parse($from)->diffInDays(now()->parse($to)) > 365) {
+            return response()->json(['message' => 'Date range cannot exceed 365 days.'], 422);
+        }
 
-        $rows = Product::where('is_active', true)
-            ->with(['stockMovements' => function ($q) use ($from, $to) {
-                $q->whereDate('created_at', '>=', $from)
-                  ->whereDate('created_at', '<=', $to);
-            }])
-            ->get(['id', 'name', 'stock_qty'])
-            ->map(function ($product) use ($inTypes, $outTypes) {
-                $in  = $product->stockMovements->whereIn('movement_type', $inTypes)->sum('quantity');
-                $out = $product->stockMovements->whereIn('movement_type', $outTypes)->sum('quantity');
-                return [
-                    'product'     => $product->name,
-                    'stock_in'    => $in,
-                    'stock_out'   => $out,
-                    'current_qty' => $product->stock_qty,
-                ];
-            });
+        $rows = DB::table('products as p')
+            ->where('p.is_active', true)
+            ->leftJoin('stock_movements as sm', function ($join) use ($from, $to) {
+                $join->on('sm.product_id', '=', 'p.id')
+                     ->whereDate('sm.created_at', '>=', $from)
+                     ->whereDate('sm.created_at', '<=', $to);
+            })
+            ->selectRaw("
+                p.name AS product,
+                p.stock_qty AS current_qty,
+                COALESCE(SUM(CASE WHEN sm.movement_type IN ('stock_in','returned') THEN sm.quantity ELSE 0 END), 0) AS stock_in,
+                COALESCE(SUM(CASE WHEN sm.movement_type IN ('stock_out','sale','damaged') THEN sm.quantity ELSE 0 END), 0) AS stock_out
+            ")
+            ->groupBy('p.id', 'p.name', 'p.stock_qty')
+            ->orderBy('p.name')
+            ->get();
 
         return response()->json(['data' => $rows]);
     }
@@ -238,7 +273,9 @@ class ReportController extends Controller
     public function paymentSummary(Request $request): JsonResponse
     {
         $from = $request->get('from', now()->startOfMonth()->toDateString());
-        $to = $request->get('to', now()->toDateString());
+        $to   = $request->get('to',   now()->toDateString());
+
+        if ($err = $this->validateDateRange($from, $to)) return $err;
 
         $rows = Payment::select(
                 'payment_method',

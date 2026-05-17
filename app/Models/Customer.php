@@ -53,4 +53,9 @@ class Customer extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(CustomerTask::class);
     }
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new \App\Notifications\CustomerEmailVerificationNotification);
+    }
 }

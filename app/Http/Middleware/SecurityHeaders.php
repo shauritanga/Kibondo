@@ -18,7 +18,7 @@ class SecurityHeaders
         $response->headers->set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
         $response->headers->set('Content-Security-Policy',
             "default-src 'self'; " .
-            "script-src 'self' 'unsafe-inline'; " .
+            "script-src 'self'; " .
             "style-src 'self' 'unsafe-inline'; " .
             "img-src 'self' data: https:; " .
             "connect-src 'self'; " .

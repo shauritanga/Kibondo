@@ -14,7 +14,15 @@ class PlaceOrderRequest extends FormRequest
         return [
             'delivery_address'         => 'required|string|max:500',
             'delivery_zone_id'         => 'nullable|uuid|exists:delivery_zones,id',
-            'items'                    => 'required|array|min:1',
+            'items'                    => [
+                'required', 'array', 'min:1',
+                function ($attribute, $value, $fail) {
+                    $ids = array_column($value, 'product_id');
+                    if (count($ids) !== count(array_unique($ids))) {
+                        $fail('Duplicate products in order. Combine quantities into a single item.');
+                    }
+                },
+            ],
             'items.*.product_id'       => 'required|uuid|exists:products,id',
             'items.*.quantity'         => 'required|integer|min:1',
             'guest_name'               => $isGuest ? 'required|string|max:100' : 'nullable|string|max:100',

@@ -22,7 +22,8 @@ class SaleService
         return DB::transaction(function () use ($data, $userId) {
             $items = $data['items'];
 
-            // Validate stock availability upfront
+            // Validate stock availability upfront — keep fetched products to avoid refetching below
+            $products = [];
             foreach ($items as $item) {
                 $product = Product::lockForUpdate()->findOrFail($item['product_id']);
                 if ($product->stock_qty < $item['quantity']) {
@@ -30,6 +31,7 @@ class SaleService
                         'items' => "Insufficient stock for {$product->name}. Available: {$product->stock_qty}",
                     ]);
                 }
+                $products[$item['product_id']] = $product;
             }
 
             $subtotal     = collect($items)->sum(fn($i) => $i['quantity'] * $i['unit_price']);
@@ -74,7 +76,7 @@ class SaleService
             ]);
 
             foreach ($items as $item) {
-                $product = Product::find($item['product_id']);
+                $product = $products[$item['product_id']];
 
                 $sale->items()->create([
                     'product_id' => $product->id,
@@ -159,8 +161,11 @@ class SaleService
 
     private function nextSaleNumber(): string
     {
-        $last = Sale::withTrashed()->orderByDesc('created_at')->value('sale_number');
-        $next = $last ? (intval(substr($last, 4)) + 1) : 1;
+        // Advisory lock prevents duplicate numbers under concurrent requests.
+        // pg_advisory_xact_lock is automatically released when the transaction ends.
+        DB::statement('SELECT pg_advisory_xact_lock(7731234)');
+        $last = Sale::withTrashed()->max(DB::raw("CAST(SUBSTRING(sale_number FROM 5) AS INTEGER)"));
+        $next = $last ? ($last + 1) : 1;
         return 'ORD-' . str_pad($next, 5, '0', STR_PAD_LEFT);
     }
 }

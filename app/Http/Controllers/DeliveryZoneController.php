@@ -7,6 +7,7 @@ use App\Models\DeliveryZone;
 use App\Models\Sale;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class DeliveryZoneController extends Controller
 {
@@ -19,7 +20,9 @@ class DeliveryZoneController extends Controller
 
     public function publicIndex(): JsonResponse
     {
-        $zones = DeliveryZone::where('is_active', true)->orderBy('name')->get();
+        $zones = Cache::remember('delivery_zones_public', 3600, function () {
+            return DeliveryZone::where('is_active', true)->orderBy('name')->get();
+        });
 
         return response()->json(['data' => DeliveryZoneResource::collection($zones)]);
     }
@@ -38,6 +41,8 @@ class DeliveryZoneController extends Controller
             'is_active'     => $request->boolean('is_active', true),
         ]);
 
+        Cache::forget('delivery_zones_public');
+
         return response()->json(['data' => new DeliveryZoneResource($zone)], 201);
     }
 
@@ -50,6 +55,8 @@ class DeliveryZoneController extends Controller
         ]);
 
         $deliveryZone->update($request->only(['name', 'delivery_cost', 'is_active']));
+
+        Cache::forget('delivery_zones_public');
 
         return response()->json(['data' => new DeliveryZoneResource($deliveryZone)]);
     }
@@ -67,6 +74,8 @@ class DeliveryZoneController extends Controller
         }
 
         $deliveryZone->delete();
+
+        Cache::forget('delivery_zones_public');
 
         return response()->json(['message' => 'Delivery zone deleted.']);
     }

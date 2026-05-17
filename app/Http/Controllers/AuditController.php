@@ -62,7 +62,9 @@ class AuditController extends Controller
             ? (int) $request->per_page
             : 25;
 
-        return response()->json($query->paginate($perPage));
+        return response()->json($query->paginate($perPage)->through(
+            fn ($log) => $log->makeHidden(['ip_address'])
+        ));
     }
 
     public function show(AuditLog $auditLog): JsonResponse
@@ -104,7 +106,7 @@ class AuditController extends Controller
             fputcsv($handle, [
                 'ID', 'Date', 'User', 'Email', 'Role',
                 'Action', 'Module', 'Description',
-                'Record ID', 'Table', 'IP Address', 'Status',
+                'Record ID', 'Table', 'Status',
             ]);
 
             $query->chunk(500, function ($logs) use ($handle) {
@@ -120,7 +122,6 @@ class AuditController extends Controller
                         $log->description,
                         $log->record_id,
                         $log->table_name,
-                        $log->ip_address,
                         $log->status,
                     ]);
                 }

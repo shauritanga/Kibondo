@@ -1,15 +1,16 @@
 import axios from 'axios';
 
-const http = axios.create({ baseURL: '/api/v1/store' });
+const http = axios.create({
+  baseURL: '/api/v1/store',
+  withCredentials: true,
+  withXSRFToken: true,
+});
 
-const TOKEN_KEY = 'kibondo_customer_token';
 const CUSTOMER_KEY = 'kibondo_customer';
 
-http.interceptors.request.use((config) => {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
+export async function getCsrfCookie(): Promise<void> {
+  await axios.get('/sanctum/csrf-cookie', { withCredentials: true });
+}
 
 let redirecting = false;
 http.interceptors.response.use(
@@ -17,7 +18,6 @@ http.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401 && !redirecting) {
       redirecting = true;
-      localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(CUSTOMER_KEY);
       window.location.href = '/store/login';
     }
@@ -32,7 +32,7 @@ http.interceptors.response.use(
   }
 );
 
-export { TOKEN_KEY, CUSTOMER_KEY };
+export { CUSTOMER_KEY };
 
 export function formatMoney(value: number) {
   return `TZS ${new Intl.NumberFormat('en-TZ').format(value)}`;
@@ -141,11 +141,13 @@ export const storeCatalogApi = {
 
 export const storeAuthApi = {
   register: async (payload: { name: string; phone: string; email: string; password: string; password_confirmation: string }) => {
-    const { data } = await http.post<{ token: string; customer: StoreCustomer }>('/auth/register', payload);
+    await getCsrfCookie();
+    const { data } = await http.post<{ customer: StoreCustomer; message: string }>('/auth/register', payload);
     return data;
   },
   login: async (email: string, password: string) => {
-    const { data } = await http.post<{ token: string; customer: StoreCustomer }>('/auth/login', { email, password });
+    await getCsrfCookie();
+    const { data } = await http.post<{ customer: StoreCustomer }>('/auth/login', { email, password });
     return data;
   },
   logout: () => http.post('/auth/logout'),

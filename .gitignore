@@ -56,3 +56,4 @@ web.config
 # Test coverage
 /coverage
 /.nyc_output
+review_*.md
