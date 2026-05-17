@@ -6,12 +6,8 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<
-    | { twoFactor: true; challengeToken: string }
-    | { setupRequired: true; setupToken: string }
-    | void
-  >;
-  verifyTwoFactor: (challengeToken: string, code: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ otpRequired: true; challengeToken: string; message: string } | void>;
+  verifyOtp: (challengeToken: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User) => void;
 }
@@ -37,11 +33,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(email: string, password: string) {
     const res = await authApi.login(email, password);
-    if ('two_factor' in res) {
-      return { twoFactor: true as const, challengeToken: res.challenge_token };
-    }
-    if ('two_factor_setup_required' in res) {
-      return { setupRequired: true as const, setupToken: res.setup_token };
+    if ('otp_required' in res) {
+      return { otpRequired: true as const, challengeToken: res.challenge_token, message: res.message };
     }
     const { token: t, user: u } = res;
     localStorage.setItem('kibondo_token', t);
@@ -50,8 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(u);
   }
 
-  async function verifyTwoFactor(challengeToken: string, code: string) {
-    const { token: t, user: u } = await authApi.twoFactorChallenge(challengeToken, code);
+  async function verifyOtp(challengeToken: string, code: string) {
+    const { token: t, user: u } = await authApi.verifyOtp(challengeToken, code);
     localStorage.setItem('kibondo_token', t);
     localStorage.setItem('kibondo_user', JSON.stringify(u));
     setToken(t);
@@ -73,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, verifyTwoFactor, logout, setUser: updateUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, verifyOtp, logout, setUser: updateUser }}>
       {children}
     </AuthContext.Provider>
   );

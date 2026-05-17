@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use App\Models\User;
+use App\Notifications\StaffLoginOtpNotification;
 use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,16 +13,13 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
-use PragmaRX\Google2FALaravel\Google2FA;
 
 class AuthController extends Controller
 {
-    public function __construct(private Google2FA $google2fa) {}
-
     public function login(Request $request): JsonResponse
     {
         $request->validate([
-            'email' => 'required|email',
+            'email'    => 'required|email',
             'password' => 'required|string',
         ]);
 
@@ -56,43 +55,48 @@ class AuthController extends Controller
             ]);
         }
 
-        $require2fa = Setting::get('require_2fa_for_admins', '0') === '1' && $user->role === 'admin';
-
-        if ($require2fa || $user->hasTwoFactorEnabled()) {
-            $setupToken = Str::uuid()->toString();
-            Cache::put("2fa_setup:{$setupToken}", $user->id, now()->addMinutes(10));
-
-            // Admin has 2FA confirmed → challenge step
-            if ($user->hasTwoFactorEnabled()) {
-                return response()->json([
-                    'two_factor'      => true,
-                    'challenge_token' => $setupToken,
-                ]);
-            }
-
-            // Admin required but not yet set up → inline setup step
-            return response()->json([
-                'two_factor_setup_required' => true,
-                'setup_token'               => $setupToken,
-            ]);
+        // Email OTP required for admins when the setting is on
+        if (Setting::get('require_2fa_for_admins', '0') === '1' && $user->role === 'admin') {
+            return $this->sendOtp($user);
         }
 
-        $token = $user->createToken('spa')->plainTextToken;
+        return $this->issueToken($user, 'User logged in');
+    }
 
-        AuditService::log([
-            'action'      => 'login',
-            'module'      => 'auth',
-            'description' => "User logged in",
-            'user_id'     => $user->id,
-            'user_name'   => $user->name,
-            'user_email'  => $user->email,
-            'user_role'   => $user->role,
+    public function verifyOtp(Request $request): JsonResponse
+    {
+        $request->validate([
+            'challenge_token' => 'required|string',
+            'code'            => 'required|string|size:6',
         ]);
 
-        return response()->json([
-            'token' => $token,
-            'user'  => $this->userPayload($user),
-        ]);
+        $cacheKey = "otp:{$request->challenge_token}";
+        $payload  = Cache::get($cacheKey);
+
+        if (! $payload) {
+            return response()->json(['message' => 'Code expired. Please log in again.'], 422);
+        }
+
+        // Enforce max attempts
+        $attemptsKey = "otp_attempts:{$request->challenge_token}";
+        $attempts    = (int) Cache::get($attemptsKey, 0);
+
+        if ($attempts >= 5) {
+            Cache::forget($cacheKey);
+            return response()->json(['message' => 'Too many attempts. Please log in again.'], 422);
+        }
+
+        if (! hash_equals($payload['otp_hash'], hash('sha256', $request->code))) {
+            Cache::put($attemptsKey, $attempts + 1, now()->addMinutes(10));
+            return response()->json(['message' => 'Invalid code. Please try again.'], 422);
+        }
+
+        Cache::forget($cacheKey);
+        Cache::forget($attemptsKey);
+
+        $user = User::findOrFail($payload['user_id']);
+
+        return $this->issueToken($user, 'User logged in with email OTP');
     }
 
     public function logout(Request $request): JsonResponse
@@ -125,169 +129,6 @@ class AuthController extends Controller
         return response()->json($this->userPayload($request->user()));
     }
 
-    // ─── Two-Factor Authentication ────────────────────────────────────────────
-
-    /** Step 1 of setup: generate a new secret and return the QR URI. */
-    public function twoFactorSetup(Request $request): JsonResponse
-    {
-        $user   = $request->user();
-        $secret = $this->google2fa->generateSecretKey();
-
-        $user->update(['two_factor_secret' => $secret, 'two_factor_confirmed_at' => null]);
-
-        $qrUri = $this->google2fa->getQRCodeUrl(
-            config('app.name'),
-            $user->email,
-            $secret
-        );
-
-        return response()->json(['secret' => $secret, 'qr_uri' => $qrUri]);
-    }
-
-    /** Step 2 of setup: verify first TOTP code and mark 2FA as confirmed. */
-    public function twoFactorConfirm(Request $request): JsonResponse
-    {
-        $request->validate(['code' => 'required|string|size:6']);
-
-        $user = $request->user();
-
-        if (!$user->two_factor_secret) {
-            return response()->json(['message' => '2FA setup not started.'], 422);
-        }
-
-        $valid = $this->google2fa->verifyKey($user->two_factor_secret, $request->code);
-
-        if (!$valid) {
-            return response()->json(['message' => 'Invalid verification code.'], 422);
-        }
-
-        $user->update(['two_factor_confirmed_at' => now()]);
-
-        return response()->json(['message' => 'Two-factor authentication enabled.', 'user' => $this->userPayload($user->fresh())]);
-    }
-
-    /** Disable 2FA — requires current password for confirmation. */
-    public function twoFactorDisable(Request $request): JsonResponse
-    {
-        $request->validate(['password' => 'required|current_password']);
-
-        $request->user()->update([
-            'two_factor_secret'       => null,
-            'two_factor_confirmed_at' => null,
-        ]);
-
-        return response()->json(['message' => 'Two-factor authentication disabled.', 'user' => $this->userPayload($request->user()->fresh())]);
-    }
-
-    /** Verify a TOTP code during the login 2FA challenge step. */
-    public function twoFactorChallenge(Request $request): JsonResponse
-    {
-        $request->validate([
-            'challenge_token' => 'required|string',
-            'code'            => 'required|string|size:6',
-        ]);
-
-        $cacheKey = "2fa_setup:{$request->challenge_token}";
-        $userId   = Cache::get($cacheKey);
-
-        if (!$userId) {
-            return response()->json(['message' => 'Challenge expired. Please log in again.'], 422);
-        }
-
-        $user = \App\Models\User::find($userId);
-
-        if (!$user || !$user->two_factor_secret) {
-            Cache::forget($cacheKey);
-            return response()->json(['message' => 'Invalid challenge.'], 422);
-        }
-
-        $valid = $this->google2fa->verifyKey($user->two_factor_secret, $request->code);
-
-        if (!$valid) {
-            return response()->json(['message' => 'Invalid authentication code.'], 422);
-        }
-
-        Cache::forget($cacheKey);
-
-        $token = $user->createToken('spa')->plainTextToken;
-
-        AuditService::log([
-            'action'      => 'login',
-            'module'      => 'auth',
-            'description' => 'User logged in with 2FA',
-            'user_id'     => $user->id,
-            'user_name'   => $user->name,
-            'user_email'  => $user->email,
-            'user_role'   => $user->role,
-        ]);
-
-        return response()->json(['token' => $token, 'user' => $this->userPayload($user)]);
-    }
-
-    /** Generate a secret for an admin who is being forced to set up 2FA during login. */
-    public function twoFactorSetupInit(Request $request): JsonResponse
-    {
-        $request->validate(['setup_token' => 'required|string']);
-
-        $userId = Cache::get("2fa_setup:{$request->setup_token}");
-        if (!$userId) {
-            return response()->json(['message' => 'Setup session expired. Please log in again.'], 422);
-        }
-
-        $user   = \App\Models\User::findOrFail($userId);
-        $secret = $this->google2fa->generateSecretKey();
-        $user->update(['two_factor_secret' => $secret, 'two_factor_confirmed_at' => null]);
-
-        $qrUri = $this->google2fa->getQRCodeUrl(config('app.name'), $user->email, $secret);
-
-        return response()->json(['secret' => $secret, 'qr_uri' => $qrUri]);
-    }
-
-    /** Complete forced 2FA setup during login: verify code, confirm, issue real token. */
-    public function twoFactorSetupComplete(Request $request): JsonResponse
-    {
-        $request->validate([
-            'setup_token' => 'required|string',
-            'code'        => 'required|string|size:6',
-        ]);
-
-        $cacheKey = "2fa_setup:{$request->setup_token}";
-        $userId   = Cache::get($cacheKey);
-
-        if (!$userId) {
-            return response()->json(['message' => 'Setup session expired. Please log in again.'], 422);
-        }
-
-        $user = \App\Models\User::findOrFail($userId);
-
-        if (!$user->two_factor_secret) {
-            return response()->json(['message' => 'Setup not started.'], 422);
-        }
-
-        $valid = $this->google2fa->verifyKey($user->two_factor_secret, $request->code);
-
-        if (!$valid) {
-            return response()->json(['message' => 'Invalid verification code.'], 422);
-        }
-
-        $user->update(['two_factor_confirmed_at' => now()]);
-        Cache::forget($cacheKey);
-
-        $token = $user->createToken('spa')->plainTextToken;
-
-        AuditService::log([
-            'action'      => 'login',
-            'module'      => 'auth',
-            'description' => 'Admin logged in after completing forced 2FA setup',
-            'user_id'     => $user->id,
-            'user_name'   => $user->name,
-            'user_email'  => $user->email,
-            'user_role'   => $user->role,
-        ]);
-
-        return response()->json(['token' => $token, 'user' => $this->userPayload($user)]);
-    }
-
     public function updateAvatar(Request $request): JsonResponse
     {
         $request->validate(['avatar' => 'required|file|mimes:jpg,jpeg,png,webp,gif|max:2048']);
@@ -304,18 +145,6 @@ class AuthController extends Controller
         return response()->json(['avatar_url' => $user->avatar_url]);
     }
 
-    private function userPayload(\App\Models\User $user): array
-    {
-        return [
-            'id'                  => $user->id,
-            'name'                => $user->name,
-            'email'               => $user->email,
-            'role'                => $user->role,
-            'avatar_url'          => $user->avatar_url,
-            'two_factor_enabled'  => $user->hasTwoFactorEnabled(),
-        ];
-    }
-
     public function updatePassword(Request $request): JsonResponse
     {
         $request->validate([
@@ -326,12 +155,58 @@ class AuthController extends Controller
         $user = $request->user();
         $user->update(['password' => $request->password]);
 
-        // Revoke all tokens so other devices are logged out
         $user->tokens()->delete();
-
-        // Issue a fresh token for the current session
         $newToken = $user->createToken('spa')->plainTextToken;
 
         return response()->json(['message' => 'Password updated.', 'token' => $newToken]);
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    private function sendOtp(User $user): JsonResponse
+    {
+        $otp            = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $challengeToken = Str::uuid()->toString();
+
+        Cache::put("otp:{$challengeToken}", [
+            'user_id'  => $user->id,
+            'otp_hash' => hash('sha256', $otp),
+        ], now()->addMinutes(10));
+
+        $user->notify(new StaffLoginOtpNotification($otp));
+
+        return response()->json([
+            'otp_required'    => true,
+            'challenge_token' => $challengeToken,
+            'message'         => "A login code has been sent to {$user->email}",
+        ]);
+    }
+
+    private function issueToken(User $user, string $description): JsonResponse
+    {
+        $token = $user->createToken('spa')->plainTextToken;
+
+        AuditService::log([
+            'action'      => 'login',
+            'module'      => 'auth',
+            'description' => $description,
+            'user_id'     => $user->id,
+            'user_name'   => $user->name,
+            'user_email'  => $user->email,
+            'user_role'   => $user->role,
+        ]);
+
+        return response()->json(['token' => $token, 'user' => $this->userPayload($user)]);
+    }
+
+    private function userPayload(User $user): array
+    {
+        return [
+            'id'         => $user->id,
+            'name'       => $user->name,
+            'email'      => $user->email,
+            'role'       => $user->role,
+            'avatar_url' => $user->avatar_url,
+        ];
     }
 }
