@@ -253,7 +253,7 @@ export function PosPage() {
         <>
           <div className="fixed inset-0 z-40 bg-black/40" onClick={closeForm} />
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div className="flex w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl dark:bg-slate-900" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
+            <div className="flex w-full max-w-lg flex-col rounded-xl bg-white shadow-2xl dark:bg-slate-900" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
 
               {/* Header */}
               <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
