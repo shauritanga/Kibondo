@@ -10,9 +10,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
@@ -23,7 +25,9 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        if (! Auth::attempt($request->only('email', 'password'))) {
+        $user = User::where('email', $request->email)->first();
+
+        if (! $user || ! Hash::check($request->password, $user->password)) {
             AuditService::log([
                 'action'      => 'login_failed',
                 'module'      => 'auth',
@@ -36,10 +40,7 @@ class AuthController extends Controller
             ]);
         }
 
-        $user = Auth::user();
-
         if (! $user->is_active) {
-            Auth::logout();
             AuditService::log([
                 'action'      => 'login_failed',
                 'module'      => 'auth',
@@ -60,7 +61,7 @@ class AuthController extends Controller
             return $this->sendOtp($user);
         }
 
-        return $this->issueToken($user, 'User logged in');
+        return $this->startSession($request, $user, 'User logged in');
     }
 
     public function verifyOtp(Request $request): JsonResponse
@@ -77,7 +78,6 @@ class AuthController extends Controller
             return response()->json(['message' => 'Code expired. Please log in again.'], 422);
         }
 
-        // Enforce max attempts
         $attemptsKey = "otp_attempts:{$request->challenge_token}";
         $attempts    = (int) Cache::get($attemptsKey, 0);
 
@@ -96,7 +96,7 @@ class AuthController extends Controller
 
         $user = User::findOrFail($payload['user_id']);
 
-        return $this->issueToken($user, 'User logged in with email OTP');
+        return $this->startSession($request, $user, 'User logged in with email OTP');
     }
 
     public function logout(Request $request): JsonResponse
@@ -107,7 +107,18 @@ class AuthController extends Controller
             'description' => 'User logged out',
         ]);
 
-        $request->user()->currentAccessToken()->delete();
+        // Revoke Sanctum token if request was token-authenticated
+        $token = $request->user()->currentAccessToken();
+        if ($token instanceof PersonalAccessToken) {
+            $token->delete();
+        }
+
+        Auth::guard('web')->logout();
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->json(['message' => 'Logged out.']);
     }
@@ -152,16 +163,35 @@ class AuthController extends Controller
             'password'         => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::min(8)->letters()->numbers()],
         ]);
 
-        $user = $request->user();
-        $user->update(['password' => $request->password]);
+        $request->user()->update(['password' => $request->password]);
 
-        $user->tokens()->delete();
-        $newToken = $user->createToken('spa')->plainTextToken;
+        // Regenerate session after password change (prevents session fixation)
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
 
-        return response()->json(['message' => 'Password updated.', 'token' => $newToken]);
+        return response()->json(['message' => 'Password updated.']);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    private function startSession(Request $request, User $user, string $description): JsonResponse
+    {
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        AuditService::log([
+            'action'      => 'login',
+            'module'      => 'auth',
+            'description' => $description,
+            'user_id'     => $user->id,
+            'user_name'   => $user->name,
+            'user_email'  => $user->email,
+            'user_role'   => $user->role,
+        ]);
+
+        return response()->json(['user' => $this->userPayload($user)]);
+    }
 
     private function sendOtp(User $user): JsonResponse
     {
@@ -180,23 +210,6 @@ class AuthController extends Controller
             'challenge_token' => $challengeToken,
             'message'         => "A login code has been sent to {$user->email}",
         ]);
-    }
-
-    private function issueToken(User $user, string $description): JsonResponse
-    {
-        $token = $user->createToken('spa')->plainTextToken;
-
-        AuditService::log([
-            'action'      => 'login',
-            'module'      => 'auth',
-            'description' => $description,
-            'user_id'     => $user->id,
-            'user_name'   => $user->name,
-            'user_email'  => $user->email,
-            'user_role'   => $user->role,
-        ]);
-
-        return response()->json(['token' => $token, 'user' => $this->userPayload($user)]);
     }
 
     private function userPayload(User $user): array

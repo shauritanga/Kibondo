@@ -5,13 +5,10 @@ import type {
   Payment, Product, ProductRecipe, Sale, StockMovement, User
 } from '../types';
 
-export const http = axios.create({ baseURL: '/api/v1' });
-
-// Inject token on every request
-http.interceptors.request.use((config) => {
-  const token = localStorage.getItem('kibondo_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
+export const http = axios.create({
+  baseURL: '/api/v1',
+  withCredentials: true,     // send session cookie on every request
+  withXSRFToken: true,       // send XSRF-TOKEN cookie value as X-XSRF-TOKEN header
 });
 
 // Redirect to login on 401; attach user-friendly message for other errors
@@ -21,7 +18,6 @@ http.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401 && !redirecting) {
       redirecting = true;
-      localStorage.removeItem('kibondo_token');
       localStorage.removeItem('kibondo_user');
       window.location.href = '/login';
     }
@@ -36,6 +32,11 @@ http.interceptors.response.use(
   }
 );
 
+// Fetch CSRF cookie before login (required for session-based auth)
+export async function getCsrfCookie() {
+  await axios.get('/sanctum/csrf-cookie', { withCredentials: true });
+}
+
 export function formatMoney(value: number) {
   return `TZS ${new Intl.NumberFormat('en-TZ').format(value)}`;
 }
@@ -44,13 +45,13 @@ export function formatMoney(value: number) {
 export const authApi = {
   login: async (email: string, password: string) => {
     const { data } = await http.post<
-      | { token: string; user: User }
+      | { user: User }
       | { otp_required: true; challenge_token: string; message: string }
     >('/auth/login', { email, password });
     return data;
   },
   verifyOtp: async (challengeToken: string, code: string) => {
-    const { data } = await http.post<{ token: string; user: User }>('/auth/otp/verify', {
+    const { data } = await http.post<{ user: User }>('/auth/otp/verify', {
       challenge_token: challengeToken,
       code,
     });
@@ -72,8 +73,7 @@ export const authApi = {
     return data;
   },
   updatePassword: async (payload: { current_password: string; password: string; password_confirmation: string }) => {
-    const { data } = await http.put<{ message: string; token?: string }>('/auth/me/password', payload);
-    if (data.token) localStorage.setItem('kibondo_token', data.token);
+    const { data } = await http.put<{ message: string }>('/auth/me/password', payload);
     return data;
   },
 };
