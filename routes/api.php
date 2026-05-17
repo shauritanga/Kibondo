@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Route;
 
 // ─── Staff Auth ───────────────────────────────────────────────────────────────
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
+Route::post('/auth/2fa/challenge', [AuthController::class, 'twoFactorChallenge'])->middleware('throttle:auth');
 
 // ─── Storefront – public ──────────────────────────────────────────────────────
 Route::prefix('store')->middleware('throttle:store-api')->group(function () {
@@ -69,6 +70,9 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
     Route::put('/auth/me', [AuthController::class, 'updateProfile']);
     Route::post('/auth/me/avatar', [AuthController::class, 'updateAvatar']);
     Route::put('/auth/me/password', [AuthController::class, 'updatePassword']);
+    Route::post('/auth/2fa/setup', [AuthController::class, 'twoFactorSetup']);
+    Route::post('/auth/2fa/confirm', [AuthController::class, 'twoFactorConfirm']);
+    Route::delete('/auth/2fa', [AuthController::class, 'twoFactorDisable']);
 
     // Users (admin only)
     Route::apiResource('users', UserController::class)->middleware('role:admin');

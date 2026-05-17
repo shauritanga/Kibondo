@@ -6,7 +6,8 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ twoFactor: true; challengeToken: string } | void>;
+  verifyTwoFactor: (challengeToken: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User) => void;
 }
@@ -31,7 +32,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [token, user]);
 
   async function login(email: string, password: string) {
-    const { token: t, user: u } = await authApi.login(email, password);
+    const res = await authApi.login(email, password);
+    if ('two_factor' in res) {
+      return { twoFactor: true as const, challengeToken: res.challenge_token };
+    }
+    const { token: t, user: u } = res;
+    localStorage.setItem('kibondo_token', t);
+    localStorage.setItem('kibondo_user', JSON.stringify(u));
+    setToken(t);
+    setUser(u);
+  }
+
+  async function verifyTwoFactor(challengeToken: string, code: string) {
+    const { token: t, user: u } = await authApi.twoFactorChallenge(challengeToken, code);
     localStorage.setItem('kibondo_token', t);
     localStorage.setItem('kibondo_user', JSON.stringify(u));
     setToken(t);
@@ -53,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout, setUser: updateUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, verifyTwoFactor, logout, setUser: updateUser }}>
       {children}
     </AuthContext.Provider>
   );

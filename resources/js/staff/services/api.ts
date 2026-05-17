@@ -43,7 +43,16 @@ export function formatMoney(value: number) {
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export const authApi = {
   login: async (email: string, password: string) => {
-    const { data } = await http.post<{ token: string; user: User }>('/auth/login', { email, password });
+    const { data } = await http.post<
+      { token: string; user: User } | { two_factor: true; challenge_token: string }
+    >('/auth/login', { email, password });
+    return data;
+  },
+  twoFactorChallenge: async (challengeToken: string, code: string) => {
+    const { data } = await http.post<{ token: string; user: User }>('/auth/2fa/challenge', {
+      challenge_token: challengeToken,
+      code,
+    });
     return data;
   },
   logout: () => http.post('/auth/logout'),
@@ -64,6 +73,18 @@ export const authApi = {
   updatePassword: async (payload: { current_password: string; password: string; password_confirmation: string }) => {
     const { data } = await http.put<{ message: string; token?: string }>('/auth/me/password', payload);
     if (data.token) localStorage.setItem('kibondo_token', data.token);
+    return data;
+  },
+  twoFactorSetup: async () => {
+    const { data } = await http.post<{ secret: string; qr_uri: string }>('/auth/2fa/setup');
+    return data;
+  },
+  twoFactorConfirmSetup: async (code: string) => {
+    const { data } = await http.post<{ message: string; user: User }>('/auth/2fa/confirm', { code });
+    return data;
+  },
+  twoFactorDisable: async (password: string) => {
+    const { data } = await http.delete<{ message: string; user: User }>('/auth/2fa', { data: { password } });
     return data;
   },
 };

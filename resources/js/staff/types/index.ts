@@ -6,6 +6,7 @@ export interface User {
   avatar_url?: string | null;
   is_active?: boolean;
   created_at?: string;
+  two_factor_enabled?: boolean;
 }
 
 export interface Category {
