@@ -19,6 +19,9 @@ Schedule::call(function () {
         ->update(['fcm_token' => null, 'fcm_token_updated_at' => null]);
 })->weekly();
 
+// Cancel pending guest orders older than 24 hours (restores stock)
+Schedule::command('orders:cancel-stale')->hourly();
+
 // Daily database backup at 02:00 — production only
 Schedule::command('db:backup')
     ->dailyAt('02:00')

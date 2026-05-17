@@ -101,8 +101,8 @@ class CustomerAuthController extends Controller
         $customer = $request->user('customer');
         $data = $request->validate([
             'name'     => 'sometimes|string|max:200',
-            'phone'    => 'sometimes|string|max:30',
-            'email'    => 'sometimes|email|max:180|unique:customers,email,' . $customer->id,
+            'phone'    => ['sometimes', 'string', 'max:30', \Illuminate\Validation\Rule::unique('customers', 'phone')->ignore($customer->id)->whereNull('deleted_at')],
+            'email'    => ['sometimes', 'email', 'max:180', \Illuminate\Validation\Rule::unique('customers', 'email')->ignore($customer->id)->whereNull('deleted_at')],
             'location' => 'nullable|string|max:200',
         ]);
         $customer->update($data);

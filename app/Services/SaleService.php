@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Customer;
 use App\Models\Material;
 use App\Models\Product;
 use App\Models\Sale;
@@ -35,6 +36,17 @@ class SaleService
             $discount     = $data['discount_amount'] ?? 0;
             $deliveryCost = $data['delivery_cost'] ?? 0;
             $total        = $subtotal - $discount + $deliveryCost;
+
+            // Enforce credit limit for account customers
+            if (!empty($data['customer_id'])) {
+                $customer = Customer::lockForUpdate()->findOrFail($data['customer_id']);
+                if ($customer->credit_limit > 0 && ($customer->outstanding_balance + $total) > $customer->credit_limit) {
+                    $available = max(0, $customer->credit_limit - $customer->outstanding_balance);
+                    throw ValidationException::withMessages([
+                        'customer_id' => "Credit limit exceeded. Customer's available credit: TZS " . number_format($available),
+                    ]);
+                }
+            }
 
             $sale = Sale::create([
                 'sale_number'      => $this->nextSaleNumber(),
