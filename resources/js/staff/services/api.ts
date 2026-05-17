@@ -192,10 +192,17 @@ export const salesApi = {
   },
   create: async (payload: {
     customer_id?: string;
+    guest_name?: string;
+    guest_phone?: string;
+    payment_method?: string;
+    status?: string;
     discount_amount?: number;
     note?: string;
+    delivery_address?: string;
+    delivery_zone_id?: string;
+    delivery_cost?: number;
     is_offline_sync?: boolean;
-    items: { product_id: string; quantity: number; unit_price: number }[];
+    items: { product_id: string; quantity: number }[];
   }) => {
     const { data } = await http.post<{ data: Sale }>('/sales', payload);
     return data.data;

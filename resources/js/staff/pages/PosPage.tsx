@@ -32,7 +32,6 @@ function resetForm() {
     guestName: '',
     guestPhone: '',
     paymentMethod: 'cash' as string,
-    orderStatus: 'completed' as 'completed' | 'pending',
     discountAmount: 0,
     note: '',
     cart: [] as CartLine[],
@@ -165,12 +164,12 @@ export function PosPage() {
         guest_name: form.customerType === 'walkin' && form.guestName ? form.guestName : undefined,
         guest_phone: form.customerType === 'walkin' && form.guestPhone ? form.guestPhone : undefined,
         payment_method: form.paymentMethod,
-        status: form.orderStatus,
+        status: 'pending',
         discount_amount: form.discountAmount,
         note: form.note || undefined,
-        delivery_address: form.orderStatus === 'pending' && form.deliveryAddress ? form.deliveryAddress : undefined,
-        delivery_zone_id: form.orderStatus === 'pending' && form.deliveryZoneId ? form.deliveryZoneId : undefined,
-        delivery_cost: form.orderStatus === 'pending' && deliveryCostNum > 0 ? deliveryCostNum : undefined,
+        delivery_address: form.deliveryAddress || undefined,
+        delivery_zone_id: form.deliveryZoneId || undefined,
+        delivery_cost: deliveryCostNum > 0 ? deliveryCostNum : undefined,
         items: cartItems.map(i => ({ product_id: i.product.id, quantity: i.quantity })),
       });
       closeForm();
@@ -409,34 +408,20 @@ export function PosPage() {
                   </section>
                 )}
 
-                {/* ── Payment & status ── */}
-                <section className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Payment method</label>
-                    <select
-                      value={form.paymentMethod}
-                      onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))}
-                      className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                    >
-                      {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Order status</label>
-                    <select
-                      value={form.orderStatus}
-                      onChange={e => setForm(f => ({ ...f, orderStatus: e.target.value as 'completed' | 'pending' }))}
-                      className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                    >
-                      <option value="completed">Completed (in-person)</option>
-                      <option value="pending">Pending (delivery)</option>
-                    </select>
-                  </div>
-                </section>
+                {/* ── Payment method ── */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Payment method</label>
+                  <select
+                    value={form.paymentMethod}
+                    onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))}
+                    className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                  >
+                    {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}
+                  </select>
+                </div>
 
-                {/* ── Delivery (pending orders only) ── */}
-                {form.orderStatus === 'pending' && (
-                  <section className="space-y-3">
+                {/* ── Delivery ── */}
+                <section className="space-y-3">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">Delivery details</p>
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Delivery address</label>
@@ -479,8 +464,7 @@ export function PosPage() {
                         />
                       </div>
                     </div>
-                  </section>
-                )}
+                </section>
 
                 {/* ── Note ── */}
                 <div>
