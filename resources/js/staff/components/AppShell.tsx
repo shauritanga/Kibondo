@@ -50,8 +50,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
 
-  // Auto-logout after 30 minutes of inactivity
-  useIdleTimeout(30 * 60 * 1000, async () => {
+  // Auto-logout after 15 minutes of inactivity
+  useIdleTimeout(15 * 60 * 1000, async () => {
     await logout();
     navigate('/login');
   });
