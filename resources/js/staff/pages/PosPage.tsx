@@ -442,7 +442,7 @@ export function PosPage() {
                             setForm(f => ({
                               ...f,
                               deliveryZoneId: e.target.value,
-                              deliveryCost: zone ? String(zone.delivery_cost) : f.deliveryCost,
+                              deliveryCost: zone ? String(zone.delivery_cost) : '',
                             }));
                           }}
                           className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
