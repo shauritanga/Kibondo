@@ -271,7 +271,7 @@ export function PosPage() {
               </div>
 
               {/* Scrollable body */}
-              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
+              <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
                 {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
 
                 {/* ── Customer ── */}
