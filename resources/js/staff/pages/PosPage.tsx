@@ -8,9 +8,9 @@ import { SaleDrawer } from '../components/SaleDrawer';
 import { SearchInput } from '../components/SearchInput';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
-import { customersApi, formatMoney, productsApi, salesApi, usersApi } from '../services/api';
+import { customersApi, deliveryZonesApi, formatMoney, productsApi, salesApi, usersApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import type { Customer, Product, Sale, User } from '../types';
+import type { Customer, DeliveryZone, Product, Sale, User } from '../types';
 
 const STATUS_TONE: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'slate'> = {
   completed:        'green',
@@ -38,6 +38,9 @@ function resetForm() {
     cart: [] as CartLine[],
     selectedProductId: '',
     selectedQty: '1',
+    deliveryAddress: '',
+    deliveryZoneId: '',
+    deliveryCost: '',
   };
 }
 
@@ -48,6 +51,7 @@ export function PosPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [deliveryUsers, setDeliveryUsers] = useState<User[]>([]);
+  const [deliveryZones, setDeliveryZones] = useState<DeliveryZone[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -91,7 +95,8 @@ export function PosPage() {
       customersApi.list(),
       salesApi.list(buildSaleParams(1)),
       usersApi.list({ role: 'delivery' }),
-    ]).then(([prods, custs, salesPage, drivers]) => {
+      deliveryZonesApi.list(),
+    ]).then(([prods, custs, salesPage, drivers, zones]) => {
       setProducts(prods);
       setCustomers(custs.data);
       setSales(salesPage.data);
@@ -99,7 +104,7 @@ export function PosPage() {
       setTotalSales(salesPage.total);
       setPerPage(salesPage.per_page);
       setDeliveryUsers(drivers);
-      if (custs.data.length) setSelectedCustomerId(custs.data[0].id);
+      setDeliveryZones((zones as DeliveryZone[]).filter((z: DeliveryZone) => z.is_active));
     }).catch((err: any) => {
       setError(err.userMessage ?? 'Failed to load data. Please refresh.');
     }).finally(() => setLoading(false));
@@ -118,7 +123,8 @@ export function PosPage() {
 
   const cartItems = form.cart;
   const subtotal = useMemo(() => cartItems.reduce((s, i) => s + i.product.price * i.quantity, 0), [cartItems]);
-  const total = Math.max(0, subtotal - discountAmount);
+  const deliveryCostNum = parseInt(form.deliveryCost) || 0;
+  const total = Math.max(0, subtotal - discountAmount + deliveryCostNum);
 
   function addToCart() {
     const product = products.find(p => p.id === form.selectedProductId);
@@ -162,6 +168,9 @@ export function PosPage() {
         status: form.orderStatus,
         discount_amount: form.discountAmount,
         note: form.note || undefined,
+        delivery_address: form.orderStatus === 'pending' && form.deliveryAddress ? form.deliveryAddress : undefined,
+        delivery_zone_id: form.orderStatus === 'pending' && form.deliveryZoneId ? form.deliveryZoneId : undefined,
+        delivery_cost: form.orderStatus === 'pending' && deliveryCostNum > 0 ? deliveryCostNum : undefined,
         items: cartItems.map(i => ({ product_id: i.product.id, quantity: i.quantity })),
       });
       closeForm();
@@ -388,6 +397,11 @@ export function PosPage() {
                         className="h-7 w-28 rounded-lg border border-slate-200 px-2 text-xs font-bold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 ml-auto"
                       />
                     </div>
+                    {deliveryCostNum > 0 && (
+                      <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
+                        <span>Delivery</span><span>+ {formatMoney(deliveryCostNum)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between border-t border-slate-200 pt-2 text-sm font-bold dark:border-slate-700">
                       <span className="text-slate-700 dark:text-slate-200">Total</span>
                       <span className="text-brand-green">{formatMoney(total)}</span>
@@ -419,6 +433,54 @@ export function PosPage() {
                     </select>
                   </div>
                 </section>
+
+                {/* ── Delivery (pending orders only) ── */}
+                {form.orderStatus === 'pending' && (
+                  <section className="space-y-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">Delivery details</p>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Delivery address</label>
+                      <input
+                        className="w-full h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500"
+                        placeholder="e.g. Mikocheni, Dar es Salaam"
+                        value={form.deliveryAddress}
+                        onChange={e => setForm(f => ({ ...f, deliveryAddress: e.target.value }))}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Delivery zone <span className="font-normal text-slate-400">(optional)</span></label>
+                        <select
+                          value={form.deliveryZoneId}
+                          onChange={e => {
+                            const zone = deliveryZones.find(z => z.id === e.target.value);
+                            setForm(f => ({
+                              ...f,
+                              deliveryZoneId: e.target.value,
+                              deliveryCost: zone ? String(zone.delivery_cost) : f.deliveryCost,
+                            }));
+                          }}
+                          className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                        >
+                          <option value="">No zone</option>
+                          {deliveryZones.map(z => (
+                            <option key={z.id} value={z.id}>{z.name} — {formatMoney(z.delivery_cost)}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Delivery cost (TZS)</label>
+                        <input
+                          type="number" min="0"
+                          className="w-full h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                          placeholder="0"
+                          value={form.deliveryCost}
+                          onChange={e => setForm(f => ({ ...f, deliveryCost: e.target.value, deliveryZoneId: '' }))}
+                        />
+                      </div>
+                    </div>
+                  </section>
+                )}
 
                 {/* ── Note ── */}
                 <div>
