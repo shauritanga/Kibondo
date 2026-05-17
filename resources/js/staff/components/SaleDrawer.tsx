@@ -57,7 +57,7 @@ export function SaleDrawer({
     setPayError('');
     setDeliveryCostInput('');
     salesApi.get(saleId)
-      .then(setSale)
+      .then(s => { setSale(s); setPayAmount(s.outstanding > 0 ? String(s.outstanding) : ''); })
       .catch(() => setLoadError('Failed to load sale details.'))
       .finally(() => setLoading(false));
   }, [saleId]);
@@ -99,7 +99,9 @@ export function SaleDrawer({
     setPayError('');
     try {
       await paymentsApi.create({ sale_id: sale.id, amount, payment_method: payMethod });
-      setPayAmount('');
+      const updated = await salesApi.get(sale.id);
+      setSale(updated);
+      setPayAmount(updated.outstanding > 0 ? String(updated.outstanding) : '');
       await refresh();
       onActionComplete();
     } catch (err: any) {
