@@ -87,9 +87,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // Categories
     Route::apiResource('categories', CategoryController::class)->except(['show']);
 
-    // Products
+    // Products — view all staff, mutations admin/stock_manager only
+    Route::get('/products', [ProductController::class, 'index']);
+    Route::get('/products/{product}', [ProductController::class, 'show']);
     Route::get('/products/{product}/movements', [ProductController::class, 'movements']);
-    Route::apiResource('products', ProductController::class);
+    Route::middleware('role:admin,stock_manager')->group(function () {
+        Route::post('/products', [ProductController::class, 'store']);
+        Route::put('/products/{product}', [ProductController::class, 'update']);
+        Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+    });
 
     // Stock movements
     Route::get('/stock-movements', [StockMovementController::class, 'index']);
@@ -132,16 +138,23 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications',                  [NotificationController::class, 'index']);
     Route::patch('/notifications/{id}/read',      [NotificationController::class, 'markRead']);
 
-    // Payments
-    Route::apiResource('payments', PaymentController::class)->only(['index', 'store', 'show']);
+    // Payments — create restricted to admin/accountant; view all staff
+    Route::get('/payments', [PaymentController::class, 'index']);
+    Route::get('/payments/{payment}', [PaymentController::class, 'show']);
+    Route::post('/payments', [PaymentController::class, 'store'])->middleware('role:admin,accountant');
 
     // Offline queue sync
     Route::post('/offline-queue/sync', [OfflineQueueController::class, 'sync']);
 
-    // Campaigns (admin send, all can read)
-    Route::get('/campaigns/recipient-preview', [CampaignController::class, 'recipientPreview']);
-    Route::post('/campaigns/{campaign}/send', [CampaignController::class, 'send']);
-    Route::apiResource('campaigns', CampaignController::class)->only(['index', 'store', 'show', 'destroy']);
+    // Campaigns — read all staff; create/delete/send admin only
+    Route::get('/campaigns', [CampaignController::class, 'index']);
+    Route::get('/campaigns/{campaign}', [CampaignController::class, 'show']);
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/campaigns/recipient-preview', [CampaignController::class, 'recipientPreview']);
+        Route::post('/campaigns', [CampaignController::class, 'store']);
+        Route::delete('/campaigns/{campaign}', [CampaignController::class, 'destroy']);
+        Route::post('/campaigns/{campaign}/send', [CampaignController::class, 'send']);
+    });
 
     // Audit logs (admin only)
     Route::middleware('role:admin')->prefix('audit-logs')->group(function () {
@@ -155,8 +168,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('expenses', ExpenseController::class);
     });
 
-    // Reports
-    Route::prefix('reports')->group(function () {
+    // Reports — admin and accountant only
+    Route::prefix('reports')->middleware('role:admin,accountant')->group(function () {
         Route::get('/dashboard', [ReportController::class, 'dashboard']);
         Route::get('/sales', [ReportController::class, 'sales']);
         Route::get('/sales-by-product', [ReportController::class, 'salesByProduct']);

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Material;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Services\MaterialService;
@@ -99,6 +100,48 @@ class SaleService
             }
 
             return $sale->load('items.product', 'customer');
+        });
+    }
+
+    public function cancelSale(Sale $sale, ?string $userId): void
+    {
+        DB::transaction(function () use ($sale, $userId) {
+            $sale->load('items.product.recipe.material');
+
+            foreach ($sale->items as $item) {
+                $product = $item->product;
+                if (!$product) continue;
+
+                // Restore product stock
+                $product->refresh();
+                $this->stock->recordMovement(
+                    $product, 'returned', $item->quantity, $userId, $sale->id,
+                    "Restocked on cancellation of {$sale->sale_number}"
+                );
+
+                // Reverse material consumption if recipe exists
+                $product->loadMissing('recipe.material');
+                if ($product->recipe && $product->recipe->material) {
+                    $toRestore = (int) round($item->quantity * $product->recipe->quantity_per_unit);
+                    if ($toRestore > 0) {
+                        $material = Material::lockForUpdate()->find($product->recipe->material_id);
+                        if ($material) {
+                            $this->materials->recordMovement(
+                                $material, 'adjusted', $toRestore, $userId, $sale->id,
+                                "Restored on cancellation of {$sale->sale_number}"
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Reverse customer balances
+            if ($sale->customer_id && $sale->customer) {
+                $sale->customer()->decrement('total_spend', $sale->total_amount);
+                $sale->customer()->decrement('outstanding_balance', $sale->outstanding);
+            }
+
+            $sale->update(['status' => 'cancelled']);
         });
     }
 

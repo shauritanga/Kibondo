@@ -67,18 +67,23 @@ class SaleController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $request->validate([
-            'customer_id' => 'nullable|uuid|exists:customers,id',
+        $validated = $request->validate([
+            'customer_id'     => 'nullable|uuid|exists:customers,id',
             'discount_amount' => 'sometimes|integer|min:0',
-            'note' => 'nullable|string|max:500',
+            'note'            => 'nullable|string|max:500',
             'is_offline_sync' => 'sometimes|boolean',
-            'items' => 'required|array|min:1',
+            'items'           => 'required|array|min:1',
             'items.*.product_id' => 'required|uuid|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1',
-            'items.*.unit_price' => 'required|integer|min:0',
+            'items.*.quantity'   => 'required|integer|min:1',
         ]);
 
-        $sale = $this->sales->createSale($request->all(), $request->user()->id);
+        // Resolve unit prices server-side — never trust client-supplied prices
+        $validated['items'] = collect($validated['items'])->map(function ($item) {
+            $product = \App\Models\Product::findOrFail($item['product_id']);
+            return array_merge($item, ['unit_price' => $product->price]);
+        })->toArray();
+
+        $sale = $this->sales->createSale($validated, $request->user()->id);
 
         AuditService::log([
             'action'      => 'order_created',
@@ -222,7 +227,7 @@ class SaleController extends Controller
             return response()->json(['message' => 'Cannot cancel a sale with recorded payments. Void the payments first.'], 422);
         }
 
-        $sale->update(['status' => 'cancelled']);
+        $this->sales->cancelSale($sale, $request->user()->id);
 
         AuditService::log([
             'action'      => 'order_cancelled',
