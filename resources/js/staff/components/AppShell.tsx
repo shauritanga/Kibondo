@@ -26,6 +26,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { NotificationBell } from './NotificationBell';
 import { useIdleTimeout } from '../hooks/useIdleTimeout';
+import { SessionWarningModal } from './SessionWarningModal';
 
 const navItems = [
   { label: 'Dashboard',      path: '/',               icon: Home,          adminOnly: false, roles: null },
@@ -41,20 +42,42 @@ const navItems = [
   { label: 'Audit Logs',     path: '/audit-logs',      icon: ClipboardList, adminOnly: true,  roles: null },
 ];
 
+const TIMEOUT_MS = 15 * 60 * 1000;  // 15 minutes
+const WARNING_MS =  2 * 60 * 1000;  // warn 2 minutes before
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
 
-  // Auto-logout after 15 minutes of inactivity
-  useIdleTimeout(15 * 60 * 1000, async () => {
+  const resetTimer = useIdleTimeout({
+    timeoutMs: TIMEOUT_MS,
+    warningMs: WARNING_MS,
+    onWarning: () => setShowWarning(true),
+    onIdle: async () => {
+      setShowWarning(false);
+      await logout();
+      navigate('/login');
+    },
+  });
+
+  async function handleStayLoggedIn() {
+    setShowWarning(false);
+    resetTimer();
+    // Ping the server to refresh the session lifetime
+    try { await import('../services/api').then(m => m.authApi.me()); } catch {}
+  }
+
+  async function handleLogOut() {
+    setShowWarning(false);
     await logout();
     navigate('/login');
-  });
+  }
   const userMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
 
@@ -259,6 +282,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="px-4 py-5 xl:px-6">{children}</main>
       </div>
+
+      {showWarning && (
+        <SessionWarningModal
+          secondsRemaining={WARNING_MS / 1000}
+          onStayLoggedIn={handleStayLoggedIn}
+          onLogOut={handleLogOut}
+        />
+      )}
     </div>
   );
 }
