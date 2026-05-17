@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { AlertCircle, Clock, Plus, ShoppingBag, TrendingUp } from 'lucide-react';
+import { AlertCircle, Clock, Plus, ShoppingBag, TrendingUp, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { PageHeader } from '../components/PageHeader';
@@ -156,10 +156,9 @@ export function PosPage() {
         {isAdmin && (
           <button
             className="inline-flex shrink-0 h-9 items-center justify-center gap-2 rounded-lg bg-brand-green px-4 text-xs font-bold text-white"
-            onClick={() => setShowSaleForm(o => !o)}
+            onClick={() => setShowSaleForm(true)}
           >
-            <Plus size={15} />
-            {showSaleForm ? 'Hide form' : 'New sale'}
+            <Plus size={15} /> New sale
           </button>
         )}
       </div>
@@ -201,92 +200,151 @@ export function PosPage() {
         )}
       </div>
 
-      {/* New sale form (collapsible) */}
+      {/* New sale modal */}
       {showSaleForm && (
-        <div className="card border border-slate-100 bg-slate-50/60 p-4 space-y-3 dark:border-slate-700/50 dark:bg-slate-800/40">
-          {error && <ErrorBanner message={error} />}
+        <>
+          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => { setShowSaleForm(false); setQuantities({}); setDiscountAmount(0); setNote(''); }} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <div className="flex w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-slate-900" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
 
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-wrap gap-2">
-              <select
-                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                value={selectedCustomerId}
-                onChange={e => setSelectedCustomerId(e.target.value)}
-              >
-                <option value="">Walk-in customer</option>
-                {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <select
-                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-bold outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                value={paymentMethod}
-                onChange={e => setPaymentMethod(e.target.value)}
-              >
-                {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}
-              </select>
-            </div>
-            <p className="text-sm font-bold text-slate-950 dark:text-white">Total: {formatMoney(total)}</p>
-          </div>
-
-          <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-            {products.map(product => (
-              <div
-                key={product.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-700"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-bold text-slate-950 dark:text-white">{product.name}</p>
-                  <p className="mt-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                    {formatMoney(product.price)} / {product.unit}
-                    {product.stock_qty <= product.min_stock && (
-                      <span className="ml-2 text-red-500">({product.stock_qty} left)</span>
-                    )}
-                  </p>
+              {/* Header */}
+              <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+                <div>
+                  <h2 className="font-heading text-base font-bold text-slate-900 dark:text-white">New Sale</h2>
+                  {cartItems.length > 0 && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                      {cartItems.length} item{cartItems.length > 1 ? 's' : ''} — Total: <span className="font-bold text-brand-green">{formatMoney(total)}</span>
+                    </p>
+                  )}
                 </div>
-                <input
-                  className="h-8 w-20 rounded-lg border border-slate-200 px-2 text-center text-xs font-bold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                  type="number" min="0" max={product.stock_qty}
-                  value={quantities[product.id] || ''} placeholder="0"
-                  onChange={e => setQuantity(product.id, Number(e.target.value))}
-                />
+                <button
+                  onClick={() => { setShowSaleForm(false); setQuantities({}); setDiscountAmount(0); setNote(''); }}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  <X size={16} />
+                </button>
               </div>
-            ))}
-          </div>
 
-          {cartItems.length > 0 && (
-            <div className="rounded-lg border border-slate-200 bg-white p-3 text-xs space-y-1 dark:border-slate-600 dark:bg-slate-700">
-              {cartItems.map(i => (
-                <div key={i.product.id} className="flex justify-between font-semibold dark:text-slate-200">
-                  <span>{i.product.name} × {i.quantity}</span>
-                  <span>{formatMoney(i.line_total)}</span>
+              {/* Scrollable body */}
+              <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+                {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
+
+                {/* Customer + payment method */}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Customer</label>
+                    <select
+                      className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                      value={selectedCustomerId}
+                      onChange={e => setSelectedCustomerId(e.target.value)}
+                    >
+                      <option value="">Walk-in customer</option>
+                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Payment method</label>
+                    <select
+                      className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                      value={paymentMethod}
+                      onChange={e => setPaymentMethod(e.target.value)}
+                    >
+                      {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}
+                    </select>
+                  </div>
                 </div>
-              ))}
-              <div className="flex items-center gap-2 border-t border-slate-100 pt-2 dark:border-slate-600">
-                <span className="font-bold text-slate-500 dark:text-slate-400">Discount:</span>
-                <input
-                  className="h-7 w-28 rounded border border-slate-200 px-2 text-xs font-bold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-600 dark:text-slate-100"
-                  type="number" min="0" value={discountAmount || ''} placeholder="0"
-                  onChange={e => setDiscountAmount(Number(e.target.value))}
-                />
+
+                {/* Products grid */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Products</label>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {products.map(product => (
+                      <div
+                        key={product.id}
+                        className={clsx(
+                          'flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition-colors',
+                          quantities[product.id] > 0
+                            ? 'border-brand-green/40 bg-green-50/50 dark:border-green-700/40 dark:bg-green-900/10'
+                            : 'border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800'
+                        )}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-xs font-bold text-slate-950 dark:text-white">{product.name}</p>
+                          <p className="mt-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            {formatMoney(product.price)} / {product.unit}
+                            {product.stock_qty <= product.min_stock && (
+                              <span className="ml-2 text-red-500">({product.stock_qty} left)</span>
+                            )}
+                          </p>
+                        </div>
+                        <input
+                          className="h-8 w-20 rounded-lg border border-slate-200 px-2 text-center text-xs font-bold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                          type="number" min="0" max={product.stock_qty}
+                          value={quantities[product.id] || ''} placeholder="0"
+                          onChange={e => setQuantity(product.id, Number(e.target.value))}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Cart summary */}
+                {cartItems.length > 0 && (
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 dark:border-slate-700 dark:bg-slate-800/50">
+                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">Order summary</p>
+                    {cartItems.map(i => (
+                      <div key={i.product.id} className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        <span>{i.product.name} × {i.quantity}</span>
+                        <span>{formatMoney(i.line_total)}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-2 border-t border-slate-200 pt-2 dark:border-slate-700">
+                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Discount (TZS):</span>
+                      <input
+                        className="h-7 w-32 rounded-lg border border-slate-200 px-2 text-xs font-bold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                        type="number" min="0" value={discountAmount || ''} placeholder="0"
+                        onChange={e => setDiscountAmount(Number(e.target.value))}
+                      />
+                    </div>
+                    <div className="flex justify-between border-t border-slate-200 pt-2 text-sm font-bold dark:border-slate-700">
+                      <span className="text-slate-700 dark:text-slate-200">Total</span>
+                      <span className="text-brand-green">{formatMoney(total)}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Note */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Note <span className="font-normal text-slate-400">(optional)</span></label>
+                  <input
+                    className="w-full h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500"
+                    placeholder="e.g. Deliver after 5pm"
+                    value={note}
+                    onChange={e => setNote(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex shrink-0 gap-3 border-t border-slate-100 px-6 py-4 dark:border-slate-700/60">
+                <button
+                  type="button"
+                  onClick={() => { setShowSaleForm(false); setQuantities({}); setDiscountAmount(0); setNote(''); }}
+                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={!total || submitting}
+                  onClick={submitSale}
+                  className="flex-1 rounded-xl bg-brand-green py-2.5 text-xs font-bold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {submitting ? 'Saving…' : 'Save sale'}
+                </button>
               </div>
             </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            <input
-              className="flex-1 h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500"
-              placeholder="Note (optional)"
-              value={note}
-              onChange={e => setNote(e.target.value)}
-            />
-            <button
-              className="h-9 rounded-lg bg-brand-green px-4 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={!total || submitting}
-              onClick={submitSale}
-            >
-              {submitting ? 'Saving…' : 'Save sale'}
-            </button>
           </div>
-        </div>
+        </>
       )}
 
       {/* Sales table */}
