@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { AlertTriangle, Bell, Building2, DatabaseBackup, Globe, Percent, ShieldAlert, Zap } from 'lucide-react';
+import { AlertTriangle, Bell, Building2, DatabaseBackup, Globe, Percent, ShieldAlert, ShieldCheck, Zap } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { FormInput } from '../components/FormInput';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -80,10 +80,29 @@ export function SettingsPage() {
   const [promoSuccess, setPromoSuccess] = useState('');
   const [promoError, setPromoError] = useState('');
 
+  // Security
+  const [require2fa, setRequire2fa]       = useState(false);
+  const [securitySaving, setSecuritySaving] = useState(false);
+  const [securitySuccess, setSecuritySuccess] = useState('');
+  const [securityError, setSecurityError]     = useState('');
+
   useEffect(() => {
     http.get('/settings').then(res => setSocialLinks(res.data.social_links ?? [])).catch(() => {});
     settingsApi.getPromo().then(d => setPromoPercent(String(d.promo_percentage))).catch(() => {});
+    settingsApi.getSecurity().then(d => setRequire2fa(d.require_2fa_for_admins)).catch(() => {});
   }, []);
+
+  async function saveSecurity() {
+    setSecuritySaving(true); setSecuritySuccess(''); setSecurityError('');
+    try {
+      await settingsApi.updateSecurity({ require_2fa_for_admins: require2fa });
+      setSecuritySuccess('Security settings saved.');
+    } catch {
+      setSecurityError('Failed to save. Please try again.');
+    } finally {
+      setSecuritySaving(false);
+    }
+  }
 
   async function saveSocialLinks(e: FormEvent) {
     e.preventDefault();
@@ -349,6 +368,36 @@ export function SettingsPage() {
           </Row>
           <Row label="Customer CRM" description="Notes, tasks, and follow-ups on customers." last>
             <Toggle checked={features.crm} onChange={() => setFeatures((p) => ({ ...p, crm: !p.crm }))} />
+          </Row>
+        </div>
+
+        {/* Security */}
+        <div className="card px-5 py-4 lg:col-span-2">
+          <SectionTitle icon={ShieldCheck} title="Security" />
+          {securityError && <ErrorBanner message={securityError} />}
+          {securitySuccess && (
+            <div className="mb-4 rounded-lg bg-green-50 px-4 py-2.5 text-xs font-semibold text-green-700 dark:bg-green-900/20 dark:text-green-400">
+              {securitySuccess}
+            </div>
+          )}
+          <Row
+            label="Require 2FA for admin accounts"
+            description="Admin users must set up two-factor authentication before accessing the dashboard."
+            last
+          >
+            <div className="flex items-center gap-3">
+              <Toggle
+                checked={require2fa}
+                onChange={() => setRequire2fa(v => !v)}
+              />
+              <button
+                onClick={saveSecurity}
+                disabled={securitySaving}
+                className="h-7 rounded-lg bg-brand-green px-3 text-[11px] font-bold text-white hover:opacity-90 disabled:opacity-60"
+              >
+                {securitySaving ? 'Saving…' : 'Save'}
+              </button>
+            </div>
           </Row>
         </div>
 

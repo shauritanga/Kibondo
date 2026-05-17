@@ -44,7 +44,9 @@ export function formatMoney(value: number) {
 export const authApi = {
   login: async (email: string, password: string) => {
     const { data } = await http.post<
-      { token: string; user: User } | { two_factor: true; challenge_token: string }
+      | { token: string; user: User }
+      | { two_factor: true; challenge_token: string }
+      | { two_factor_setup_required: true; setup_token: string }
     >('/auth/login', { email, password });
     return data;
   },
@@ -53,6 +55,14 @@ export const authApi = {
       challenge_token: challengeToken,
       code,
     });
+    return data;
+  },
+  twoFactorSetupInit: async (setupToken: string) => {
+    const { data } = await http.post<{ secret: string; qr_uri: string }>('/auth/2fa/setup-init', { setup_token: setupToken });
+    return data;
+  },
+  twoFactorSetupComplete: async (setupToken: string, code: string) => {
+    const { data } = await http.post<{ token: string; user: User }>('/auth/2fa/setup-complete', { setup_token: setupToken, code });
     return data;
   },
   logout: () => http.post('/auth/logout'),
@@ -450,6 +460,14 @@ export const settingsApi = {
   },
   updatePromo: async (promoPercentage: number) => {
     const { data } = await http.put('/settings/promo', { promo_percentage: promoPercentage });
+    return data;
+  },
+  getSecurity: async () => {
+    const { data } = await http.get<{ require_2fa_for_admins: boolean }>('/settings/security');
+    return data;
+  },
+  updateSecurity: async (payload: { require_2fa_for_admins: boolean }) => {
+    const { data } = await http.put('/settings/security', payload);
     return data;
   },
 };

@@ -31,6 +31,8 @@ use Illuminate\Support\Facades\Route;
 // ─── Staff Auth ───────────────────────────────────────────────────────────────
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('/auth/2fa/challenge', [AuthController::class, 'twoFactorChallenge'])->middleware('throttle:auth');
+Route::post('/auth/2fa/setup-init', [AuthController::class, 'twoFactorSetupInit'])->middleware('throttle:auth');
+Route::post('/auth/2fa/setup-complete', [AuthController::class, 'twoFactorSetupComplete'])->middleware('throttle:auth');
 
 // ─── Storefront – public ──────────────────────────────────────────────────────
 Route::prefix('store')->middleware('throttle:store-api')->group(function () {
@@ -87,6 +89,8 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
         Route::get('/settings', [SettingController::class, 'index']);
         Route::put('/settings/social-links', [SettingController::class, 'updateSocialLinks']);
         Route::put('/settings/promo', [SettingController::class, 'updatePromo']);
+        Route::get('/settings/security', [SettingController::class, 'getSecurity']);
+        Route::put('/settings/security', [SettingController::class, 'updateSecurity']);
     });
 
     // Categories

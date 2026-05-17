@@ -44,4 +44,18 @@ class SettingController extends Controller
         Setting::set('promo_percentage', (string) $request->promo_percentage);
         return response()->json(['message' => 'Promo updated.']);
     }
+
+    public function getSecurity(): JsonResponse
+    {
+        return response()->json([
+            'require_2fa_for_admins' => Setting::get('require_2fa_for_admins', '0') === '1',
+        ]);
+    }
+
+    public function updateSecurity(Request $request): JsonResponse
+    {
+        $request->validate(['require_2fa_for_admins' => 'required|boolean']);
+        Setting::set('require_2fa_for_admins', $request->boolean('require_2fa_for_admins') ? '1' : '0');
+        return response()->json(['message' => 'Security settings saved.']);
+    }
 }

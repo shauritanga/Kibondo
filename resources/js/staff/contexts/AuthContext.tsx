@@ -6,7 +6,11 @@ interface AuthState {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ twoFactor: true; challengeToken: string } | void>;
+  login: (email: string, password: string) => Promise<
+    | { twoFactor: true; challengeToken: string }
+    | { setupRequired: true; setupToken: string }
+    | void
+  >;
   verifyTwoFactor: (challengeToken: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User) => void;
@@ -35,6 +39,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await authApi.login(email, password);
     if ('two_factor' in res) {
       return { twoFactor: true as const, challengeToken: res.challenge_token };
+    }
+    if ('two_factor_setup_required' in res) {
+      return { setupRequired: true as const, setupToken: res.setup_token };
     }
     const { token: t, user: u } = res;
     localStorage.setItem('kibondo_token', t);

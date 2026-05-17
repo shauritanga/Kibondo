@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Setting;
 use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -55,14 +56,24 @@ class AuthController extends Controller
             ]);
         }
 
-        // If 2FA is enabled, issue a short-lived challenge instead of a real token
-        if ($user->hasTwoFactorEnabled()) {
-            $challengeToken = Str::uuid()->toString();
-            Cache::put("2fa_challenge:{$challengeToken}", $user->id, now()->addMinutes(10));
+        $require2fa = Setting::get('require_2fa_for_admins', '0') === '1' && $user->role === 'admin';
 
+        if ($require2fa || $user->hasTwoFactorEnabled()) {
+            $setupToken = Str::uuid()->toString();
+            Cache::put("2fa_setup:{$setupToken}", $user->id, now()->addMinutes(10));
+
+            // Admin has 2FA confirmed → challenge step
+            if ($user->hasTwoFactorEnabled()) {
+                return response()->json([
+                    'two_factor'      => true,
+                    'challenge_token' => $setupToken,
+                ]);
+            }
+
+            // Admin required but not yet set up → inline setup step
             return response()->json([
-                'two_factor'      => true,
-                'challenge_token' => $challengeToken,
+                'two_factor_setup_required' => true,
+                'setup_token'               => $setupToken,
             ]);
         }
 
@@ -176,7 +187,7 @@ class AuthController extends Controller
             'code'            => 'required|string|size:6',
         ]);
 
-        $cacheKey = "2fa_challenge:{$request->challenge_token}";
+        $cacheKey = "2fa_setup:{$request->challenge_token}";
         $userId   = Cache::get($cacheKey);
 
         if (!$userId) {
@@ -204,6 +215,70 @@ class AuthController extends Controller
             'action'      => 'login',
             'module'      => 'auth',
             'description' => 'User logged in with 2FA',
+            'user_id'     => $user->id,
+            'user_name'   => $user->name,
+            'user_email'  => $user->email,
+            'user_role'   => $user->role,
+        ]);
+
+        return response()->json(['token' => $token, 'user' => $this->userPayload($user)]);
+    }
+
+    /** Generate a secret for an admin who is being forced to set up 2FA during login. */
+    public function twoFactorSetupInit(Request $request): JsonResponse
+    {
+        $request->validate(['setup_token' => 'required|string']);
+
+        $userId = Cache::get("2fa_setup:{$request->setup_token}");
+        if (!$userId) {
+            return response()->json(['message' => 'Setup session expired. Please log in again.'], 422);
+        }
+
+        $user   = \App\Models\User::findOrFail($userId);
+        $secret = $this->google2fa->generateSecretKey();
+        $user->update(['two_factor_secret' => $secret, 'two_factor_confirmed_at' => null]);
+
+        $qrUri = $this->google2fa->getQRCodeUrl(config('app.name'), $user->email, $secret);
+
+        return response()->json(['secret' => $secret, 'qr_uri' => $qrUri]);
+    }
+
+    /** Complete forced 2FA setup during login: verify code, confirm, issue real token. */
+    public function twoFactorSetupComplete(Request $request): JsonResponse
+    {
+        $request->validate([
+            'setup_token' => 'required|string',
+            'code'        => 'required|string|size:6',
+        ]);
+
+        $cacheKey = "2fa_setup:{$request->setup_token}";
+        $userId   = Cache::get($cacheKey);
+
+        if (!$userId) {
+            return response()->json(['message' => 'Setup session expired. Please log in again.'], 422);
+        }
+
+        $user = \App\Models\User::findOrFail($userId);
+
+        if (!$user->two_factor_secret) {
+            return response()->json(['message' => 'Setup not started.'], 422);
+        }
+
+        $valid = $this->google2fa->verifyKey($user->two_factor_secret, $request->code);
+
+        if (!$valid) {
+            return response()->json(['message' => 'Invalid verification code.'], 422);
+        }
+
+        $user->update(['two_factor_confirmed_at' => now()]);
+        Cache::forget($cacheKey);
+
+        $token = $user->createToken('spa')->plainTextToken;
+
+        AuditService::log([
+            'action'      => 'login',
+            'module'      => 'auth',
+            'description' => 'Admin logged in after completing forced 2FA setup',
             'user_id'     => $user->id,
             'user_name'   => $user->name,
             'user_email'  => $user->email,
