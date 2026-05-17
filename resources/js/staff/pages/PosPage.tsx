@@ -479,14 +479,14 @@ export function PosPage() {
               </div>
 
               {/* Footer */}
-              <div className="flex shrink-0 gap-3 border-t border-slate-100 px-6 py-4 dark:border-slate-700/60">
-                <button type="button" onClick={closeForm} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+              <div className="flex shrink-0 justify-end gap-3 border-t border-slate-100 px-6 py-4 dark:border-slate-700/60">
+                <button type="button" onClick={closeForm} className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                   Cancel
                 </button>
                 <button
                   disabled={!total || cartItems.length === 0 || submitting}
                   onClick={submitSale}
-                  className="flex-1 rounded-xl bg-brand-green py-2.5 text-xs font-bold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-xl bg-brand-green px-4 py-2 text-xs font-bold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {submitting ? 'Saving…' : 'Save sale'}
                 </button>
