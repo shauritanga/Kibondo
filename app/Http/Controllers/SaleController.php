@@ -68,11 +68,20 @@ class SaleController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'customer_id'     => 'nullable|uuid|exists:customers,id',
-            'discount_amount' => 'sometimes|integer|min:0',
-            'note'            => 'nullable|string|max:500',
-            'is_offline_sync' => 'sometimes|boolean',
-            'items'           => 'required|array|min:1',
+            'customer_id'      => 'nullable|uuid|exists:customers,id',
+            'guest_name'       => 'nullable|string|max:255',
+            'guest_phone'      => 'nullable|string|max:30',
+            'guest_email'      => 'nullable|email|max:255',
+            'guest_company'    => 'nullable|string|max:255',
+            'payment_method'   => 'sometimes|string',
+            'status'           => 'sometimes|in:completed,pending,confirmed',
+            'discount_amount'  => 'sometimes|integer|min:0',
+            'note'             => 'nullable|string|max:500',
+            'delivery_address' => 'nullable|string|max:500',
+            'delivery_zone_id' => 'nullable|uuid|exists:delivery_zones,id',
+            'delivery_cost'    => 'nullable|integer|min:0',
+            'is_offline_sync'  => 'sometimes|boolean',
+            'items'            => 'required|array|min:1',
             'items.*.product_id' => 'required|uuid|exists:products,id',
             'items.*.quantity'   => 'required|integer|min:1',
         ]);
