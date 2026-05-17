@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { AlertCircle, Clock, Plus, ShoppingBag, TrendingUp, X } from 'lucide-react';
+import { AlertCircle, Clock, Plus, ShoppingBag, Trash2, TrendingUp, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { PageHeader } from '../components/PageHeader';
@@ -23,6 +23,24 @@ const STATUS_TONE: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'slate'> 
 
 const PAYMENT_METHODS = ['cash', 'mobile_money', 'card', 'credit', 'bank_transfer'] as const;
 
+type CartLine = { product: Product; quantity: number };
+
+function resetForm() {
+  return {
+    customerType: 'existing' as 'existing' | 'walkin',
+    customerId: '',
+    guestName: '',
+    guestPhone: '',
+    paymentMethod: 'cash' as string,
+    orderStatus: 'completed' as 'completed' | 'pending',
+    discountAmount: 0,
+    note: '',
+    cart: [] as CartLine[],
+    selectedProductId: '',
+    selectedQty: '1',
+  };
+}
+
 export function PosPage() {
   const { user } = useAuth();
 
@@ -35,11 +53,9 @@ export function PosPage() {
   const [error, setError] = useState('');
 
   const [showSaleForm, setShowSaleForm] = useState(false);
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
-  const [quantities, setQuantities] = useState<Record<string, number>>({});
-  const [paymentMethod, setPaymentMethod] = useState<string>('cash');
-  const [discountAmount, setDiscountAmount] = useState(0);
-  const [note, setNote] = useState('');
+  const [form, setForm] = useState(resetForm());
+
+  const discountAmount = form.discountAmount;
 
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -100,44 +116,68 @@ export function PosPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, statusFilter]);
 
-  const cartItems = useMemo(
-    () => products.filter(p => quantities[p.id] > 0).map(p => ({
-      product: p, quantity: quantities[p.id], line_total: quantities[p.id] * p.price,
-    })),
-    [products, quantities]
-  );
-
-  const subtotal = useMemo(() => cartItems.reduce((s, i) => s + i.line_total, 0), [cartItems]);
+  const cartItems = form.cart;
+  const subtotal = useMemo(() => cartItems.reduce((s, i) => s + i.product.price * i.quantity, 0), [cartItems]);
   const total = Math.max(0, subtotal - discountAmount);
+
+  function addToCart() {
+    const product = products.find(p => p.id === form.selectedProductId);
+    const qty = parseInt(form.selectedQty) || 1;
+    if (!product || qty < 1) return;
+    setForm(f => {
+      const existing = f.cart.find(l => l.product.id === product.id);
+      const newCart = existing
+        ? f.cart.map(l => l.product.id === product.id ? { ...l, quantity: l.quantity + qty } : l)
+        : [...f.cart, { product, quantity: qty }];
+      return { ...f, cart: newCart, selectedProductId: '', selectedQty: '1' };
+    });
+  }
+
+  function removeFromCart(productId: string) {
+    setForm(f => ({ ...f, cart: f.cart.filter(l => l.product.id !== productId) }));
+  }
+
+  function updateCartQty(productId: string, qty: number) {
+    if (qty < 1) { removeFromCart(productId); return; }
+    setForm(f => ({ ...f, cart: f.cart.map(l => l.product.id === productId ? { ...l, quantity: qty } : l) }));
+  }
 
   const filteredSales = sales;
 
-  function setQuantity(id: string, value: number) {
-    setQuantities(prev => ({ ...prev, [id]: Math.max(0, value) }));
+  function closeForm() {
+    setShowSaleForm(false);
+    setForm(resetForm());
+    setError('');
   }
 
   async function submitSale() {
-    if (!total) return;
+    if (!total || cartItems.length === 0) return;
     setSubmitting(true); setError('');
     try {
       await salesApi.create({
-        customer_id: selectedCustomerId || undefined,
-        discount_amount: discountAmount,
-        note: note || undefined,
-        items: cartItems.map(i => ({ product_id: i.product.id, quantity: i.quantity, unit_price: i.product.price })),
+        customer_id: form.customerType === 'existing' && form.customerId ? form.customerId : undefined,
+        guest_name: form.customerType === 'walkin' && form.guestName ? form.guestName : undefined,
+        guest_phone: form.customerType === 'walkin' && form.guestPhone ? form.guestPhone : undefined,
+        payment_method: form.paymentMethod,
+        status: form.orderStatus,
+        discount_amount: form.discountAmount,
+        note: form.note || undefined,
+        items: cartItems.map(i => ({ product_id: i.product.id, quantity: i.quantity })),
       });
-      setQuantities({}); setDiscountAmount(0); setNote(''); setShowSaleForm(false);
+      closeForm();
       await loadSales();
     } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Failed to save sale.');
+      setError(err.response?.data?.message ?? err.response?.data?.errors
+        ? Object.values(err.response.data.errors as Record<string, string[]>).flat()[0]
+        : 'Failed to save sale.');
     } finally {
       setSubmitting(false);
     }
   }
 
-  const totalRevenue   = filteredSales.reduce((s, sale) => s + sale.total_amount, 0);
-  const pendingValue   = filteredSales.filter(s => !['completed', 'cancelled'].includes(s.status)).reduce((s, sale) => s + sale.total_amount, 0);
-  const totalOutstanding = filteredSales.reduce((s, sale) => s + (sale.outstanding ?? 0), 0);
+  const totalRevenue     = sales.reduce((s, sale) => s + sale.total_amount, 0);
+  const pendingValue     = sales.filter(s => !['completed', 'cancelled'].includes(s.status)).reduce((s, sale) => s + sale.total_amount, 0);
+  const totalOutstanding = sales.reduce((s, sale) => s + (sale.outstanding ?? 0), 0);
 
   const isAdmin    = user?.role === 'admin';
   const isDelivery = user?.role === 'delivery';
@@ -203,139 +243,202 @@ export function PosPage() {
       {/* New sale modal */}
       {showSaleForm && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/40" onClick={() => { setShowSaleForm(false); setQuantities({}); setDiscountAmount(0); setNote(''); }} />
+          <div className="fixed inset-0 z-40 bg-black/40" onClick={closeForm} />
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-            <div className="flex w-full max-w-2xl flex-col rounded-2xl bg-white shadow-2xl dark:bg-slate-900" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
+            <div className="flex w-full max-w-lg flex-col rounded-2xl bg-white shadow-2xl dark:bg-slate-900" style={{ maxHeight: 'calc(100vh - 2rem)' }}>
 
               {/* Header */}
               <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
                 <div>
                   <h2 className="font-heading text-base font-bold text-slate-900 dark:text-white">New Sale</h2>
                   {cartItems.length > 0 && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                      {cartItems.length} item{cartItems.length > 1 ? 's' : ''} — Total: <span className="font-bold text-brand-green">{formatMoney(total)}</span>
+                    <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                      {cartItems.length} item{cartItems.length !== 1 ? 's' : ''} — Total: <span className="font-bold text-brand-green">{formatMoney(total)}</span>
                     </p>
                   )}
                 </div>
-                <button
-                  onClick={() => { setShowSaleForm(false); setQuantities({}); setDiscountAmount(0); setNote(''); }}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                >
+                <button onClick={closeForm} className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
                   <X size={16} />
                 </button>
               </div>
 
               {/* Scrollable body */}
-              <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+              <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
                 {error && <ErrorBanner message={error} onDismiss={() => setError('')} />}
 
-                {/* Customer + payment method */}
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Customer</label>
-                    <select
-                      className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                      value={selectedCustomerId}
-                      onChange={e => setSelectedCustomerId(e.target.value)}
-                    >
-                      <option value="">Walk-in customer</option>
-                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Payment method</label>
-                    <select
-                      className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                      value={paymentMethod}
-                      onChange={e => setPaymentMethod(e.target.value)}
-                    >
-                      {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Products grid */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-2">Products</label>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {products.map(product => (
-                      <div
-                        key={product.id}
+                {/* ── Customer ── */}
+                <section className="space-y-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">Customer</p>
+                  <div className="flex gap-2">
+                    {(['existing', 'walkin'] as const).map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, customerType: t }))}
                         className={clsx(
-                          'flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition-colors',
-                          quantities[product.id] > 0
-                            ? 'border-brand-green/40 bg-green-50/50 dark:border-green-700/40 dark:bg-green-900/10'
-                            : 'border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800'
+                          'rounded-lg border px-3 py-1.5 text-xs font-bold transition-colors',
+                          form.customerType === t
+                            ? 'border-brand-green bg-green-50 text-brand-green dark:bg-green-900/20 dark:text-green-400'
+                            : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-600 dark:text-slate-400'
                         )}
                       >
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-slate-950 dark:text-white">{product.name}</p>
-                          <p className="mt-0.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                            {formatMoney(product.price)} / {product.unit}
-                            {product.stock_qty <= product.min_stock && (
-                              <span className="ml-2 text-red-500">({product.stock_qty} left)</span>
-                            )}
-                          </p>
-                        </div>
-                        <input
-                          className="h-8 w-20 rounded-lg border border-slate-200 px-2 text-center text-xs font-bold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                          type="number" min="0" max={product.stock_qty}
-                          value={quantities[product.id] || ''} placeholder="0"
-                          onChange={e => setQuantity(product.id, Number(e.target.value))}
-                        />
-                      </div>
+                        {t === 'existing' ? 'Existing customer' : 'Walk-in / Guest'}
+                      </button>
                     ))}
                   </div>
-                </div>
-
-                {/* Cart summary */}
-                {cartItems.length > 0 && (
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 dark:border-slate-700 dark:bg-slate-800/50">
-                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">Order summary</p>
-                    {cartItems.map(i => (
-                      <div key={i.product.id} className="flex justify-between text-xs font-semibold text-slate-700 dark:text-slate-200">
-                        <span>{i.product.name} × {i.quantity}</span>
-                        <span>{formatMoney(i.line_total)}</span>
-                      </div>
-                    ))}
-                    <div className="flex items-center gap-2 border-t border-slate-200 pt-2 dark:border-slate-700">
-                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Discount (TZS):</span>
+                  {form.customerType === 'existing' ? (
+                    <select
+                      value={form.customerId}
+                      onChange={e => setForm(f => ({ ...f, customerId: e.target.value }))}
+                      className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                    >
+                      <option value="">Select customer…</option>
+                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}{c.phone ? ` — ${c.phone}` : ''}</option>)}
+                    </select>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
                       <input
-                        className="h-7 w-32 rounded-lg border border-slate-200 px-2 text-xs font-bold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                        type="number" min="0" value={discountAmount || ''} placeholder="0"
-                        onChange={e => setDiscountAmount(Number(e.target.value))}
+                        className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500"
+                        placeholder="Name (optional)"
+                        value={form.guestName}
+                        onChange={e => setForm(f => ({ ...f, guestName: e.target.value }))}
+                      />
+                      <input
+                        className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500"
+                        placeholder="Phone (optional)"
+                        value={form.guestPhone}
+                        onChange={e => setForm(f => ({ ...f, guestPhone: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                </section>
+
+                {/* ── Add products ── */}
+                <section className="space-y-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">Products</p>
+                  <div className="flex gap-2">
+                    <select
+                      value={form.selectedProductId}
+                      onChange={e => setForm(f => ({ ...f, selectedProductId: e.target.value }))}
+                      className="flex-1 h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                    >
+                      <option value="">Select product…</option>
+                      {products.filter(p => p.is_active && p.stock_qty > 0).map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} — {formatMoney(p.price)}/{p.unit} ({p.stock_qty} left)
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number" min="1"
+                      value={form.selectedQty}
+                      onChange={e => setForm(f => ({ ...f, selectedQty: e.target.value }))}
+                      className="h-9 w-16 rounded-lg border border-slate-200 px-2 text-center text-xs font-bold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={addToCart}
+                      disabled={!form.selectedProductId}
+                      className="h-9 rounded-lg bg-brand-green px-3 text-xs font-bold text-white hover:opacity-90 disabled:opacity-40"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+
+                  {/* Cart lines */}
+                  {cartItems.length > 0 && (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50 divide-y divide-slate-200 dark:divide-slate-700">
+                      {cartItems.map(line => (
+                        <div key={line.product.id} className="flex items-center gap-3 px-3 py-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{line.product.name}</p>
+                            <p className="text-[11px] text-slate-400">{formatMoney(line.product.price)} / {line.product.unit}</p>
+                          </div>
+                          <input
+                            type="number" min="1" max={line.product.stock_qty}
+                            value={line.quantity}
+                            onChange={e => updateCartQty(line.product.id, parseInt(e.target.value) || 1)}
+                            className="h-7 w-14 rounded-lg border border-slate-200 px-2 text-center text-xs font-bold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                          />
+                          <span className="w-20 text-right text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">
+                            {formatMoney(line.product.price * line.quantity)}
+                          </span>
+                          <button type="button" onClick={() => removeFromCart(line.product.id)} className="text-slate-300 hover:text-red-500 dark:text-slate-600 dark:hover:text-red-400">
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* ── Order totals ── */}
+                {cartItems.length > 0 && (
+                  <section className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2 dark:border-slate-700 dark:bg-slate-800/50">
+                    <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400">
+                      <span>Subtotal</span><span>{formatMoney(subtotal)}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                      <span className="shrink-0">Discount (TZS)</span>
+                      <input
+                        type="number" min="0"
+                        value={form.discountAmount || ''}
+                        placeholder="0"
+                        onChange={e => setForm(f => ({ ...f, discountAmount: Number(e.target.value) }))}
+                        className="h-7 w-28 rounded-lg border border-slate-200 px-2 text-xs font-bold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 ml-auto"
                       />
                     </div>
                     <div className="flex justify-between border-t border-slate-200 pt-2 text-sm font-bold dark:border-slate-700">
                       <span className="text-slate-700 dark:text-slate-200">Total</span>
                       <span className="text-brand-green">{formatMoney(total)}</span>
                     </div>
-                  </div>
+                  </section>
                 )}
 
-                {/* Note */}
+                {/* ── Payment & status ── */}
+                <section className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Payment method</label>
+                    <select
+                      value={form.paymentMethod}
+                      onChange={e => setForm(f => ({ ...f, paymentMethod: e.target.value }))}
+                      className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                    >
+                      {PAYMENT_METHODS.map(m => <option key={m} value={m}>{m.replace(/_/g, ' ')}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Order status</label>
+                    <select
+                      value={form.orderStatus}
+                      onChange={e => setForm(f => ({ ...f, orderStatus: e.target.value as 'completed' | 'pending' }))}
+                      className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                    >
+                      <option value="completed">Completed (in-person)</option>
+                      <option value="pending">Pending (delivery)</option>
+                    </select>
+                  </div>
+                </section>
+
+                {/* ── Note ── */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">Note <span className="font-normal text-slate-400">(optional)</span></label>
                   <input
                     className="w-full h-9 rounded-lg border border-slate-200 px-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-500"
-                    placeholder="e.g. Deliver after 5pm"
-                    value={note}
-                    onChange={e => setNote(e.target.value)}
+                    placeholder="e.g. Call before delivery"
+                    value={form.note}
+                    onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
                   />
                 </div>
               </div>
 
               {/* Footer */}
               <div className="flex shrink-0 gap-3 border-t border-slate-100 px-6 py-4 dark:border-slate-700/60">
-                <button
-                  type="button"
-                  onClick={() => { setShowSaleForm(false); setQuantities({}); setDiscountAmount(0); setNote(''); }}
-                  className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                >
+                <button type="button" onClick={closeForm} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                   Cancel
                 </button>
                 <button
-                  disabled={!total || submitting}
+                  disabled={!total || cartItems.length === 0 || submitting}
                   onClick={submitSale}
                   className="flex-1 rounded-xl bg-brand-green py-2.5 text-xs font-bold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                 >
