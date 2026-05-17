@@ -25,6 +25,7 @@ import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { NotificationBell } from './NotificationBell';
+import { useIdleTimeout } from '../hooks/useIdleTimeout';
 
 const navItems = [
   { label: 'Dashboard',      path: '/',               icon: Home,          adminOnly: false, roles: null },
@@ -48,6 +49,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, logout } = useAuth();
   const { theme, toggle } = useTheme();
   const navigate = useNavigate();
+
+  // Auto-logout after 60 minutes of inactivity
+  useIdleTimeout(60 * 60 * 1000, async () => {
+    await logout();
+    navigate('/login');
+  });
   const userMenuRef = useRef<HTMLDivElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
 
