@@ -136,11 +136,18 @@ class AuthController extends Controller
     {
         $request->validate([
             'current_password' => 'required|current_password',
-            'password' => 'required|string|min:8|confirmed',
+            'password'         => 'required|string|min:8|confirmed',
         ]);
 
-        $request->user()->update(['password' => $request->password]);
+        $user = $request->user();
+        $user->update(['password' => $request->password]);
 
-        return response()->json(['message' => 'Password updated.']);
+        // Revoke all tokens so other devices are logged out
+        $user->tokens()->delete();
+
+        // Issue a fresh token for the current session
+        $newToken = $user->createToken('spa')->plainTextToken;
+
+        return response()->json(['message' => 'Password updated.', 'token' => $newToken]);
     }
 }

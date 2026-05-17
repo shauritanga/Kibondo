@@ -30,6 +30,9 @@ class CustomerNoteController extends Controller
 
     public function update(Request $request, CustomerNote $note): JsonResponse
     {
+        $user = $request->user();
+        abort_unless($note->user_id === $user->id || $user->role === 'admin', 403);
+
         $data = $request->validate(['body' => 'required|string']);
 
         $note->update($data);
@@ -37,8 +40,11 @@ class CustomerNoteController extends Controller
         return response()->json(['data' => $note]);
     }
 
-    public function destroy(CustomerNote $note): JsonResponse
+    public function destroy(Request $request, CustomerNote $note): JsonResponse
     {
+        $user = $request->user();
+        abort_unless($note->user_id === $user->id || $user->role === 'admin', 403);
+
         $note->delete();
 
         return response()->json(['message' => 'Note deleted.']);

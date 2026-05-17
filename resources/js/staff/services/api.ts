@@ -62,7 +62,8 @@ export const authApi = {
     return data;
   },
   updatePassword: async (payload: { current_password: string; password: string; password_confirmation: string }) => {
-    const { data } = await http.put<{ message: string }>('/auth/me/password', payload);
+    const { data } = await http.put<{ message: string; token?: string }>('/auth/me/password', payload);
+    if (data.token) localStorage.setItem('kibondo_token', data.token);
     return data;
   },
 };

@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->api(append: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            SecurityHeaders::class,
         ]);
 
         // Force HTTPS in production

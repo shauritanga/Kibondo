@@ -32,9 +32,12 @@ class CustomerTaskController extends Controller
 
     public function update(Request $request, CustomerTask $task): JsonResponse
     {
+        $user = $request->user();
+        abort_unless($task->user_id === $user->id || $user->role === 'admin', 403);
+
         $data = $request->validate([
-            'title' => 'sometimes|string|max:300',
-            'is_done' => 'sometimes|boolean',
+            'title'    => 'sometimes|string|max:300',
+            'is_done'  => 'sometimes|boolean',
             'due_date' => 'nullable|date',
         ]);
 
@@ -43,8 +46,11 @@ class CustomerTaskController extends Controller
         return response()->json(['data' => $task]);
     }
 
-    public function destroy(CustomerTask $task): JsonResponse
+    public function destroy(Request $request, CustomerTask $task): JsonResponse
     {
+        $user = $request->user();
+        abort_unless($task->user_id === $user->id || $user->role === 'admin', 403);
+
         $task->delete();
 
         return response()->json(['message' => 'Task deleted.']);

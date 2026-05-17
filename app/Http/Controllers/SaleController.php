@@ -108,6 +108,10 @@ class SaleController extends Controller
 
     public function show(Sale $sale): JsonResponse
     {
+        if (auth()->user()->role === 'delivery') {
+            abort_unless($sale->assigned_to === auth()->id(), 403);
+        }
+
         $sale->load(['customer', 'user:id,name', 'assignedTo:id,name', 'items.product', 'payments']);
 
         return response()->json(['data' => $sale]);
