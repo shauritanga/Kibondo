@@ -30,6 +30,9 @@ Thumbs.db
 firebase-credentials.json
 /firebase-credentials.json
 
+# Seeders with default credentials — never deploy to production
+/database/seeders/AdminUserSeeder.php
+
 
 # OS
 .DS_Store
