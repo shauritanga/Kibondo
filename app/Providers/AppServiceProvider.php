@@ -40,5 +40,12 @@ class AppServiceProvider extends ServiceProvider
                 optional($request->user('customer'))->id ?? $request->ip()
             );
         });
+
+        // Authenticated staff API: 120 requests per minute per user
+        RateLimiter::for('staff-api', function (Request $request) {
+            return Limit::perMinute(120)->by(
+                optional($request->user())->id ?? $request->ip()
+            );
+        });
     }
 }

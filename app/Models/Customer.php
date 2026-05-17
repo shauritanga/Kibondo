@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -10,7 +11,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class Customer extends Authenticatable
+class Customer extends Authenticatable implements MustVerifyEmail
 {
     use HasUuids, SoftDeletes, HasApiTokens, HasFactory, Notifiable;
 
@@ -29,6 +30,7 @@ class Customer extends Authenticatable
         'credit_limit'         => 'integer',
         'total_spend'          => 'integer',
         'next_follow_up'       => 'date',
+        'email_verified_at'    => 'datetime',
         'fcm_token_updated_at' => 'datetime',
     ];
 

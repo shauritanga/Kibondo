@@ -9,7 +9,6 @@ use App\Http\Controllers\CustomerNoteController;
 use App\Http\Controllers\CustomerTaskController;
 use App\Http\Controllers\DeliveryZoneController;
 use App\Http\Controllers\ExpenseController;
-use App\Http\Controllers\OfflineQueueController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
@@ -42,6 +41,7 @@ Route::prefix('store')->middleware('throttle:store-api')->group(function () {
     Route::get('/settings/promo', [SettingController::class, 'getPromo']);
     Route::post('/auth/register', [CustomerAuthController::class, 'register'])->middleware('throttle:auth');
     Route::post('/auth/login', [CustomerAuthController::class, 'login'])->middleware('throttle:auth');
+    Route::get('/auth/verify/{id}/{hash}', [CustomerAuthController::class, 'verifyEmail'])->name('store.verification.verify');
     Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:orders');
 });
 
@@ -50,6 +50,7 @@ Route::prefix('store')->middleware(['auth.customer', 'throttle:store-api'])->gro
     Route::post('/auth/logout', [CustomerAuthController::class, 'logout']);
     Route::get('/auth/me', [CustomerAuthController::class, 'me']);
     Route::put('/auth/me', [CustomerAuthController::class, 'updateProfile']);
+    Route::post('/auth/email/resend', [CustomerAuthController::class, 'resendVerification']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{sale}', [OrderController::class, 'show']);
     Route::post('/orders/{sale}/confirm', [OrderController::class, 'confirm']);
@@ -62,7 +63,7 @@ Route::prefix('store')->middleware(['auth.customer', 'throttle:store-api'])->gro
 });
 
 // Authenticated
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
     Route::put('/auth/me', [AuthController::class, 'updateProfile']);
@@ -143,8 +144,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payments/{payment}', [PaymentController::class, 'show']);
     Route::post('/payments', [PaymentController::class, 'store'])->middleware('role:admin,accountant');
 
-    // Offline queue sync
-    Route::post('/offline-queue/sync', [OfflineQueueController::class, 'sync']);
 
     // Campaigns — read all staff; create/delete/send admin only
     Route::get('/campaigns', [CampaignController::class, 'index']);
