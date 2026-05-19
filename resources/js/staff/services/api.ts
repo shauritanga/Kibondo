@@ -16,7 +16,7 @@ let redirecting = false;
 http.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && !redirecting) {
+    if (err.response?.status === 401 && !redirecting && !(err.config as any)?._skipAuthRedirect) {
       redirecting = true;
       localStorage.removeItem('kibondo_user');
       window.location.href = '/login';
@@ -59,7 +59,7 @@ export const authApi = {
   },
   logout: () => http.post('/auth/logout'),
   me: async () => {
-    const { data } = await http.get<User>('/auth/me');
+    const { data } = await http.get<User>('/auth/me', { _skipAuthRedirect: true } as any);
     return data;
   },
   updateProfile: async (payload: { name: string; email: string }) => {
