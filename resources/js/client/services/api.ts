@@ -16,7 +16,7 @@ let redirecting = false;
 http.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && !redirecting) {
+    if (err.response?.status === 401 && !redirecting && !(err.config as any)?._skipAuthRedirect) {
       redirecting = true;
       localStorage.removeItem(CUSTOMER_KEY);
       window.location.href = '/store/login';
@@ -152,7 +152,7 @@ export const storeAuthApi = {
   },
   logout: () => http.post('/auth/logout'),
   me: async () => {
-    const { data } = await http.get<StoreCustomer>('/auth/me');
+    const { data } = await http.get<StoreCustomer>('/auth/me', { _skipAuthRedirect: true } as any);
     return data;
   },
   updateProfile: async (payload: Partial<Pick<StoreCustomer, 'name' | 'phone' | 'email' | 'location'>>) => {
