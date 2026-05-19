@@ -57,7 +57,7 @@ class AuthController extends Controller
         }
 
         // Email OTP required for admins when the setting is on
-        if (Setting::get('require_2fa_for_admins', '0') === '1' && $user->role === 'admin') {
+        if (Setting::get('require_2fa_for_admins', '1') === '1' && $user->role === 'admin') {
             return $this->sendOtp($user);
         }
 
