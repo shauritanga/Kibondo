@@ -13,13 +13,50 @@ import type { Category, Material, Product } from '../types';
 
 type ProductForm = {
   name: string; category_id: string; description: string;
+  key_benefits: string; ingredients: string; nutrition_info: string;
+  packaging_details: string; storage_instructions: string;
   price: string; stock_qty: string; min_stock: string;
 };
 
 const emptyForm: ProductForm = {
   name: '', category_id: '', description: '',
+  key_benefits: '', ingredients: '', nutrition_info: '',
+  packaging_details: '', storage_instructions: '',
   price: '', stock_qty: '', min_stock: '',
 };
+
+const detailFields: Array<{ field: keyof ProductForm; label: string; hint: string; rows: number }> = [
+  {
+    field: 'key_benefits',
+    label: 'Key benefits',
+    hint: 'One benefit per line, e.g. Rich & creamy flavor',
+    rows: 4,
+  },
+  {
+    field: 'ingredients',
+    label: 'Ingredients',
+    hint: 'e.g. 100% avocado',
+    rows: 3,
+  },
+  {
+    field: 'nutrition_info',
+    label: 'Nutrition information',
+    hint: 'Summarize key nutrients, vitamins, calories, or serving details.',
+    rows: 4,
+  },
+  {
+    field: 'packaging_details',
+    label: 'Packaging details',
+    hint: 'e.g. 2 KG pack, approximately 8-12 avocados depending on size.',
+    rows: 3,
+  },
+  {
+    field: 'storage_instructions',
+    label: 'Storage instructions',
+    hint: 'e.g. Keep chilled after opening. Use within 3 days.',
+    rows: 3,
+  },
+];
 
 type ImageMode = 'upload' | 'url';
 
@@ -89,6 +126,10 @@ export function ProductsPage() {
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  function cleanText(value: string) {
+    return value.trim() || null;
+  }
+
   function resetImageState() {
     setImageFile(null);
     setImagePreview('');
@@ -117,6 +158,11 @@ export function ProductsPage() {
       name: product.name,
       category_id: product.category_id,
       description: product.description ?? '',
+      key_benefits: product.key_benefits ?? '',
+      ingredients: product.ingredients ?? '',
+      nutrition_info: product.nutrition_info ?? '',
+      packaging_details: product.packaging_details ?? '',
+      storage_instructions: product.storage_instructions ?? '',
       price: String(product.price),
       stock_qty: String(product.stock_qty),
       min_stock: String(product.min_stock),
@@ -143,7 +189,12 @@ export function ProductsPage() {
         : editingProduct.unit;
       await productsApi.update(editingProduct.id, {
         name: form.name.trim(), category_id: form.category_id,
-        description: form.description.trim() || null,
+        description: cleanText(form.description),
+        key_benefits: cleanText(form.key_benefits),
+        ingredients: cleanText(form.ingredients),
+        nutrition_info: cleanText(form.nutrition_info),
+        packaging_details: cleanText(form.packaging_details),
+        storage_instructions: cleanText(form.storage_instructions),
         unit,
         price: Math.round(Number(form.price) || 0),
         stock_qty: Math.round(Number(form.stock_qty) || 0),
@@ -197,7 +248,12 @@ export function ProductsPage() {
         : 'unit';
       const created = await productsApi.create({
         name: form.name.trim(), category_id: form.category_id,
-        description: form.description.trim() || null,
+        description: cleanText(form.description),
+        key_benefits: cleanText(form.key_benefits),
+        ingredients: cleanText(form.ingredients),
+        nutrition_info: cleanText(form.nutrition_info),
+        packaging_details: cleanText(form.packaging_details),
+        storage_instructions: cleanText(form.storage_instructions),
         unit,
         price: Math.round(Number(form.price) || 0),
         cost_price: 0,
@@ -496,6 +552,28 @@ export function ProductsPage() {
                 <FormSelect label="Category" value={form.category_id} onChange={(e) => updateField('category_id', e.target.value)}>
                   {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </FormSelect>
+
+                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/40">
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Customer-facing details</p>
+                  <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                    These sections appear on the store product page. Keep each section short and scannable.
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    {detailFields.map(({ field, label, hint, rows }) => (
+                      <label key={field} className="block">
+                        <span className="text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</span>
+                        <textarea
+                          value={form[field]}
+                          onChange={(e) => updateField(field, e.target.value)}
+                          placeholder={hint}
+                          rows={rows}
+                          maxLength={2000}
+                          className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-green dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-100"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Recipe section — defines what this product is made from */}
                 {materials.length > 0 && (

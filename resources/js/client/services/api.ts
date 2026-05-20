@@ -50,11 +50,17 @@ export interface StoreProduct {
   id: string;
   name: string;
   description?: string | null;
+  key_benefits?: string | null;
+  ingredients?: string | null;
+  nutrition_info?: string | null;
+  packaging_details?: string | null;
+  storage_instructions?: string | null;
   unit: string;
   price: number;
   promo_price?: number | null;
   promo_percent?: number | null;
   stock_qty: number;
+  min_stock: number;
   category_id: string;
   category_name: string;
   image_url?: string | null;

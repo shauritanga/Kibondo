@@ -15,8 +15,10 @@ class Product extends Model
     use HasUuids, SoftDeletes, HasFactory;
 
     protected $fillable = [
-        'category_id', 'name', 'description', 'image_url', 'unit', 'price',
-        'cost_price', 'stock_qty', 'min_stock', 'is_active',
+        'category_id', 'name', 'description', 'key_benefits', 'ingredients',
+        'nutrition_info', 'packaging_details', 'storage_instructions',
+        'image_url', 'unit', 'price', 'cost_price', 'stock_qty', 'min_stock',
+        'is_active',
     ];
 
     protected $casts = [

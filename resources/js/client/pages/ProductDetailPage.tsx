@@ -39,6 +39,19 @@ function SkeletonDetail() {
   );
 }
 
+function lines(value?: string | null): string[] {
+  return value?.split(/\r?\n/).map(line => line.trim()).filter(Boolean) ?? [];
+}
+
+function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="border-t border-gray-100 py-5">
+      <h2 className="text-sm font-bold text-gray-900 mb-2">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
 export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -62,6 +75,7 @@ export function ProductDetailPage() {
 
   const cartItem = product ? cart.find(i => i.product.id === product.id) : null;
   const outOfStock = product ? product.stock_qty === 0 : false;
+  const lowStock = product ? product.stock_qty > 0 && product.stock_qty <= Math.max(product.min_stock ?? 0, 3) : false;
 
   function handleAddToCart() {
     if (!product || outOfStock) return;
@@ -128,10 +142,53 @@ export function ProductDetailPage() {
 
               <p className="text-sm text-gray-400">per {product.unit}</p>
 
+              {!outOfStock && (
+                <p className={`text-sm font-semibold ${lowStock ? 'text-amber-600' : 'text-green-700'}`}>
+                  {lowStock ? `Only ${product.stock_qty} unit${product.stock_qty === 1 ? '' : 's'} left` : 'In stock'}
+                </p>
+              )}
+
               {product.description && (
                 <p className="text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-4">
                   {product.description}
                 </p>
+              )}
+
+              {lines(product.key_benefits).length > 0 && (
+                <DetailSection title="Why choose this product?">
+                  <ul className="space-y-2 text-sm text-gray-600">
+                    {lines(product.key_benefits).map((benefit, index) => (
+                      <li key={index} className="flex gap-2">
+                        <span className="mt-0.5 text-green-600">✓</span>
+                        <span>{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </DetailSection>
+              )}
+
+              {product.ingredients && (
+                <DetailSection title="Ingredients">
+                  <p className="text-sm leading-relaxed text-gray-600 whitespace-pre-line">{product.ingredients}</p>
+                </DetailSection>
+              )}
+
+              {product.nutrition_info && (
+                <DetailSection title="Nutrition information">
+                  <p className="text-sm leading-relaxed text-gray-600 whitespace-pre-line">{product.nutrition_info}</p>
+                </DetailSection>
+              )}
+
+              {product.packaging_details && (
+                <DetailSection title="Packaging details">
+                  <p className="text-sm leading-relaxed text-gray-600 whitespace-pre-line">{product.packaging_details}</p>
+                </DetailSection>
+              )}
+
+              {product.storage_instructions && (
+                <DetailSection title="Storage instructions">
+                  <p className="text-sm leading-relaxed text-gray-600 whitespace-pre-line">{product.storage_instructions}</p>
+                </DetailSection>
               )}
 
               <div className="mt-auto pt-4 space-y-3">

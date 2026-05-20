@@ -26,6 +26,11 @@ export interface Product {
   category?: Category;
   name: string;
   description?: string | null;
+  key_benefits?: string | null;
+  ingredients?: string | null;
+  nutrition_info?: string | null;
+  packaging_details?: string | null;
+  storage_instructions?: string | null;
   image_url?: string | null;
   unit: string;
   price: number;
