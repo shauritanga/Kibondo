@@ -16,7 +16,8 @@
     .detail-row { display: table; width: 100%; padding: 4px 0; }
     .label { color: #718096; }
     .label, .value { display: table-cell; vertical-align: top; }
-    .value { font-weight: 600; text-align: right; padding-left: 12px; }
+    .label { width: 42%; padding-right: 12px; }
+    .value { font-weight: 600; text-align: right; }
     .footer { border-top: 1px solid #e2e8f0; padding: 18px 32px; font-size: 11px; color: #a0aec0; }
   </style>
 </head>

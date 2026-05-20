@@ -14,9 +14,11 @@
     .body { padding: 16px 32px 28px; font-size: 14px; line-height: 1.7; }
     .badge { display: inline-block; background: #fffbeb; color: #b7791f; font-weight: 700; font-size: 13px; padding: 6px 16px; border-radius: 20px; margin: 8px 0; }
     .detail-box { background: #f8faf8; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 12px 0; font-size: 13px; }
-    .detail-row { display: flex; justify-content: space-between; padding: 4px 0; }
+    .detail-row { display: table; width: 100%; padding: 4px 0; }
     .label { color: #718096; }
-    .value { font-weight: 600; }
+    .label, .value { display: table-cell; vertical-align: top; }
+    .label { width: 42%; padding-right: 12px; }
+    .value { font-weight: 600; text-align: right; }
     .footer { border-top: 1px solid #e2e8f0; padding: 18px 32px; font-size: 11px; color: #a0aec0; }
   </style>
 </head>
