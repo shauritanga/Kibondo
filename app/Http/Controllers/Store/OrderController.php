@@ -18,6 +18,7 @@ use App\Models\Setting;
 use App\Services\SaleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 /**
@@ -94,7 +95,15 @@ class OrderController extends Controller
 
         $admins = User::where('role', 'admin')->get();
         if ($admins->isNotEmpty()) {
-            Notification::send($admins, new OrderPlacedNotification($sale));
+            try {
+                Notification::send($admins, new OrderPlacedNotification($sale));
+            } catch (\Throwable $e) {
+                Log::warning('Order placed notification failed.', [
+                    'sale_id'     => $sale->id,
+                    'sale_number' => $sale->sale_number,
+                    'error'       => $e->getMessage(),
+                ]);
+            }
         }
 
         return response()->json([
