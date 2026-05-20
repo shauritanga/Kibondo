@@ -39,15 +39,24 @@ function SocialIcon({ label }: { label: string }) {
 
 interface StoreLayoutProps {
   children: React.ReactNode;
+  overlayHeader?: boolean;
 }
 
-export function StoreLayout({ children }: StoreLayoutProps) {
+export function StoreLayout({ children, overlayHeader }: StoreLayoutProps) {
   const { customer, logout } = useStoreAuth();
   const { cart, cartCount, cartTotal, updateQty } = useCart();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [cartOpen, setCartOpen] = useState(false);
   const [socialLinks, setSocialLinks] = useState<StoreSocialLink[]>([]);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    if (!overlayHeader) return;
+    function onScroll() { setScrolled(window.scrollY > 30); }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [overlayHeader]);
 
   useEffect(() => {
     storeSettingsApi.socialLinks().then(setSocialLinks).catch(() => {});
@@ -63,28 +72,34 @@ export function StoreLayout({ children }: StoreLayoutProps) {
     return `flex-1 flex flex-col items-center justify-center gap-1 h-16 text-[11px] font-medium transition-colors ${active ? 'text-green-600' : 'text-gray-400 hover:text-green-600'}`;
   };
 
+  const over = overlayHeader && !scrolled;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Top header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+      <header className={
+        overlayHeader
+          ? `fixed top-0 inset-x-0 z-30 transition-[background-color,border-color,box-shadow] duration-300 ${scrolled ? 'bg-white border-b border-gray-200 shadow-sm' : 'bg-transparent border-b border-transparent'}`
+          : 'bg-white border-b border-gray-200 sticky top-0 z-30'
+      }>
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
           <Link to="/store" className="shrink-0 flex items-center gap-2">
             <img src="/kibodo-logo.png" alt="Kibondo Store" className="h-8 w-auto object-contain" />
-            <span className="hidden sm:block text-base font-bold text-green-700">Kibondo Store</span>
+            <span className={`hidden sm:block text-base font-bold transition-colors duration-300 ${over ? 'text-white' : 'text-green-700'}`}>Kibondo Store</span>
           </Link>
 
           {/* Desktop auth links */}
           <div className="hidden sm:flex items-center gap-3 ml-auto">
             {customer ? (
               <>
-                <Link to="/store/orders" className="text-sm text-gray-600 hover:text-green-700">My Orders</Link>
-                <Link to="/store/account" className="text-sm text-gray-600 hover:text-green-700">Account</Link>
-                <button onClick={logout} className="text-sm text-gray-400 hover:text-gray-600">Sign out</button>
+                <Link to="/store/orders" className={`text-sm transition-colors duration-300 ${over ? 'text-white/90 hover:text-white' : 'text-gray-600 hover:text-green-700'}`}>My Orders</Link>
+                <Link to="/store/account" className={`text-sm transition-colors duration-300 ${over ? 'text-white/90 hover:text-white' : 'text-gray-600 hover:text-green-700'}`}>Account</Link>
+                <button onClick={logout} className={`text-sm transition-colors duration-300 ${over ? 'text-white/70 hover:text-white/90' : 'text-gray-400 hover:text-gray-600'}`}>Sign out</button>
               </>
             ) : (
               <>
-                <Link to="/store/login" className="text-sm text-gray-600 hover:text-green-700">Sign in</Link>
-                <Link to="/store/register" className="text-sm bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700">Register</Link>
+                <Link to="/store/login" className={`text-sm transition-colors duration-300 ${over ? 'text-white/90 hover:text-white' : 'text-gray-600 hover:text-green-700'}`}>Sign in</Link>
+                <Link to="/store/register" className={`text-sm px-3 py-1.5 rounded-lg transition-colors duration-300 ${over ? 'bg-white/20 text-white border border-white/30 hover:bg-white/30' : 'bg-green-600 text-white hover:bg-green-700'}`}>Register</Link>
               </>
             )}
           </div>
@@ -95,7 +110,7 @@ export function StoreLayout({ children }: StoreLayoutProps) {
             {/* Cart button */}
             <button
               onClick={() => setCartOpen(true)}
-              className="relative bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5"
+              className={`relative px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-1.5 border transition-colors duration-300 ${over ? 'bg-white/15 border-white/30 text-white hover:bg-white/25' : 'bg-green-50 hover:bg-green-100 border-green-200 text-green-700'}`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
               <span className="hidden sm:inline">Cart</span>

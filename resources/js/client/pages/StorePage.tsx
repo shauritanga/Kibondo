@@ -193,7 +193,7 @@ export function StorePage() {
   const heroContent = getPromoContent(promoTier, promoPercent);
 
   return (
-    <StoreLayout>
+    <StoreLayout overlayHeader>
       {/* Hero banner */}
       <div
         className={promoTier === 0
@@ -204,7 +204,7 @@ export function StorePage() {
         {promoTier > 0 && (
           <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,20,10,0.18),rgba(0,20,10,0.08)_50%,transparent)]" />
         )}
-        <div className={`relative max-w-6xl mx-auto px-4 py-10 sm:py-16 flex items-center ${promoTier === 0 ? 'min-h-[220px] sm:min-h-[260px]' : 'min-h-[300px] sm:min-h-[380px]'}`}>
+        <div className={`relative max-w-6xl mx-auto px-4 flex items-center ${promoTier === 0 ? 'pt-24 pb-10 sm:pt-28 sm:pb-16 min-h-[276px] sm:min-h-[316px]' : 'pt-24 pb-10 sm:pt-28 sm:pb-16 min-h-[356px] sm:min-h-[436px]'}`}>
           {/* Left: text content */}
           <div className="flex-1 max-w-2xl">
             {promoTier > 0 && (
