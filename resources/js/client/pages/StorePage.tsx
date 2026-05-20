@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { StoreLayout } from '../components/StoreLayout';
-import { storeCatalogApi, type StoreCategory, type StoreProduct, formatMoney } from '../services/api';
+import { storeCatalogApi, storeSettingsApi, type StoreCategory, type StoreProduct, formatMoney } from '../services/api';
 import { useCart } from '../contexts/CartContext';
 
 function ProductSkeleton() {
@@ -31,6 +31,20 @@ function ProductPlaceholder() {
   );
 }
 
+function clampPromoPercent(value: number) {
+  return Math.max(0, Math.min(99, value));
+}
+
+function getPromoHeroStyle(percent: number) {
+  const intensity = Math.min(clampPromoPercent(percent), 60) / 60;
+  const lightness = 94 - intensity * 13;
+  const depth = 44 - intensity * 12;
+
+  return {
+    backgroundImage: `linear-gradient(135deg, hsl(130 38% ${lightness}%), hsl(133 44% ${depth}%))`,
+  };
+}
+
 export function StorePage() {
   const { cart, addToCart, updateQty } = useCart();
 
@@ -44,6 +58,7 @@ export function StorePage() {
   const [lastPage, setLastPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [promoPercent, setPromoPercent] = useState(0);
   const gridRef = useRef<HTMLDivElement>(null);
 
   const fetchProducts = useCallback(() => {
@@ -64,6 +79,10 @@ export function StorePage() {
   }, [selectedCategory, search, sort, page]);
 
   useEffect(() => {
+    storeSettingsApi.getPromo()
+      .then(({ promo_percentage }) => setPromoPercent(clampPromoPercent(promo_percentage)))
+      .catch(() => setPromoPercent(0));
+
     storeCatalogApi.categories()
       .then(setCategories)
       .catch(() => {});
@@ -85,29 +104,66 @@ export function StorePage() {
     gridRef.current?.scrollIntoView({ behavior: 'smooth' });
   }
 
+  const promoActive = promoPercent > 0;
+  const heroStyle = promoActive ? getPromoHeroStyle(promoPercent) : undefined;
+
   return (
     <StoreLayout>
       {/* Hero banner */}
-      <div className="bg-gradient-to-r from-green-700 to-green-500 text-white">
+      <div className={promoActive ? 'text-white' : 'bg-gradient-to-r from-green-700 to-green-500 text-white'} style={heroStyle}>
         <div className="max-w-6xl mx-auto px-4 py-10 sm:py-16 flex flex-col sm:flex-row items-center gap-6">
-          <div className="flex-1">
-            <h2 className="text-2xl sm:text-3xl font-bold leading-tight mb-2">
-              Premium fresh fruits,<br className="hidden sm:block" /> delivered to your door
-            </h2>
-            <p className="text-green-100 text-sm sm:text-base mb-5">Fresh & frozen avocados, apples — order online, we deliver.</p>
-            <button
-              onClick={scrollToGrid}
-              className="bg-white text-green-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-green-50 transition-colors text-sm"
-            >
-              Shop now ↓
-            </button>
+          <div className="flex-1 max-w-2xl">
+            {promoActive ? (
+              <>
+                <div className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/95">
+                  Limited storewide offer
+                </div>
+                <h2 className="mt-4 text-3xl sm:text-5xl font-bold leading-tight">
+                  Save {promoPercent}% on fresh produce
+                </h2>
+                <p className="mt-4 max-w-xl text-sm sm:text-base text-white/85 leading-relaxed">
+                  Shop avocados, apples, and more while the discount is live. Fresh products, clear pricing, and direct delivery in one place.
+                </p>
+                <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <button
+                    onClick={scrollToGrid}
+                    className="inline-flex items-center justify-center bg-white text-green-800 font-semibold px-6 py-3 rounded-xl hover:bg-green-50 transition-colors text-sm shadow-sm"
+                  >
+                    Shop now ↓
+                  </button>
+                  <span className="text-sm text-white/80">
+                    Discount applies storewide while active.
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl sm:text-3xl font-bold leading-tight mb-2">
+                  Premium fresh fruits,<br className="hidden sm:block" /> delivered to your door
+                </h2>
+                <p className="text-white/85 text-sm sm:text-base mb-5">Fresh & frozen avocados, apples — order online, we deliver.</p>
+                <button
+                  onClick={scrollToGrid}
+                  className="bg-white text-green-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-green-50 transition-colors text-sm"
+                >
+                  Shop now ↓
+                </button>
+              </>
+            )}
           </div>
           {/* Decorative illustration */}
           <div className="shrink-0 hidden sm:flex items-center justify-center w-40 h-40 bg-white/10 rounded-2xl">
-            <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9">
-              <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>
-              <path d="M16 10a4 4 0 0 1-8 0"/>
-            </svg>
+            {promoActive ? (
+              <div className="text-center px-4">
+                <div className="text-4xl font-black leading-none">{promoPercent}%</div>
+                <div className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/85">Off today</div>
+              </div>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9">
+                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>
+                <path d="M16 10a4 4 0 0 1-8 0"/>
+              </svg>
+            )}
           </div>
         </div>
       </div>

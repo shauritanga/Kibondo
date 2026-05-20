@@ -188,6 +188,10 @@ export interface StoreSocialLink {
 }
 
 export const storeSettingsApi = {
+  getPromo: async (): Promise<{ promo_percentage: number }> => {
+    const { data } = await http.get<{ promo_percentage: number }>('/settings/promo');
+    return data;
+  },
   socialLinks: async (): Promise<StoreSocialLink[]> => {
     const { data } = await http.get<StoreSocialLink[]>('/settings/social-links');
     return data;
