@@ -45,8 +45,8 @@ function lines(value?: string | null): string[] {
 
 function DetailSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="border-t border-gray-100 py-5">
-      <h2 className="text-sm font-bold text-gray-900 mb-2">{title}</h2>
+    <section className="border-t border-gray-100 py-3.5">
+      <h2 className="text-sm font-bold text-gray-900 mb-1.5">{title}</h2>
       {children}
     </section>
   );
@@ -156,7 +156,7 @@ export function ProductDetailPage() {
 
               {lines(product.key_benefits).length > 0 && (
                 <DetailSection title="Why choose this product?">
-                  <ul className="space-y-2 text-sm text-gray-600">
+                  <ul className="space-y-1.5 text-sm text-gray-600">
                     {lines(product.key_benefits).map((benefit, index) => (
                       <li key={index} className="flex gap-2">
                         <span className="mt-0.5 text-green-600">✓</span>
