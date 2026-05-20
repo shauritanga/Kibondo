@@ -161,7 +161,7 @@ export function CampaignsPage() {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
 
-  const totalRecipients = campaigns.reduce((s, c) => s + c.total_recipients, 0);
+  const totalRecipientSends = campaigns.reduce((s, c) => s + c.total_recipients, 0);
 
   return (
     <div className="space-y-4">
@@ -173,7 +173,7 @@ export function CampaignsPage() {
           {[
             ['Total Campaigns', campaigns.length],
             ['Sent This Month', sentThisMonth],
-            ['Total Recipients', totalRecipients],
+            ['Recipient Sends', totalRecipientSends],
             ['Draft', campaigns.filter((c) => c.status === 'draft').length],
           ].map(([label, value]) => (
             <div key={label as string} className="flex items-center justify-between border-slate-100 md:border-r md:pr-3 last:md:border-r-0 dark:border-slate-700/50">
