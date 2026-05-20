@@ -115,61 +115,48 @@ export function StorePage() {
   return (
     <StoreLayout>
       {/* Hero banner */}
-      <div className={promoActive ? 'text-white' : 'bg-gradient-to-r from-green-700 to-green-500 text-white'} style={heroStyle}>
-        <div className="max-w-6xl mx-auto px-4 py-10 sm:py-16 flex flex-col sm:flex-row items-center gap-6">
-          <div className={`flex-1 ${promoActive ? 'max-w-3xl' : 'max-w-2xl'}`}>
-            {promoActive ? (
-              <div className="rounded-[28px] border border-white/35 bg-[#fbf8f0]/92 p-6 sm:p-8 shadow-[0_24px_70px_rgba(16,66,37,0.20)] backdrop-blur-sm text-slate-900">
-                <div className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-900">
-                  Limited storewide offer
-                </div>
-                <h2 className="mt-4 text-3xl sm:text-5xl font-bold leading-tight text-[#215a33]">
-                  Save {promoPercent}% on fresh produce
-                </h2>
-                <p className="mt-4 max-w-xl text-sm sm:text-base text-slate-600 leading-relaxed">
-                  Shop avocados, apples, and more while the discount is live. Fresh products, clear pricing, and direct delivery in one place.
-                </p>
-                <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
-                  <button
-                    onClick={scrollToGrid}
-                    className="inline-flex items-center justify-center bg-[#215a33] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#184725] transition-colors text-sm shadow-sm"
-                  >
-                    Shop now ↓
-                  </button>
-                  <span className="text-sm text-slate-500">
-                    Discount applies storewide while active.
-                  </span>
-                  </div>
-                </div>
-            ) : (
-              <>
-                <h2 className="text-2xl sm:text-3xl font-bold leading-tight mb-2">
-                  Premium fresh fruits,<br className="hidden sm:block" /> delivered to your door
-                </h2>
-                <p className="text-white/85 text-sm sm:text-base mb-5">Fresh & frozen avocados, apples — order online, we deliver.</p>
+      <div className={promoActive ? 'relative overflow-hidden text-white' : 'bg-gradient-to-r from-green-700 to-green-500 text-white'} style={heroStyle}>
+        {promoActive && (
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,34,18,0.20),rgba(6,34,18,0.10)_44%,rgba(255,255,255,0.03))]" />
+        )}
+        <div className={`relative max-w-6xl mx-auto px-4 py-10 sm:py-16 ${promoActive ? 'min-h-[340px] sm:min-h-[390px] flex items-center' : ''}`}>
+          {promoActive ? (
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center rounded-full bg-white/14 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90">
+                Limited storewide offer
+              </div>
+              <h2 className="mt-4 text-3xl sm:text-5xl font-bold leading-tight text-white">
+                Save {promoPercent}% on fresh produce
+              </h2>
+              <p className="mt-4 max-w-2xl text-sm sm:text-base text-white/88 leading-relaxed">
+                Shop avocados, apples, and more while the discount is live. Fresh products, clear pricing, and direct delivery in one place.
+              </p>
+              <div className="mt-7 flex flex-col sm:flex-row sm:items-center gap-3">
                 <button
                   onClick={scrollToGrid}
-                  className="bg-white text-green-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-green-50 transition-colors text-sm"
+                  className="inline-flex items-center justify-center bg-white text-[#215a33] font-semibold px-6 py-3 rounded-xl hover:bg-green-50 transition-colors text-sm shadow-sm"
                 >
                   Shop now ↓
                 </button>
-              </>
-            )}
-          </div>
-          {/* Decorative illustration */}
-          <div className="shrink-0 hidden sm:flex items-center justify-center w-40 h-40 bg-white/10 rounded-2xl">
-            {promoActive ? (
-              <div className="text-center px-4">
-                <div className="text-4xl font-black leading-none">{promoPercent}%</div>
-                <div className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/85">Off today</div>
+                <span className="text-sm text-white/80">
+                  Discount applies storewide while active.
+                </span>
               </div>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9">
-                <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/>
-                <path d="M16 10a4 4 0 0 1-8 0"/>
-              </svg>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="max-w-2xl flex flex-col">
+              <h2 className="text-2xl sm:text-3xl font-bold leading-tight mb-2">
+                Premium fresh fruits,<br className="hidden sm:block" /> delivered to your door
+              </h2>
+              <p className="text-white/85 text-sm sm:text-base mb-5">Fresh & frozen avocados, apples — order online, we deliver.</p>
+              <button
+                onClick={scrollToGrid}
+                className="bg-white text-green-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-green-50 transition-colors text-sm self-start"
+              >
+                Shop now ↓
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
