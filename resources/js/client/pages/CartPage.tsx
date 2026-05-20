@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useCart } from '../contexts/CartContext';
+import { cartLineTotal, cartUnitPrice, hasCartLineDiscount, useCart } from '../contexts/CartContext';
 import { useStoreAuth } from '../contexts/StoreAuthContext';
 import { formatMoney } from '../services/api';
 import { StoreLayout } from '../components/StoreLayout';
@@ -41,7 +41,12 @@ export function CartPage() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">{item.product.name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{item.product.unit} · {formatMoney(item.product.price)} each</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {item.product.unit} · {formatMoney(cartUnitPrice(item))} each
+                      {hasCartLineDiscount(item) && (
+                        <span className="ml-1 line-through">{formatMoney(item.product.price)}</span>
+                      )}
+                    </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="flex items-center gap-1 border border-gray-200 rounded-lg">
@@ -49,7 +54,7 @@ export function CartPage() {
                       <span className="text-sm w-7 text-center font-medium">{item.quantity}</span>
                       <button onClick={() => updateQty(item.product.id, 1)} className="px-2.5 py-1.5 text-gray-500 hover:bg-gray-50 text-sm">+</button>
                     </div>
-                    <p className="text-sm font-semibold text-gray-800 w-24 text-right">{formatMoney(item.product.price * item.quantity)}</p>
+                    <p className="text-sm font-semibold text-gray-800 w-24 text-right">{formatMoney(cartLineTotal(item))}</p>
                   </div>
                 </div>
               ))}

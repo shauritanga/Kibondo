@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useStoreAuth } from '../contexts/StoreAuthContext';
-import { useCart } from '../contexts/CartContext';
+import { cartUnitPrice, hasCartLineDiscount, useCart } from '../contexts/CartContext';
 import { formatMoney, storeSettingsApi, type StoreSocialLink } from '../services/api';
 import { CustomerNotificationBell } from './CustomerNotificationBell';
 
@@ -244,7 +244,12 @@ export function StoreLayout({ children }: StoreLayoutProps) {
                     )}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{item.product.name}</p>
-                      <p className="text-xs text-gray-400">{formatMoney(item.product.price)} × {item.quantity}</p>
+                      <p className="text-xs text-gray-400">
+                        <span>{formatMoney(cartUnitPrice(item))} × {item.quantity}</span>
+                        {hasCartLineDiscount(item) && (
+                          <span className="ml-1 line-through">{formatMoney(item.product.price)}</span>
+                        )}
+                      </p>
                     </div>
                     <div className="flex items-center gap-1 border border-gray-200 rounded-lg shrink-0">
                       <button onClick={() => updateQty(item.product.id, -1)} className="px-2 py-1 text-gray-500 hover:bg-gray-50 text-sm">−</button>

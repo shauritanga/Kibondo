@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { formatMoney } from '../services/api';
 import { storeCatalogApi, storeDeliveryZonesApi, storeOrdersApi } from '../services/api';
 import type { StoreDeliveryZone } from '../services/api';
-import { useCart } from '../contexts/CartContext';
+import { cartLineTotal, cartUnitPrice, hasCartLineDiscount, useCart } from '../contexts/CartContext';
 import { useStoreAuth } from '../contexts/StoreAuthContext';
 import { StoreLayout } from '../components/StoreLayout';
 
@@ -501,9 +501,14 @@ export function CheckoutPage() {
                   <div key={item.product.id} className="flex items-center justify-between px-5 py-3 gap-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{item.product.name}</p>
-                      <p className="text-xs text-gray-400">{item.product.unit} × {item.quantity}</p>
+                      <p className="text-xs text-gray-400">
+                        {item.product.unit} × {item.quantity} @ {formatMoney(cartUnitPrice(item))}
+                        {hasCartLineDiscount(item) && (
+                          <span className="ml-1 line-through">{formatMoney(item.product.price)}</span>
+                        )}
+                      </p>
                     </div>
-                    <p className="text-sm font-semibold text-gray-800 shrink-0">{formatMoney(item.product.price * item.quantity)}</p>
+                    <p className="text-sm font-semibold text-gray-800 shrink-0">{formatMoney(cartLineTotal(item))}</p>
                   </div>
                 ))}
                 {/* Delivery line */}
