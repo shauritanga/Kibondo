@@ -8,7 +8,6 @@ export function ConfirmationPage() {
   const { customer } = useStoreAuth();
   const saleNumber: string = location.state?.saleNumber ?? '—';
   const totalAmount: number = location.state?.totalAmount ?? 0;
-  const paymentMethod: string = location.state?.paymentMethod ?? 'cash';
 
   return (
     <StoreLayout>
@@ -35,24 +34,9 @@ export function ConfirmationPage() {
           )}
           <div className="flex justify-between">
             <span className="text-gray-500">Payment</span>
-            <span className="font-semibold text-gray-900">
-              {paymentMethod === 'selcom' ? 'Selcom Mobile Money' : 'Cash on delivery'}
-            </span>
+            <span className="font-semibold text-gray-900">Cash on delivery</span>
           </div>
         </div>
-
-        {/* Selcom payment instructions */}
-        {paymentMethod === 'selcom' && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-left">
-            <p className="font-semibold text-blue-800 mb-2 text-sm">Complete your Selcom payment</p>
-            <ol className="text-sm text-blue-700 space-y-1.5 list-decimal list-inside">
-              <li>Open your Selcom app or dial <strong>*150*00#</strong></li>
-              <li>Send <strong>{formatMoney(totalAmount)}</strong> to merchant number</li>
-              <li>Use reference: <strong>{saleNumber}</strong></li>
-            </ol>
-            <p className="text-xs text-blue-500 mt-3">Your order will be confirmed once payment is received.</p>
-          </div>
-        )}
 
         <div className="flex flex-col gap-3 pt-2">
           {customer ? (

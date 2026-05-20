@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Cache;
 
 class DeliveryZoneController extends Controller
 {
+    private const PUBLIC_CACHE_KEY = 'delivery_zones_public:v2';
+    private const LEGACY_PUBLIC_CACHE_KEY = 'delivery_zones_public';
+
     public function index(): JsonResponse
     {
         $zones = DeliveryZone::orderBy('name')->get();
@@ -20,11 +23,20 @@ class DeliveryZoneController extends Controller
 
     public function publicIndex(): JsonResponse
     {
-        $zones = Cache::remember('delivery_zones_public', 3600, function () {
-            return DeliveryZone::where('is_active', true)->orderBy('name')->get();
+        $zones = Cache::remember(self::PUBLIC_CACHE_KEY, 3600, function () {
+            return DeliveryZone::where('is_active', true)
+                ->orderBy('name')
+                ->get()
+                ->map(fn (DeliveryZone $zone) => [
+                    'id'            => $zone->id,
+                    'name'          => $zone->name,
+                    'delivery_cost' => $zone->delivery_cost,
+                    'is_active'     => $zone->is_active,
+                ])
+                ->all();
         });
 
-        return response()->json(['data' => DeliveryZoneResource::collection($zones)]);
+        return response()->json(['data' => $zones]);
     }
 
     public function store(Request $request): JsonResponse
@@ -41,7 +53,7 @@ class DeliveryZoneController extends Controller
             'is_active'     => $request->boolean('is_active', true),
         ]);
 
-        Cache::forget('delivery_zones_public');
+        $this->forgetPublicCache();
 
         return response()->json(['data' => new DeliveryZoneResource($zone)], 201);
     }
@@ -56,7 +68,7 @@ class DeliveryZoneController extends Controller
 
         $deliveryZone->update($request->only(['name', 'delivery_cost', 'is_active']));
 
-        Cache::forget('delivery_zones_public');
+        $this->forgetPublicCache();
 
         return response()->json(['data' => new DeliveryZoneResource($deliveryZone)]);
     }
@@ -75,8 +87,14 @@ class DeliveryZoneController extends Controller
 
         $deliveryZone->delete();
 
-        Cache::forget('delivery_zones_public');
+        $this->forgetPublicCache();
 
         return response()->json(['message' => 'Delivery zone deleted.']);
+    }
+
+    private function forgetPublicCache(): void
+    {
+        Cache::forget(self::PUBLIC_CACHE_KEY);
+        Cache::forget(self::LEGACY_PUBLIC_CACHE_KEY);
     }
 }

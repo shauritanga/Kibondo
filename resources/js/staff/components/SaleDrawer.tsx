@@ -179,7 +179,7 @@ export function SaleDrawer({
                 {sale.guest_company && <Row label="Company" value={sale.guest_company} />}
                 <Row label="Date" value={new Date(sale.created_at).toLocaleString()} />
                 {sale.payment_method && (
-                  <Row label="Payment method" value={sale.payment_method === 'selcom' ? 'Selcom Mobile Money' : 'Cash on Delivery'} />
+                  <Row label="Payment method" value="Cash on Delivery" />
                 )}
                 {sale.delivery_address && (
                   <Row label="Delivery address" value={sale.delivery_address} />

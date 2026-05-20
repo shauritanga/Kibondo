@@ -30,7 +30,7 @@ class PlaceOrderRequest extends FormRequest
             'guest_email'              => 'nullable|email|max:255',
             'guest_company'            => 'nullable|string|max:100',
             'billing_address'          => 'nullable|string|max:1000',
-            'payment_method'           => 'nullable|in:cash,selcom',
+            'payment_method'           => 'nullable|in:cash',
         ];
     }
 

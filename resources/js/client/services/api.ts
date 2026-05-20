@@ -204,7 +204,7 @@ export const storeOrdersApi = {
     guest_phone?: string;
     guest_company?: string;
     billing_address?: string;
-    payment_method?: 'cash' | 'selcom';
+    payment_method?: 'cash';
     items: { product_id: string; quantity: number }[];
   }) => {
     const { data } = await http.post<{ sale_number: string; total_amount: number; payment_method: string; message: string }>('/orders', payload);

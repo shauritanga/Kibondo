@@ -40,9 +40,6 @@ export function CheckoutPage() {
   const [useSavedAddress, setUseSavedAddress] = useState(hasSavedAddress);
   const [savedAddressOverride, setSavedAddressOverride] = useState('');
 
-  // ── Payment ─────────────────────────────────────────────────────────────────
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'selcom'>('cash');
-
   // ── Billing ─────────────────────────────────────────────────────────────────
   const [billingSameAsDelivery, setBillingSameAsDelivery] = useState(true);
   const [billingFirstName, setBillingFirstName] = useState('');
@@ -178,7 +175,7 @@ export function CheckoutPage() {
         guest_phone: !customer ? phone : undefined,
         guest_company: !customer && company ? company : undefined,
         billing_address: billingAddress ?? undefined,
-        payment_method: paymentMethod,
+        payment_method: 'cash',
         items: cart.map(i => ({ product_id: i.product.id, quantity: i.quantity })),
       });
       clearCart();
@@ -428,20 +425,13 @@ export function CheckoutPage() {
             <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6">
               <SectionTitle>Payment method</SectionTitle>
               <div className="space-y-3">
-                <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors ${paymentMethod === 'cash' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <input type="radio" name="payment_method" value="cash" checked={paymentMethod === 'cash'} onChange={() => setPaymentMethod('cash')} className="mt-0.5 accent-green-600 shrink-0" />
+                <div className="flex items-start gap-4 p-4 rounded-xl border-2 border-green-500 bg-green-50">
+                  <input type="radio" name="payment_method" value="cash" checked readOnly className="mt-0.5 accent-green-600 shrink-0" />
                   <div>
                     <p className="text-sm font-semibold text-gray-900">Cash on Delivery</p>
                     <p className="text-xs text-gray-500 mt-0.5">Pay in cash when your order arrives.</p>
                   </div>
-                </label>
-                <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors ${paymentMethod === 'selcom' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <input type="radio" name="payment_method" value="selcom" checked={paymentMethod === 'selcom'} onChange={() => setPaymentMethod('selcom')} className="mt-0.5 accent-green-600 shrink-0" />
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Selcom Mobile Money</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Pay via your Selcom wallet. Instructions will appear after placing your order.</p>
-                  </div>
-                </label>
+                </div>
               </div>
             </div>
 
@@ -530,7 +520,7 @@ export function CheckoutPage() {
               </div>
             </div>
 
-            <p className="text-xs text-gray-400 text-center">Payment: {paymentMethod === 'selcom' ? 'Selcom Mobile Money' : 'Cash on delivery'}</p>
+            <p className="text-xs text-gray-400 text-center">Payment: Cash on delivery</p>
 
             {/* Submit button */}
             <div>
