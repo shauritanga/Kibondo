@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStoreAuth } from '../contexts/StoreAuthContext';
+import { storeNotificationsApi } from '../services/api';
+import { requestNotificationPermission, saveCurrentFcmToken } from '../../shared/lib/fcm';
 
 export function StoreLoginPage() {
   const { login } = useStoreAuth();
@@ -13,8 +15,11 @@ export function StoreLoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const permissionPromise = requestNotificationPermission();
     try {
       await login(form.email, form.password);
+      await permissionPromise;
+      await saveCurrentFcmToken((token) => storeNotificationsApi.saveFcmToken(token));
       navigate('/store');
     } catch (err: any) {
       const apiErrors = err.response?.data?.errors ?? {};

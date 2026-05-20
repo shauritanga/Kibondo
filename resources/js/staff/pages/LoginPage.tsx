@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { useAuth } from '../contexts/AuthContext';
+import { notificationsApi } from '../services/api';
+import { requestNotificationPermission, saveCurrentFcmToken } from '../../shared/lib/fcm';
 
 export function LoginPage() {
   const { login, verifyOtp } = useAuth();
@@ -21,6 +23,7 @@ export function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const permissionPromise = requestNotificationPermission();
     try {
       const result = await login(email, password);
       if (result?.otpRequired) {
@@ -28,6 +31,8 @@ export function LoginPage() {
         setOtpMessage(result.message);
         setTimeout(() => codeRef.current?.focus(), 50);
       } else {
+        await permissionPromise;
+        await saveCurrentFcmToken((token) => notificationsApi.saveFcmToken(token));
         navigate('/', { replace: true });
       }
     } catch (err: any) {
@@ -41,8 +46,11 @@ export function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    const permissionPromise = requestNotificationPermission();
     try {
       await verifyOtp(challengeToken, code);
+      await permissionPromise;
+      await saveCurrentFcmToken((token) => notificationsApi.saveFcmToken(token));
       navigate('/', { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Invalid code. Please try again.');

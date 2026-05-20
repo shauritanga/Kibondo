@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { getToken, onMessage } from 'firebase/messaging';
-import { getFirebaseMessaging } from '../lib/firebase';
-
-const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY as string;
-const TOKEN_REFRESH_INTERVAL = 7 * 24 * 60 * 60 * 1000; // 7 days
+import {
+    requestNotificationPermission,
+    saveCurrentFcmToken,
+    subscribeToForegroundMessages,
+    TOKEN_REFRESH_INTERVAL,
+} from '../lib/fcm';
 
 interface UseFcmOptions {
     enabled: boolean;
@@ -21,35 +22,19 @@ export function useFcm({ enabled, onForegroundMessage, onTokenObtained }: UseFcm
         let cancelled = false;
 
         async function init() {
-            const messaging = getFirebaseMessaging();
-            if (!messaging) return;
-
-            const permission = await Notification.requestPermission();
+            const permission = await requestNotificationPermission();
             if (permission !== 'granted' || cancelled) return;
 
-            try {
-                await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-            } catch {
-                return;
-            }
-
             async function fetchAndSaveToken() {
-                if (!messaging || cancelled) return;
-                try {
-                    const token = await getToken(messaging, { vapidKey: VAPID_KEY });
-                    if (token && !cancelled) {
-                        await onTokenObtained(token);
-                    }
-                } catch {
-                    // Permission revoked or token fetch failed — silent fallback
-                }
+                if (cancelled) return;
+                await saveCurrentFcmToken(onTokenObtained);
             }
 
             await fetchAndSaveToken();
 
             intervalRef.current = setInterval(fetchAndSaveToken, TOKEN_REFRESH_INTERVAL);
 
-            unsubscribeRef.current = onMessage(messaging, () => {
+            unsubscribeRef.current = subscribeToForegroundMessages(() => {
                 onForegroundMessage();
             });
         }
