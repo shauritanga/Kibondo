@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { StoreLayout } from '../components/StoreLayout';
 import { storeCatalogApi, storeSettingsApi, type StoreCategory, type StoreProduct, formatMoney } from '../services/api';
@@ -31,22 +31,101 @@ function ProductPlaceholder() {
   );
 }
 
-function clampPromoPercent(value: number) {
+type PromoTier = 0 | 1 | 2 | 3 | 4;
+
+interface PromoContent {
+  badge: string;
+  headline: string;
+  subline: string;
+  ctaLabel: string;
+  urgencyNote: string | null;
+}
+
+function clampPromoPercent(value: number): number {
   return Math.max(0, Math.min(99, value));
 }
 
-function getPromoHeroStyle(percent: number) {
-  const intensity = Math.min(clampPromoPercent(percent), 60) / 60;
-  const lightness = 92 - intensity * 10;
-  const depth = 47 - intensity * 9;
+function getPromoTier(percent: number): PromoTier {
+  if (percent <= 0) return 0;
+  if (percent <= 15) return 1;
+  if (percent <= 30) return 2;
+  if (percent <= 50) return 3;
+  return 4;
+}
 
-  return {
-    backgroundColor: 'hsl(134 35% 34%)',
+function getPromoHeroStyle(tier: PromoTier): React.CSSProperties | undefined {
+  if (tier === 0) return undefined;
+  if (tier === 1) return {
+    backgroundColor: 'hsl(128 38% 36%)',
     backgroundImage: [
-      `radial-gradient(circle at top left, rgba(248, 240, 217, ${0.42 - intensity * 0.08}), transparent 34%)`,
-      `radial-gradient(circle at bottom right, rgba(236, 169, 59, ${0.16 + intensity * 0.06}), transparent 30%)`,
-      `linear-gradient(135deg, hsl(129 36% ${lightness}%), hsl(136 42% ${depth}%))`,
+      'radial-gradient(circle at top left, rgba(248,248,230,0.38), transparent 38%)',
+      'radial-gradient(circle at bottom right, rgba(180,220,140,0.18), transparent 32%)',
+      'linear-gradient(135deg, hsl(122 32% 88%), hsl(130 40% 40%))',
     ].join(', '),
+  };
+  if (tier === 2) return {
+    backgroundColor: 'hsl(128 42% 30%)',
+    backgroundImage: [
+      'radial-gradient(circle at top left, rgba(255,235,180,0.45), transparent 36%)',
+      'radial-gradient(circle at bottom right, rgba(230,160,40,0.22), transparent 30%)',
+      'linear-gradient(135deg, hsl(45 72% 84%), hsl(134 48% 32%))',
+    ].join(', '),
+  };
+  if (tier === 3) return {
+    backgroundColor: 'hsl(148 55% 18%)',
+    backgroundImage: [
+      'radial-gradient(circle at top left, rgba(255,215,0,0.28), transparent 40%)',
+      'radial-gradient(circle at bottom right, rgba(0,120,60,0.55), transparent 34%)',
+      'linear-gradient(135deg, hsl(148 60% 22%), hsl(152 70% 14%))',
+    ].join(', '),
+  };
+  return {
+    backgroundColor: 'hsl(145 70% 12%)',
+    backgroundImage: [
+      'radial-gradient(circle at top left, rgba(255,220,0,0.38), transparent 42%)',
+      'radial-gradient(circle at bottom right, rgba(255,180,0,0.24), transparent 36%)',
+      'radial-gradient(ellipse at center, rgba(0,80,30,0.55), transparent 65%)',
+      'linear-gradient(135deg, hsl(145 75% 16%), hsl(150 80% 10%))',
+    ].join(', '),
+  };
+}
+
+function getPromoContent(tier: PromoTier, percent: number): PromoContent {
+  const pct = String(percent);
+  if (tier === 0) return {
+    badge: '',
+    headline: 'Premium fresh fruits, delivered to your door',
+    subline: 'Fresh & frozen avocados, apples — order online, we deliver.',
+    ctaLabel: 'Shop now',
+    urgencyNote: null,
+  };
+  if (tier === 1) return {
+    badge: 'Now On Sale',
+    headline: `Enjoy ${pct}% Off Storewide`,
+    subline: 'Grab fresh produce at a lower price while the offer lasts.',
+    ctaLabel: 'Shop now',
+    urgencyNote: 'Discount applies storewide while active.',
+  };
+  if (tier === 2) return {
+    badge: `Special Offer — ${pct}% OFF`,
+    headline: 'Big Savings on Fresh Produce',
+    subline: 'Stock up on avocados, apples, and more at a serious discount.',
+    ctaLabel: 'Grab the deal',
+    urgencyNote: 'Limited-time offer. Prices may return at any time.',
+  };
+  if (tier === 3) return {
+    badge: `🔥 Flash Sale — ${pct}% OFF`,
+    headline: `Massive ${pct}% Discount — Today Only`,
+    subline: "Our biggest single-day offer on fresh produce. Don't miss it.",
+    ctaLabel: 'Shop the sale',
+    urgencyNote: 'Today only. Offer ends when the promo closes.',
+  };
+  return {
+    badge: `⚡ MEGA SALE — ${pct}% OFF`,
+    headline: `Up To ${pct}% Off Everything`,
+    subline: "Maximum savings across the entire store. This doesn't happen often.",
+    ctaLabel: 'Shop everything',
+    urgencyNote: '⚡ Prices slashed storewide. Limited quantities.',
   };
 }
 
@@ -109,52 +188,92 @@ export function StorePage() {
     gridRef.current?.scrollIntoView({ behavior: 'smooth' });
   }
 
-  const promoActive = promoPercent > 0;
-  const heroStyle = promoActive ? getPromoHeroStyle(promoPercent) : undefined;
+  const promoTier = getPromoTier(promoPercent);
+  const heroStyle = getPromoHeroStyle(promoTier);
+  const heroContent = getPromoContent(promoTier, promoPercent);
 
   return (
     <StoreLayout>
       {/* Hero banner */}
-      <div className={promoActive ? 'relative overflow-hidden text-white' : 'bg-gradient-to-r from-green-700 to-green-500 text-white'} style={heroStyle}>
-        {promoActive && (
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(6,34,18,0.20),rgba(6,34,18,0.10)_44%,rgba(255,255,255,0.03))]" />
+      <div
+        className={promoTier === 0
+          ? 'bg-gradient-to-r from-green-700 to-green-500 text-white'
+          : 'relative overflow-hidden text-white'}
+        style={heroStyle}
+      >
+        {promoTier > 0 && (
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,20,10,0.18),rgba(0,20,10,0.08)_50%,transparent)]" />
         )}
-        <div className={`relative max-w-6xl mx-auto px-4 py-10 sm:py-16 ${promoActive ? 'min-h-[340px] sm:min-h-[390px] flex items-center' : ''}`}>
-          {promoActive ? (
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center rounded-full bg-white/14 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/90">
-                Limited storewide offer
+        <div className={`relative max-w-6xl mx-auto px-4 py-10 sm:py-16 flex items-center ${promoTier === 0 ? 'min-h-[220px] sm:min-h-[260px]' : 'min-h-[300px] sm:min-h-[380px]'}`}>
+          {/* Left: text content */}
+          <div className="flex-1 max-w-2xl">
+            {promoTier > 0 && (
+              <div className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] mb-4
+                ${promoTier === 1 ? 'bg-white/18 text-white/90' : ''}
+                ${promoTier === 2 ? 'bg-amber-400/25 text-amber-100 border border-amber-300/30' : ''}
+                ${promoTier === 3 ? 'bg-yellow-400/30 text-yellow-100 border border-yellow-300/40' : ''}
+                ${promoTier === 4 ? 'bg-yellow-300/40 text-yellow-50 border border-yellow-200/50' : ''}
+              `}>
+                {heroContent.badge}
               </div>
-              <h2 className="mt-4 text-3xl sm:text-5xl font-bold leading-tight text-white">
-                Save {promoPercent}% on fresh produce
-              </h2>
-              <p className="mt-4 max-w-2xl text-sm sm:text-base text-white/88 leading-relaxed">
-                Shop avocados, apples, and more while the discount is live. Fresh products, clear pricing, and direct delivery in one place.
-              </p>
-              <div className="mt-7 flex flex-col sm:flex-row sm:items-center gap-3">
-                <button
-                  onClick={scrollToGrid}
-                  className="inline-flex items-center justify-center bg-white text-[#215a33] font-semibold px-6 py-3 rounded-xl hover:bg-green-50 transition-colors text-sm shadow-sm"
-                >
-                  Shop now ↓
-                </button>
-                <span className="text-sm text-white/80">
-                  Discount applies storewide while active.
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="max-w-2xl flex flex-col">
-              <h2 className="text-2xl sm:text-3xl font-bold leading-tight mb-2">
-                Premium fresh fruits,<br className="hidden sm:block" /> delivered to your door
-              </h2>
-              <p className="text-white/85 text-sm sm:text-base mb-5">Fresh & frozen avocados, apples — order online, we deliver.</p>
+            )}
+            <h2 className={`font-extrabold leading-tight text-white
+              ${promoTier === 0 ? 'text-2xl sm:text-3xl' : ''}
+              ${promoTier === 1 ? 'text-3xl sm:text-4xl' : ''}
+              ${promoTier === 2 ? 'text-3xl sm:text-5xl' : ''}
+              ${promoTier === 3 ? 'text-4xl sm:text-5xl' : ''}
+              ${promoTier === 4 ? 'text-4xl sm:text-6xl' : ''}
+            `}>
+              {heroContent.headline}
+            </h2>
+            <p className="mt-3 text-sm sm:text-base text-white/85 leading-relaxed max-w-lg">
+              {heroContent.subline}
+            </p>
+            <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
               <button
                 onClick={scrollToGrid}
-                className="bg-white text-green-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-green-50 transition-colors text-sm self-start"
+                className={`inline-flex items-center justify-center font-semibold px-6 py-3 rounded-xl transition-colors text-sm shadow-sm
+                  ${promoTier <= 1 ? 'bg-white text-green-800 hover:bg-green-50' : ''}
+                  ${promoTier === 2 ? 'bg-amber-400 text-green-900 hover:bg-amber-300' : ''}
+                  ${promoTier === 3 ? 'bg-yellow-400 text-green-950 hover:bg-yellow-300 font-bold' : ''}
+                  ${promoTier === 4 ? 'bg-yellow-300 text-green-950 hover:bg-yellow-200 font-black shadow-lg' : ''}
+                `}
               >
-                Shop now ↓
+                {heroContent.ctaLabel} ↓
               </button>
+              {heroContent.urgencyNote && (
+                <span className="text-xs sm:text-sm text-white/75">{heroContent.urgencyNote}</span>
+              )}
+            </div>
+          </div>
+
+          {/* Right: decorative percentage circle (tiers 2–3) */}
+          {(promoTier === 2 || promoTier === 3) && (
+            <div className={`hidden sm:flex shrink-0 items-center justify-center rounded-full ml-8 select-none
+              ${promoTier === 2 ? 'w-36 h-36 lg:w-44 lg:h-44 bg-amber-400/20 border-2 border-amber-300/30' : ''}
+              ${promoTier === 3 ? 'w-40 h-40 lg:w-52 lg:h-52 bg-yellow-400/20 border-2 border-yellow-300/40' : ''}
+            `}>
+              <div className="flex flex-col items-center leading-none">
+                <span className={`font-black text-white leading-none
+                  ${promoTier === 2 ? 'text-5xl lg:text-6xl' : 'text-6xl lg:text-7xl'}
+                `}>
+                  {promoPercent}%
+                </span>
+                <span className="mt-1 text-xs font-semibold uppercase tracking-wider text-white/70">OFF</span>
+              </div>
+            </div>
+          )}
+
+          {/* Right: animated percentage circle (tier 4) */}
+          {promoTier === 4 && (
+            <div className="hidden sm:flex shrink-0 items-center justify-center ml-8 select-none">
+              <div className="relative flex items-center justify-center w-44 h-44 lg:w-60 lg:h-60">
+                <div className="absolute inset-0 rounded-full bg-yellow-300/15 animate-ping" style={{ animationDuration: '2.8s' }} />
+                <div className="relative flex flex-col items-center justify-center w-full h-full rounded-full bg-yellow-300/25 border-4 border-yellow-200/50 shadow-[0_0_60px_rgba(255,215,0,0.22)]">
+                  <span className="font-black text-white text-7xl lg:text-8xl leading-none">{promoPercent}%</span>
+                  <span className="text-sm font-semibold uppercase tracking-wider text-white/70 mt-1">OFF</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
