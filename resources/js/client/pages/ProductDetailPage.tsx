@@ -98,7 +98,7 @@ export function ProductDetailPage() {
             <p className="text-2xl font-bold text-gray-700 mb-2">Product not found</p>
             <p className="text-gray-400 mb-6">This product may have been removed or is no longer available.</p>
             <Link to="/store" className="inline-block bg-green-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors">
-              Browse products
+              Shop now
             </Link>
           </div>
         )}

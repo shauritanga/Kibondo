@@ -99,7 +99,7 @@ export function StorePage() {
               onClick={scrollToGrid}
               className="bg-white text-green-700 font-semibold px-5 py-2.5 rounded-xl hover:bg-green-50 transition-colors text-sm"
             >
-              Browse products ↓
+              Shop now ↓
             </button>
           </div>
           {/* Decorative illustration */}

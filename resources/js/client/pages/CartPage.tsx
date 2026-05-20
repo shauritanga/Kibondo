@@ -24,7 +24,7 @@ export function CartPage() {
           <div className="text-center py-24">
             <svg className="mx-auto mb-4 text-gray-300" xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
             <p className="text-gray-500 mb-4">Your cart is empty.</p>
-            <Link to="/store" className="text-green-600 font-medium hover:underline">← Browse products</Link>
+            <Link to="/store" className="text-green-600 font-medium hover:underline">← Shop now</Link>
           </div>
         ) : (
           <div className="space-y-4">
