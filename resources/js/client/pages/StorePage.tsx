@@ -37,11 +37,16 @@ function clampPromoPercent(value: number) {
 
 function getPromoHeroStyle(percent: number) {
   const intensity = Math.min(clampPromoPercent(percent), 60) / 60;
-  const lightness = 94 - intensity * 13;
-  const depth = 44 - intensity * 12;
+  const lightness = 92 - intensity * 10;
+  const depth = 47 - intensity * 9;
 
   return {
-    backgroundImage: `linear-gradient(135deg, hsl(130 38% ${lightness}%), hsl(133 44% ${depth}%))`,
+    backgroundColor: 'hsl(134 35% 34%)',
+    backgroundImage: [
+      `radial-gradient(circle at top left, rgba(248, 240, 217, ${0.42 - intensity * 0.08}), transparent 34%)`,
+      `radial-gradient(circle at bottom right, rgba(236, 169, 59, ${0.16 + intensity * 0.06}), transparent 30%)`,
+      `linear-gradient(135deg, hsl(129 36% ${lightness}%), hsl(136 42% ${depth}%))`,
+    ].join(', '),
   };
 }
 
@@ -112,30 +117,57 @@ export function StorePage() {
       {/* Hero banner */}
       <div className={promoActive ? 'text-white' : 'bg-gradient-to-r from-green-700 to-green-500 text-white'} style={heroStyle}>
         <div className="max-w-6xl mx-auto px-4 py-10 sm:py-16 flex flex-col sm:flex-row items-center gap-6">
-          <div className="flex-1 max-w-2xl">
+          <div className={`flex-1 ${promoActive ? 'max-w-3xl' : 'max-w-2xl'}`}>
             {promoActive ? (
-              <>
-                <div className="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/95">
-                  Limited storewide offer
+              <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_220px]">
+                <div className="rounded-[28px] border border-white/35 bg-[#fbf8f0]/92 p-6 sm:p-8 shadow-[0_24px_70px_rgba(16,66,37,0.20)] backdrop-blur-sm text-slate-900">
+                  <div className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-900">
+                    Limited storewide offer
+                  </div>
+                  <h2 className="mt-4 text-3xl sm:text-5xl font-bold leading-tight text-[#215a33]">
+                    Save {promoPercent}% on fresh produce
+                  </h2>
+                  <p className="mt-4 max-w-xl text-sm sm:text-base text-slate-600 leading-relaxed">
+                    Shop avocados, apples, and more while the discount is live. Fresh products, clear pricing, and direct delivery in one place.
+                  </p>
+                  <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
+                    <button
+                      onClick={scrollToGrid}
+                      className="inline-flex items-center justify-center bg-[#215a33] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#184725] transition-colors text-sm shadow-sm"
+                    >
+                      Shop now ↓
+                    </button>
+                    <span className="text-sm text-slate-500">
+                      Discount applies storewide while active.
+                    </span>
+                  </div>
                 </div>
-                <h2 className="mt-4 text-3xl sm:text-5xl font-bold leading-tight">
-                  Save {promoPercent}% on fresh produce
-                </h2>
-                <p className="mt-4 max-w-xl text-sm sm:text-base text-white/85 leading-relaxed">
-                  Shop avocados, apples, and more while the discount is live. Fresh products, clear pricing, and direct delivery in one place.
-                </p>
-                <div className="mt-6 flex flex-col sm:flex-row sm:items-center gap-3">
-                  <button
-                    onClick={scrollToGrid}
-                    className="inline-flex items-center justify-center bg-white text-green-800 font-semibold px-6 py-3 rounded-xl hover:bg-green-50 transition-colors text-sm shadow-sm"
-                  >
-                    Shop now ↓
-                  </button>
-                  <span className="text-sm text-white/80">
-                    Discount applies storewide while active.
-                  </span>
+                <div className="rounded-[28px] border border-white/30 bg-white/14 p-5 sm:p-6 shadow-[0_18px_42px_rgba(15,66,36,0.16)] backdrop-blur-sm">
+                  <div className="flex h-full flex-col justify-between gap-4 text-white">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-white/70">Fresh offer</p>
+                      <div className="mt-3 text-5xl font-black leading-none">{promoPercent}%</div>
+                      <p className="mt-3 text-sm leading-relaxed text-white/82">
+                        Green produce, honest pricing, and a clean storewide discount that is easy to scan.
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-2xl bg-white/12 px-3 py-3 text-center">
+                        <div className="h-2.5 w-2.5 rounded-full bg-emerald-200 mx-auto" />
+                        <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-white/75">Leaf</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/12 px-3 py-3 text-center">
+                        <div className="h-2.5 w-2.5 rounded-full bg-amber-200 mx-auto" />
+                        <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-white/75">Seed</p>
+                      </div>
+                      <div className="rounded-2xl bg-white/12 px-3 py-3 text-center">
+                        <div className="h-2.5 w-2.5 rounded-full bg-white/85 mx-auto" />
+                        <p className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-white/75">Fresh</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </>
+              </div>
             ) : (
               <>
                 <h2 className="text-2xl sm:text-3xl font-bold leading-tight mb-2">
