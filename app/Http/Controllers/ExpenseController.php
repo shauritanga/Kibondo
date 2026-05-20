@@ -23,6 +23,9 @@ class ExpenseController extends Controller
         if ($request->filled('to')) {
             $query->whereDate('expense_date', '<=', $request->to);
         }
+        if ($request->filled('search')) {
+            $query->where('description', 'like', '%' . $request->search . '%');
+        }
 
         $paginated = $query->paginate(25);
 
@@ -30,6 +33,7 @@ class ExpenseController extends Controller
         if ($request->filled('category')) $summaryQuery->where('category', $request->category);
         if ($request->filled('from'))     $summaryQuery->whereDate('expense_date', '>=', $request->from);
         if ($request->filled('to'))       $summaryQuery->whereDate('expense_date', '<=', $request->to);
+        if ($request->filled('search'))   $summaryQuery->where('description', 'like', '%' . $request->search . '%');
 
         $totalAmount = $summaryQuery->sum('amount');
 

@@ -410,7 +410,7 @@ export const packagingRunsApi = {
 
 // ─── Expenses ────────────────────────────────────────────────────────────────
 export const expensesApi = {
-  list: async (params?: { category?: string; from?: string; to?: string; page?: number }) => {
+  list: async (params?: { category?: string; from?: string; to?: string; search?: string; page?: number }) => {
     const { data } = await http.get<{
       data: Expense[];
       current_page: number;

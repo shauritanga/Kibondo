@@ -38,10 +38,13 @@ export function ExpensesPage() {
   const [totalAmount, setTotalAmount] = useState(0);
   const [byCategory, setByCategory] = useState<Record<string, number>>({});
 
+  const [total, setTotal] = useState(0);
+
   // Filters
   const [filterCat, setFilterCat] = useState('');
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
+  const [filterSearch, setFilterSearch] = useState('');
 
   // KPIs
   const [monthTotal, setMonthTotal] = useState(0);
@@ -59,16 +62,26 @@ export function ExpensesPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  async function load(p = page) {
+  async function load(
+    p = page,
+    opts?: { category?: string; from?: string; to?: string; search?: string }
+  ) {
     try {
-      const params: Record<string, unknown> = { page: p };
-      if (filterCat)  params.category = filterCat;
-      if (filterFrom) params.from = filterFrom;
-      if (filterTo)   params.to = filterTo;
+      const cat    = opts?.category !== undefined ? opts.category : filterCat;
+      const from   = opts?.from     !== undefined ? opts.from     : filterFrom;
+      const to     = opts?.to       !== undefined ? opts.to       : filterTo;
+      const search = opts?.search   !== undefined ? opts.search   : filterSearch;
 
-      const res = await expensesApi.list(params as { category?: string; from?: string; to?: string; page?: number });
+      const params: Record<string, unknown> = { page: p };
+      if (cat)    params.category = cat;
+      if (from)   params.from     = from;
+      if (to)     params.to       = to;
+      if (search) params.search   = search;
+
+      const res = await expensesApi.list(params as Parameters<typeof expensesApi.list>[0]);
       setExpenses(res.data);
       setLastPage(res.last_page);
+      setTotal(res.total);
       setTotalAmount(res.summary.total_amount);
       setByCategory(res.summary.by_category);
     } catch {
@@ -105,9 +118,9 @@ export function ExpensesPage() {
   }
 
   function clearFilters() {
-    setFilterCat(''); setFilterFrom(''); setFilterTo('');
+    setFilterCat(''); setFilterFrom(''); setFilterTo(''); setFilterSearch('');
     setPage(1); setLoading(true);
-    setTimeout(() => load(1), 0);
+    load(1, { category: '', from: '', to: '', search: '' });
   }
 
   function openAdd() {
@@ -155,6 +168,7 @@ export function ExpensesPage() {
       if (editingExpense) {
         const updated = await expensesApi.update(editingExpense.id, payload);
         setExpenses(prev => prev.map(e => e.id === updated.id ? updated : e));
+        loadKpis();
       } else {
         await expensesApi.create(payload);
         load(1);
@@ -228,6 +242,16 @@ export function ExpensesPage() {
       {/* Filters */}
       <form onSubmit={applyFilters} className="card px-4 py-3 flex flex-wrap items-end gap-3">
         <div>
+          <label className="block text-[11px] font-semibold text-slate-500 mb-1">Search</label>
+          <input
+            type="text"
+            value={filterSearch}
+            onChange={e => setFilterSearch(e.target.value)}
+            placeholder="Description…"
+            className="h-8 w-40 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-green"
+          />
+        </div>
+        <div>
           <label className="block text-[11px] font-semibold text-slate-500 mb-1">Category</label>
           <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="h-8 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-green">
             <option value="">All categories</option>
@@ -243,7 +267,7 @@ export function ExpensesPage() {
           <input type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} className="h-8 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 px-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-green" />
         </div>
         <button type="submit" className="h-8 rounded-lg bg-brand-green px-4 text-xs font-bold text-white hover:opacity-90">Apply</button>
-        {(filterCat || filterFrom || filterTo) && (
+        {(filterCat || filterFrom || filterTo || filterSearch) && (
           <button type="button" onClick={clearFilters} className="h-8 rounded-lg border border-slate-200 dark:border-slate-600 px-3 text-xs font-semibold text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800">Clear</button>
         )}
       </form>
@@ -321,14 +345,21 @@ export function ExpensesPage() {
               </table>
             </div>
 
-            {/* Pagination */}
-            {lastPage > 1 && (
-              <div className="flex items-center justify-center gap-2 border-t border-slate-100 dark:border-slate-700/50 py-3">
-                <button onClick={() => { setPage(p => p - 1); load(page - 1); }} disabled={page === 1} className="h-8 rounded-lg border border-slate-200 dark:border-slate-600 px-3 text-xs font-semibold disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800">← Prev</button>
-                <span className="text-xs text-slate-500">Page {page} of {lastPage}</span>
-                <button onClick={() => { setPage(p => p + 1); load(page + 1); }} disabled={page === lastPage} className="h-8 rounded-lg border border-slate-200 dark:border-slate-600 px-3 text-xs font-semibold disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800">Next →</button>
-              </div>
-            )}
+            {/* Pagination + record count */}
+            <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-700/50 px-4 py-3">
+              <span className="text-xs text-slate-400">
+                {total === 0
+                  ? 'No results'
+                  : `Showing ${(page - 1) * 25 + 1}–${Math.min(page * 25, total)} of ${total}`}
+              </span>
+              {lastPage > 1 && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setPage(p => p - 1); load(page - 1); }} disabled={page === 1} className="h-8 rounded-lg border border-slate-200 dark:border-slate-600 px-3 text-xs font-semibold disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800">← Prev</button>
+                  <span className="text-xs text-slate-500">Page {page} of {lastPage}</span>
+                  <button onClick={() => { setPage(p => p + 1); load(page + 1); }} disabled={page === lastPage} className="h-8 rounded-lg border border-slate-200 dark:border-slate-600 px-3 text-xs font-semibold disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800">Next →</button>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
