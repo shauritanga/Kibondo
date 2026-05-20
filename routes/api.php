@@ -150,13 +150,13 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
 
     // Campaigns — read all staff; create/delete/send admin only
     Route::get('/campaigns', [CampaignController::class, 'index']);
-    Route::get('/campaigns/{campaign}', [CampaignController::class, 'show']);
     Route::middleware('role:admin')->group(function () {
         Route::get('/campaigns/recipient-preview', [CampaignController::class, 'recipientPreview']);
         Route::post('/campaigns', [CampaignController::class, 'store']);
         Route::delete('/campaigns/{campaign}', [CampaignController::class, 'destroy']);
         Route::post('/campaigns/{campaign}/send', [CampaignController::class, 'send']);
     });
+    Route::get('/campaigns/{campaign}', [CampaignController::class, 'show']);
 
     // Audit logs (admin only)
     Route::middleware('role:admin')->prefix('audit-logs')->group(function () {
