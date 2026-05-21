@@ -45,7 +45,7 @@ export default function App() {
                       <Route path="/delivery-zones" element={<ProtectedRoute allowedRoles={['admin']}><DeliveryZonesPage /></ProtectedRoute>} />
                       <Route path="/expenses" element={<ProtectedRoute allowedRoles={['admin', 'accountant']}><ExpensesPage /></ProtectedRoute>} />
                       <Route path="/audit-logs" element={<ProtectedRoute allowedRoles={['admin']}><AuditLogsPage /></ProtectedRoute>} />
-                      <Route path="/settings" element={<SettingsPage />} />
+                      <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><SettingsPage /></ProtectedRoute>} />
                       <Route path="/profile" element={<ProfilePage />} />
                       <Route path="*" element={<Navigate to="/" replace />} />
                     </Routes>
