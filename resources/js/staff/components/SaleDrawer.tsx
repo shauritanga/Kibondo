@@ -307,7 +307,7 @@ export function SaleDrawer({
               )}
 
               {/* Actions */}
-              {(isAdmin || isDelivery) && sale.status !== 'cancelled' && (
+              {(isAdmin || isSales || isDelivery) && sale.status !== 'cancelled' && (
                 <div className="px-5 py-4 space-y-4">
                   <p className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">
                     Actions
@@ -321,7 +321,7 @@ export function SaleDrawer({
 
                   <div className="flex flex-wrap gap-2">
                     {/* Confirm Order */}
-                    {isAdmin && sale.status === 'pending' && (
+                    {(isAdmin || isSales) && sale.status === 'pending' && (
                       <div className="w-full space-y-2">
                         {sale.delivery_cost == null && sale.delivery_address && (
                           <div>
@@ -389,8 +389,8 @@ export function SaleDrawer({
                       </button>
                     )}
 
-                    {/* Force-complete — admin only, when customer hasn't confirmed */}
-                    {isAdmin && canForceComplete && (
+                    {/* Force-complete — admin/sales, when customer hasn't confirmed */}
+                    {(isAdmin || isSales) && canForceComplete && (
                       <button
                         onClick={() => runAction(() => salesApi.updateStatus(sale.id, 'completed'))}
                         disabled={actionLoading}
@@ -402,7 +402,7 @@ export function SaleDrawer({
                     )}
 
                     {/* Cancel Order */}
-                    {isAdmin && canCancel && !cancelConfirm && (
+                    {(isAdmin || isSales) && canCancel && !cancelConfirm && (
                       <button
                         onClick={() => setCancelConfirm(true)}
                         className="h-9 rounded-lg border border-red-200 px-4 text-xs font-bold text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400"
@@ -410,7 +410,7 @@ export function SaleDrawer({
                         Cancel Order
                       </button>
                     )}
-                    {isAdmin && canCancel && cancelConfirm && (
+                    {(isAdmin || isSales) && canCancel && cancelConfirm && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-red-600">Confirm cancel?</span>
                         <button

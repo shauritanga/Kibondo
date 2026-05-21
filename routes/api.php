@@ -129,10 +129,10 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
     Route::apiResource('customers.tasks', CustomerTaskController::class)->shallow()->except(['show']);
 
     // Sales + order lifecycle
-    Route::post('/sales/{sale}/confirm',  [SaleController::class, 'confirm'])->middleware('role:admin');
+    Route::post('/sales/{sale}/confirm',  [SaleController::class, 'confirm'])->middleware('role:admin,sales');
     Route::post('/sales/{sale}/assign',   [SaleController::class, 'assign'])->middleware('role:admin,sales');
-    Route::post('/sales/{sale}/deliver',  [SaleController::class, 'deliver'])->middleware('role:admin,delivery');
-    Route::put('/sales/{sale}/status', [SaleController::class, 'updateStatus'])->middleware('role:admin,accountant');
+    Route::post('/sales/{sale}/deliver',  [SaleController::class, 'deliver'])->middleware('role:admin,sales,delivery');
+    Route::put('/sales/{sale}/status', [SaleController::class, 'updateStatus'])->middleware('role:admin,sales,accountant');
     Route::apiResource('sales', SaleController::class)->except(['update']);
 
     // FCM token management
@@ -148,7 +148,7 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
     // Payments — create restricted to admin/accountant; view all staff
     Route::get('/payments', [PaymentController::class, 'index']);
     Route::get('/payments/{payment}', [PaymentController::class, 'show']);
-    Route::post('/payments', [PaymentController::class, 'store'])->middleware('role:admin,accountant');
+    Route::post('/payments', [PaymentController::class, 'store'])->middleware('role:admin,sales,accountant');
 
 
     // Campaigns — read all staff; create/delete/send admin only
