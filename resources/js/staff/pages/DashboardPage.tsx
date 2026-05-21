@@ -1,10 +1,12 @@
 import clsx from 'clsx';
-import { AlertTriangle, Boxes, DollarSign, ShoppingCart, TrendingDown, TrendingUp, Users } from 'lucide-react';
+import { AlertTriangle, Boxes, CheckCircle2, Clock, DollarSign, PackageCheck, ShoppingCart, Truck, TrendingDown, TrendingUp, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { PageError, Skeleton } from '../components/Skeleton';
+import { PageError, Skeleton, TablePageSkeleton } from '../components/Skeleton';
+import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
+import { useAuth } from '../contexts/AuthContext';
 import { formatMoney, reportsApi } from '../services/api';
 import { CHART_COLORS, type DashboardData } from '../types';
 
@@ -38,6 +40,19 @@ function PeriodToggle({ value, onChange }: { value: Period; onChange: (p: Period
 }
 
 export function DashboardPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // ── Delivery dashboard ──────────────────────────────────────────────────
+  if (user?.role === 'delivery') {
+    return <DeliveryDashboard name={user.name} />;
+  }
+
+  // ── Admin / other roles dashboard ───────────────────────────────────────
+  return <AdminDashboard />;
+}
+
+function AdminDashboard() {
   const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -341,6 +356,116 @@ export function DashboardPage() {
             ))}
           </div>
         </section>
+      </div>
+    </div>
+  );
+}
+
+// ─── Delivery Dashboard ────────────────────────────────────────────────────────
+
+const DELIVERY_STATUS_TONE: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'slate'> = {
+  completed:             'green',
+  awaiting_confirmation: 'amber',
+  out_for_delivery:      'amber',
+  confirmed:             'blue',
+  pending:               'amber',
+  cancelled:             'red',
+  partial:               'blue',
+};
+
+function DeliveryDashboard({ name }: { name: string }) {
+  type DeliveryData = Awaited<ReturnType<typeof reportsApi.deliveryDashboard>>;
+
+  const [data, setData] = useState<DeliveryData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  async function load() {
+    setLoading(true);
+    setError('');
+    try {
+      setData(await reportsApi.deliveryDashboard());
+    } catch (err: any) {
+      setError(err.userMessage ?? 'Failed to load dashboard.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, []);
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  if (loading) return <TablePageSkeleton cols={4} />;
+
+  if (error) return (
+    <PageError message={error} onRetry={load} />
+  );
+
+  if (!data) return null;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="font-heading text-xl font-bold text-slate-900 dark:text-white">
+          {greeting}, {name.split(' ')[0]} 👋
+        </h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Here's your delivery overview</p>
+      </div>
+
+      {/* Top KPI row */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Assigned orders"  value={data.assigned_total}   icon={Truck} />
+        <StatCard label="Out for delivery" value={data.out_for_delivery} icon={Clock} />
+        <StatCard label="Delivered today"  value={data.delivered_today}  icon={CheckCircle2} />
+        <StatCard label="Earnings today"   value={formatMoney(data.earnings_today)} icon={TrendingUp} />
+      </div>
+
+      {/* Month summary row */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="card px-5 py-4">
+          <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mb-1">Delivered this month</p>
+          <p className="font-heading text-2xl font-bold text-slate-900 dark:text-white">{data.delivered_month}</p>
+          <p className="text-xs text-slate-400 mt-0.5">{data.delivered_total} total all-time</p>
+        </div>
+        <div className="card px-5 py-4">
+          <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 mb-1">Earnings this month</p>
+          <p className="font-heading text-2xl font-bold text-brand-green">{formatMoney(data.earnings_month)}</p>
+          <p className="text-xs text-slate-400 mt-0.5">{formatMoney(data.earnings_total)} total all-time</p>
+        </div>
+      </div>
+
+      {/* Recent orders */}
+      <div className="card overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700/50">
+          <h2 className="font-heading text-sm font-bold text-slate-900 dark:text-white">Recent orders</h2>
+        </div>
+        {data.recent_orders.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-slate-400">No orders assigned to you yet.</p>
+        ) : (
+          <div className="divide-y divide-slate-100 dark:divide-slate-700/50">
+            {data.recent_orders.map(order => (
+              <div key={order.id} className="flex items-center justify-between px-5 py-3 gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">{order.sale_number}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {order.customer?.name ?? order.guest_name ?? 'Walk-in'} · {new Date(order.updated_at).toLocaleDateString('en-GB')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {order.delivery_cost != null && order.delivery_cost > 0 && (
+                    <span className="text-xs font-bold text-brand-green">{formatMoney(order.delivery_cost)}</span>
+                  )}
+                  <StatusBadge tone={DELIVERY_STATUS_TONE[order.status] ?? 'slate'}>
+                    {order.status.replace(/_/g, ' ')}
+                  </StatusBadge>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

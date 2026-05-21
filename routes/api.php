@@ -170,6 +170,10 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
         Route::apiResource('expenses', ExpenseController::class);
     });
 
+    // Delivery dashboard — delivery and admin
+    Route::get('/reports/delivery-dashboard', [ReportController::class, 'deliveryDashboard'])
+        ->middleware('role:delivery,admin');
+
     // Reports — admin and accountant only
     Route::prefix('reports')->middleware('role:admin,accountant')->group(function () {
         Route::get('/dashboard', [ReportController::class, 'dashboard']);

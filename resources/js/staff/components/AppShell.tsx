@@ -31,7 +31,7 @@ import { SessionWarningModal } from './SessionWarningModal';
 const NON_DELIVERY: string[] = ['admin', 'sales', 'stock_manager', 'accountant'];
 
 const navItems = [
-  { label: 'Dashboard',      path: '/',               icon: Home,          adminOnly: false, roles: NON_DELIVERY },
+  { label: 'Dashboard',      path: '/',               icon: Home,          adminOnly: false, roles: null },
   { label: 'Sales',          path: '/pos',             icon: ShoppingCart,  adminOnly: false, roles: null },
   { label: 'Customers',      path: '/customers',       icon: Users,         adminOnly: false, roles: NON_DELIVERY },
   { label: 'Campaigns',      path: '/campaigns',       icon: Mail,          adminOnly: false, roles: NON_DELIVERY },

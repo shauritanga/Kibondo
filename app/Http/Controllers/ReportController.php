@@ -117,6 +117,64 @@ class ReportController extends Controller
         ]);
     }
 
+    public function deliveryDashboard(): JsonResponse
+    {
+        $userId     = auth()->id();
+        $monthStart = now()->startOfMonth();
+
+        $base = Sale::where('assigned_to', $userId);
+
+        $assignedTotal  = (clone $base)->count();
+        $outForDelivery = (clone $base)->where('status', 'out_for_delivery')->count();
+
+        $deliveredToday = (clone $base)
+            ->whereIn('status', ['awaiting_confirmation', 'completed'])
+            ->whereDate('updated_at', today())
+            ->count();
+
+        $deliveredMonth = (clone $base)
+            ->whereIn('status', ['awaiting_confirmation', 'completed'])
+            ->where('updated_at', '>=', $monthStart)
+            ->count();
+
+        $deliveredTotal = (clone $base)
+            ->whereIn('status', ['awaiting_confirmation', 'completed'])
+            ->count();
+
+        $earningsToday = (clone $base)
+            ->whereIn('status', ['awaiting_confirmation', 'completed'])
+            ->whereDate('updated_at', today())
+            ->sum('delivery_cost');
+
+        $earningsMonth = (clone $base)
+            ->whereIn('status', ['awaiting_confirmation', 'completed'])
+            ->where('updated_at', '>=', $monthStart)
+            ->sum('delivery_cost');
+
+        $earningsTotal = (clone $base)
+            ->whereIn('status', ['awaiting_confirmation', 'completed'])
+            ->sum('delivery_cost');
+
+        $recentOrders = (clone $base)
+            ->with('customer:id,name')
+            ->orderByDesc('updated_at')
+            ->limit(8)
+            ->get(['id', 'sale_number', 'status', 'delivery_cost', 'total_amount',
+                   'customer_id', 'guest_name', 'updated_at', 'delivery_confirmed_at']);
+
+        return response()->json([
+            'assigned_total'   => $assignedTotal,
+            'out_for_delivery' => $outForDelivery,
+            'delivered_today'  => $deliveredToday,
+            'delivered_month'  => $deliveredMonth,
+            'delivered_total'  => $deliveredTotal,
+            'earnings_today'   => (int) $earningsToday,
+            'earnings_month'   => (int) $earningsMonth,
+            'earnings_total'   => (int) $earningsTotal,
+            'recent_orders'    => $recentOrders,
+        ]);
+    }
+
     private function validateDateRange(string $from, string $to, int $maxDays = 366): ?JsonResponse
     {
         if ($from > $to) {
