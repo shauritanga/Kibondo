@@ -276,6 +276,8 @@ export const reportsApi = {
         customer?: { id: string; name: string } | null;
         updated_at: string;
         delivery_confirmed_at: string | null;
+        customer_payment_type: 'paid_full' | 'paid_partial' | 'not_paid' | null;
+        customer_payment_amount: number | null;
       }[];
       order_trend: { date: string; assigned: number; delivered: number }[];
       payment_mix: { payment_method: string; count: number; total: number }[];

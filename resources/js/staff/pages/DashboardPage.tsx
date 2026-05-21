@@ -594,7 +594,7 @@ function DeliveryDashboard({ name }: { name: string }) {
           <p className="px-5 py-8 text-center text-sm text-slate-400">No orders assigned to you yet.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px]">
+            <table className="w-full min-w-[780px]">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/60 dark:border-slate-700/50 dark:bg-slate-800/30">
                   <th className="px-5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Order</th>
@@ -603,6 +603,7 @@ function DeliveryDashboard({ name }: { name: string }) {
                   <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-400">Order Value</th>
                   <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-400">Delivery Fee</th>
                   <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-400">Total</th>
+                  <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-400">Amt Paid</th>
                   <th className="px-5 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-400">Status</th>
                 </tr>
               </thead>
@@ -628,6 +629,19 @@ function DeliveryDashboard({ name }: { name: string }) {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right text-xs font-bold text-slate-900 dark:text-white">
                         {formatMoney(order.total_amount)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right text-xs">
+                        {order.status === 'completed' && order.customer_payment_type ? (
+                          order.customer_payment_type === 'paid_full' ? (
+                            <span className="font-bold text-brand-green">Full</span>
+                          ) : order.customer_payment_type === 'paid_partial' ? (
+                            <span className="font-bold text-amber-600">{formatMoney(order.customer_payment_amount ?? 0)}</span>
+                          ) : (
+                            <span className="font-semibold text-red-500">Not paid</span>
+                          )
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-600">—</span>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-right">
                         <StatusBadge tone={DELIVERY_STATUS_TONE[order.status] ?? 'slate'}>
