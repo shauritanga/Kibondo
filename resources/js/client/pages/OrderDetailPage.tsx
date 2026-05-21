@@ -37,7 +37,7 @@ export function OrderDetailPage() {
     setConfirmError('');
     try {
       await storeOrdersApi.confirm(order.id, feedback);
-      setOrder(o => o ? { ...o, delivery_confirmed_at: new Date().toISOString(), customer_feedback: feedback } : o);
+      setOrder(o => o ? { ...o, status: 'completed', delivery_confirmed_at: new Date().toISOString(), customer_feedback: feedback } : o);
       setConfirmDone(true);
     } catch (err: any) {
       setConfirmError(err.response?.data?.message ?? err.userMessage ?? 'Something went wrong. Please try again.');
@@ -64,7 +64,7 @@ export function OrderDetailPage() {
 
   if (!order) return null;
 
-  const canConfirm = order.status === 'completed' && !order.delivery_confirmed_at;
+  const canConfirm = order.status === 'awaiting_confirmation' && !order.delivery_confirmed_at;
 
   return (
     <StoreLayout>

@@ -13,12 +13,13 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Customer, DeliveryZone, Product, Sale, User } from '../types';
 
 const STATUS_TONE: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'slate'> = {
-  completed:        'green',
-  pending:          'amber',
-  partial:          'blue',
-  cancelled:        'red',
-  confirmed:        'blue',
-  out_for_delivery: 'amber',
+  completed:              'green',
+  pending:                'amber',
+  partial:                'blue',
+  cancelled:              'red',
+  confirmed:              'blue',
+  out_for_delivery:       'amber',
+  awaiting_confirmation:  'amber',
 };
 
 const PAYMENT_METHODS = ['cash', 'mobile_money', 'card', 'credit', 'bank_transfer'] as const;
@@ -232,7 +233,7 @@ export function PosPage() {
           onChange={e => setStatusFilter(e.target.value)}
           className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
         >
-          {['All', 'pending', 'confirmed', 'out_for_delivery', 'completed', 'partial', 'cancelled'].map(s => (
+          {['All', 'pending', 'confirmed', 'out_for_delivery', 'awaiting_confirmation', 'completed', 'partial', 'cancelled'].map(s => (
             <option key={s} value={s}>
               {s === 'All' ? 'All statuses' : s.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())}
             </option>

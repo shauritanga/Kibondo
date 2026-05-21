@@ -131,7 +131,7 @@ export interface Sale {
   total_amount: number;
   paid_amount: number;
   outstanding: number;
-  status: 'completed' | 'pending' | 'partial' | 'cancelled' | 'confirmed' | 'out_for_delivery';
+  status: 'completed' | 'pending' | 'partial' | 'cancelled' | 'confirmed' | 'out_for_delivery' | 'awaiting_confirmation';
   payment_status: 'paid' | 'unpaid' | 'partial';
   note?: string;
   delivery_address?: string | null;

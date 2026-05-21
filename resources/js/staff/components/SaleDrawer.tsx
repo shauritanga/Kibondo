@@ -6,12 +6,13 @@ import { formatMoney, paymentsApi, salesApi } from '../services/api';
 import type { Sale, User } from '../types';
 
 const STATUS_TONE: Record<string, 'green' | 'amber' | 'red' | 'blue' | 'slate'> = {
-  completed:        'green',
-  pending:          'amber',
-  partial:          'blue',
-  cancelled:        'red',
-  confirmed:        'blue',
-  out_for_delivery: 'amber',
+  completed:              'green',
+  pending:                'amber',
+  partial:                'blue',
+  cancelled:              'red',
+  confirmed:              'blue',
+  out_for_delivery:       'amber',
+  awaiting_confirmation:  'amber',
 };
 
 interface Props {
@@ -112,6 +113,7 @@ export function SaleDrawer({
   }
 
   const canCancel = sale ? ['pending', 'confirmed', 'out_for_delivery'].includes(sale.status) : false;
+  const canForceComplete = sale ? sale.status === 'awaiting_confirmation' : false;
   const isMyDelivery = sale?.assigned_to === currentUserId;
 
   return (
@@ -363,6 +365,18 @@ export function SaleDrawer({
                         className="h-9 rounded-lg bg-brand-green px-4 text-xs font-bold text-white hover:opacity-90 disabled:opacity-50"
                       >
                         {actionLoading ? 'Working…' : 'Mark Delivered'}
+                      </button>
+                    )}
+
+                    {/* Force-complete — admin only, when customer hasn't confirmed */}
+                    {isAdmin && canForceComplete && (
+                      <button
+                        onClick={() => runAction(() => salesApi.updateStatus(sale.id, 'completed'))}
+                        disabled={actionLoading}
+                        className="h-9 rounded-lg border border-slate-300 px-4 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800 disabled:opacity-50"
+                        title="Customer has not yet confirmed. Use this to complete the order manually."
+                      >
+                        {actionLoading ? 'Working…' : 'Force Complete'}
                       </button>
                     )}
 

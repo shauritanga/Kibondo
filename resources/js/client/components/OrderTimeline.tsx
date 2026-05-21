@@ -5,7 +5,9 @@ interface Props {
   assignedToName: string | null | undefined;
 }
 
-const COMPLETED_STATUSES = new Set(['confirmed', 'out_for_delivery', 'completed']);
+const CONFIRMED_STATUSES = new Set(['confirmed', 'out_for_delivery', 'awaiting_confirmation', 'completed']);
+const OUT_FOR_DEL_STATUSES = new Set(['out_for_delivery', 'awaiting_confirmation', 'completed']);
+const DELIVERED_STATUSES = new Set(['awaiting_confirmation', 'completed']);
 
 function fmt(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('en-GB', {
@@ -14,9 +16,9 @@ function fmt(dateStr: string) {
 }
 
 export function OrderTimeline({ status, createdAt, deliveryConfirmedAt, assignedToName }: Props) {
-  const isConfirmed   = COMPLETED_STATUSES.has(status);
-  const isOutForDel   = status === 'out_for_delivery' || status === 'completed';
-  const isDelivered   = status === 'completed';
+  const isConfirmed   = CONFIRMED_STATUSES.has(status);
+  const isOutForDel   = OUT_FOR_DEL_STATUSES.has(status);
+  const isDelivered   = DELIVERED_STATUSES.has(status);
   const isReceipt     = !!deliveryConfirmedAt;
   const isCancelled   = status === 'cancelled';
 
@@ -38,6 +40,7 @@ export function OrderTimeline({ status, createdAt, deliveryConfirmedAt, assigned
     },
     {
       label: 'Delivered',
+      sub:   status === 'awaiting_confirmation' ? 'Please confirm you received your order' : undefined,
       done:  isDelivered,
     },
     {

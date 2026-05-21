@@ -139,8 +139,8 @@ class OrderController extends Controller
     {
         abort_if($sale->customer_id !== $request->user('customer')->id, 403);
 
-        if ($sale->status !== 'completed') {
-            return response()->json(['message' => 'Order is not yet delivered.'], 422);
+        if ($sale->status !== 'awaiting_confirmation') {
+            return response()->json(['message' => 'Order is not awaiting your confirmation.'], 422);
         }
 
         if ($sale->delivery_confirmed_at) {
@@ -150,6 +150,7 @@ class OrderController extends Controller
         $sale->update([
             'delivery_confirmed_at' => now(),
             'customer_feedback'     => $request->feedback,
+            'status'                => 'completed',
         ]);
 
         $admins = User::where('role', 'admin')->get();

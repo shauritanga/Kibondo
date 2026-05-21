@@ -4,12 +4,13 @@ import { formatMoney, storeOrdersApi, type StoreOrderSummary } from '../services
 import { StoreLayout } from '../components/StoreLayout';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  pending:          { label: 'Pending',          color: 'bg-yellow-100 text-yellow-700' },
-  confirmed:        { label: 'Confirmed',         color: 'bg-blue-100 text-blue-700' },
-  out_for_delivery: { label: 'Out for Delivery',  color: 'bg-orange-100 text-orange-700' },
-  completed:        { label: 'Delivered',          color: 'bg-green-100 text-green-700' },
-  cancelled:        { label: 'Cancelled',          color: 'bg-red-100 text-red-700' },
-  partial:          { label: 'Partial',            color: 'bg-blue-100 text-blue-700' },
+  pending:               { label: 'Pending',            color: 'bg-yellow-100 text-yellow-700' },
+  confirmed:             { label: 'Confirmed',           color: 'bg-blue-100 text-blue-700' },
+  out_for_delivery:      { label: 'Out for Delivery',    color: 'bg-orange-100 text-orange-700' },
+  awaiting_confirmation: { label: 'Confirm Delivery',    color: 'bg-amber-100 text-amber-700' },
+  completed:             { label: 'Delivered',           color: 'bg-green-100 text-green-700' },
+  cancelled:             { label: 'Cancelled',           color: 'bg-red-100 text-red-700' },
+  partial:               { label: 'Partial',             color: 'bg-blue-100 text-blue-700' },
 };
 
 export function OrdersPage() {
@@ -69,8 +70,8 @@ export function OrdersPage() {
                     <span>{order.items_count} item{order.items_count !== 1 ? 's' : ''} · {new Date(order.created_at).toLocaleDateString()}</span>
                     <span className="font-semibold text-gray-800">{formatMoney(order.total_amount)}</span>
                   </div>
-                  {order.status === 'completed' && !order.delivery_confirmed_at && (
-                    <p className="text-xs text-green-600 font-medium mt-2">Tap to confirm delivery →</p>
+                  {order.status === 'awaiting_confirmation' && (
+                    <p className="text-xs text-amber-600 font-medium mt-2">Tap to confirm you received your order →</p>
                   )}
                 </Link>
               );

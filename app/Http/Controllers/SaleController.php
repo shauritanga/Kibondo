@@ -207,12 +207,16 @@ class SaleController extends Controller
 
         abort_unless($sale->status === 'out_for_delivery', 422, 'Order must be out for delivery before marking as delivered.');
 
-        $sale->update(['status' => 'completed']);
+        // Registered-customer orders wait for the customer to confirm receipt.
+        // Guest orders complete immediately — there is no customer account to confirm.
+        $newStatus = $sale->customer_id ? 'awaiting_confirmation' : 'completed';
+
+        $sale->update(['status' => $newStatus]);
 
         AuditService::log([
             'action'      => 'order_delivered',
             'module'      => 'orders',
-            'description' => "Order {$sale->sale_number} marked as delivered",
+            'description' => "Order {$sale->sale_number} marked as delivered (status: {$newStatus})",
             'record_id'   => $sale->id,
             'table_name'  => 'sales',
         ]);
@@ -225,14 +229,35 @@ class SaleController extends Controller
     public function updateStatus(Request $request, Sale $sale): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:cancelled',
+            'status' => 'required|in:cancelled,completed',
         ]);
+
+        // Admin force-complete: move an awaiting_confirmation order to completed
+        // when the customer has not confirmed within a reasonable time.
+        if ($request->status === 'completed') {
+            if ($sale->status !== 'awaiting_confirmation') {
+                return response()->json(['message' => 'Only orders awaiting confirmation can be force-completed.'], 422);
+            }
+
+            $sale->update(['status' => 'completed']);
+
+            AuditService::log([
+                'action'      => 'order_force_completed',
+                'module'      => 'orders',
+                'description' => "Order {$sale->sale_number} force-completed by admin",
+                'record_id'   => $sale->id,
+                'table_name'  => 'sales',
+            ]);
+
+            $sale->load('items.product', 'customer', 'assignedTo:id,name', 'payments', 'deliveryZone');
+            return response()->json(['data' => $sale]);
+        }
 
         if ($sale->status === 'cancelled') {
             return response()->json(['message' => 'Sale is already cancelled.'], 422);
         }
 
-        if ($sale->status === 'completed') {
+        if (in_array($sale->status, ['completed', 'awaiting_confirmation'])) {
             return response()->json(['message' => 'Cannot cancel a completed sale.'], 422);
         }
 
