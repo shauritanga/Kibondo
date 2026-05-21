@@ -175,8 +175,9 @@ class SaleController extends Controller
         );
 
         $sale->update([
-            'status'      => 'out_for_delivery',
-            'assigned_to' => $deliveryUser->id,
+            'status'        => 'out_for_delivery',
+            'assigned_to'   => $deliveryUser->id,
+            'processed_by'  => auth()->id(),
         ]);
 
         AuditService::log([

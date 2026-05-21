@@ -17,7 +17,7 @@ class Sale extends Model
         'sale_number', 'customer_id', 'guest_name', 'guest_phone', 'guest_email', 'guest_company', 'user_id',
         'subtotal', 'discount_amount', 'total_amount',
         'paid_amount', 'outstanding', 'status', 'payment_status',
-        'note', 'delivery_address', 'billing_address', 'delivery_zone_id', 'delivery_cost', 'assigned_to',
+        'note', 'delivery_address', 'billing_address', 'delivery_zone_id', 'delivery_cost', 'assigned_to', 'processed_by',
         'is_offline_sync', 'synced_at', 'payment_method',
         'delivery_confirmed_at', 'customer_feedback',
         'customer_payment_type', 'customer_payment_amount',

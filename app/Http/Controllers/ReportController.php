@@ -126,8 +126,18 @@ class ReportController extends Controller
         $lastMonthStart  = now()->subMonth()->startOfMonth()->toDateString();
         $lastMonthSameDay = now()->subMonth()->toDateString();
 
-        // KPIs — all non-cancelled orders (store orders have user_id=null so we show company-wide)
-        $base = Sale::where('status', '!=', 'cancelled');
+        $userId = auth()->id();
+
+        // A sale belongs to this salesperson if:
+        //  - they assigned the delivery (processed_by), OR
+        //  - they created it directly via POS and no one else processed it (user_id, processed_by IS NULL)
+        $base = Sale::where('status', '!=', 'cancelled')
+            ->where(function ($q) use ($userId) {
+                $q->where('processed_by', $userId)
+                  ->orWhere(function ($q2) use ($userId) {
+                      $q2->where('user_id', $userId)->whereNull('processed_by');
+                  });
+            });
 
         $stats = (clone $base)->selectRaw("
             SUM(CASE WHEN DATE(created_at) = ? THEN total_amount ELSE 0 END) AS today_revenue,
@@ -155,10 +165,17 @@ class ReportController extends Controller
             ->orderBy('date')
             ->get();
 
-        // Payment mix
-        $paymentMix = Payment::whereDate('created_at', '>=', $trendFrom)
-            ->select('payment_method', DB::raw('SUM(amount) as total'))
-            ->groupBy('payment_method')
+        // Payment mix — only payments on this salesperson's orders
+        $paymentMix = Payment::join('sales', 'payments.sale_id', '=', 'sales.id')
+            ->where(function ($q) use ($userId) {
+                $q->where('sales.processed_by', $userId)
+                  ->orWhere(function ($q2) use ($userId) {
+                      $q2->where('sales.user_id', $userId)->whereNull('sales.processed_by');
+                  });
+            })
+            ->whereDate('payments.created_at', '>=', $trendFrom)
+            ->select('payments.payment_method', DB::raw('SUM(payments.amount) as total'))
+            ->groupBy('payments.payment_method')
             ->get();
 
         // Recent sales
