@@ -90,6 +90,23 @@ export function PosPage() {
   useEffect(() => {
     setLoading(true);
     setError('');
+
+    if (user?.role === 'delivery') {
+      // Delivery users only need their assigned sales — skip other privileged endpoints
+      salesApi.list(buildSaleParams(1))
+        .then((salesPage) => {
+          setSales(salesPage.data);
+          setLastPage(salesPage.last_page);
+          setTotalSales(salesPage.total);
+          setPerPage(salesPage.per_page);
+        })
+        .catch((err: any) => {
+          setError(err.userMessage ?? 'Failed to load data. Please refresh.');
+        })
+        .finally(() => setLoading(false));
+      return;
+    }
+
     Promise.all([
       productsApi.list({ low_stock: false }),
       customersApi.list(),
@@ -540,7 +557,7 @@ export function PosPage() {
 
           {filteredSales.length === 0 && (
             <p className="p-6 text-center text-xs font-semibold text-slate-400 dark:text-slate-500">
-              No sales match the current filters.
+              {isDelivery ? 'No orders have been assigned to you yet.' : 'No sales match the current filters.'}
             </p>
           )}
         </div>
