@@ -40,7 +40,7 @@ const navItems = [
   { label: 'Delivery Zones', path: '/delivery-zones',  icon: Truck,         adminOnly: true,  roles: null },
   { label: 'Expenses',       path: '/expenses',        icon: Receipt,       adminOnly: false, roles: ['admin', 'accountant'] },
   { label: 'Reports',        path: '/reports',         icon: BarChart3,     adminOnly: false, roles: NON_DELIVERY },
-  { label: 'Users & Roles',  path: '/users',           icon: Settings,      adminOnly: false, roles: NON_DELIVERY },
+  { label: 'Users & Roles',  path: '/users',           icon: Settings,      adminOnly: true,  roles: null },
   { label: 'Audit Logs',     path: '/audit-logs',      icon: ClipboardList, adminOnly: true,  roles: null },
 ];
 
@@ -186,7 +186,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <button onClick={() => { setUserMenuOpen(false); navigate('/profile'); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
                     <User size={13} className="text-slate-400" /> Profile
                   </button>
-                  {user?.role !== 'delivery' && (
+                  {user?.role === 'admin' && (
                     <button onClick={() => { setUserMenuOpen(false); navigate('/settings'); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
                       <Settings size={13} className="text-slate-400" /> Settings
                     </button>
@@ -266,9 +266,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <button onClick={() => { setHeaderMenuOpen(false); navigate('/profile'); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
                     <User size={13} className="text-slate-400" /> Profile
                   </button>
-                  <button onClick={() => { setHeaderMenuOpen(false); navigate('/settings'); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
-                    <Settings size={13} className="text-slate-400" /> Settings
-                  </button>
+                  {user?.role === 'admin' && (
+                    <button onClick={() => { setHeaderMenuOpen(false); navigate('/settings'); }} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800">
+                      <Settings size={13} className="text-slate-400" /> Settings
+                    </button>
+                  )}
                   <div className="my-1 border-t border-slate-100 dark:border-slate-700/60" />
                   <button onClick={handleLogout} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10">
                     <LogOut size={13} /> Sign out
