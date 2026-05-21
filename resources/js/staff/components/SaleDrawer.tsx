@@ -120,9 +120,11 @@ export function SaleDrawer({
 
   const canCancel = sale ? ['pending', 'confirmed', 'out_for_delivery'].includes(sale.status) : false;
   const canForceComplete = sale ? sale.status === 'awaiting_confirmation' : false;
-  const isMyDelivery = sale
-    ? sale.assigned_to === currentUserId || sale.assignedTo?.id === currentUserId
-    : false;
+  // Backend already enforces delivery users can only load their own orders (403 otherwise),
+  // so if the sale loaded successfully for a delivery user it is implicitly theirs.
+  const isMyDelivery = isDelivery
+    ? !!sale
+    : (sale?.assigned_to === currentUserId || sale?.assignedTo?.id === currentUserId);
 
   return (
     <>
