@@ -631,13 +631,17 @@ function DeliveryDashboard({ name }: { name: string }) {
                         {formatMoney(order.total_amount)}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right text-xs">
-                        {order.status === 'completed' && order.customer_payment_type ? (
+                        {order.status === 'completed' ? (
                           order.customer_payment_type === 'paid_full' ? (
                             <span className="font-bold text-brand-green">Full</span>
                           ) : order.customer_payment_type === 'paid_partial' ? (
                             <span className="font-bold text-amber-600">{formatMoney(order.customer_payment_amount ?? 0)}</span>
-                          ) : (
+                          ) : order.customer_payment_type === 'not_paid' ? (
                             <span className="font-semibold text-red-500">Not paid</span>
+                          ) : order.payment_status === 'paid' ? (
+                            <span className="font-bold text-brand-green">Paid</span>
+                          ) : (
+                            <span className="text-slate-300 dark:text-slate-600">—</span>
                           )
                         ) : (
                           <span className="text-slate-300 dark:text-slate-600">—</span>

@@ -160,7 +160,7 @@ class ReportController extends Controller
             ->with('customer:id,name')
             ->orderByDesc('updated_at')
             ->limit(8)
-            ->get(['id', 'sale_number', 'status', 'delivery_cost', 'total_amount',
+            ->get(['id', 'sale_number', 'status', 'payment_status', 'delivery_cost', 'total_amount',
                    'customer_id', 'guest_name', 'updated_at', 'delivery_confirmed_at',
                    'customer_payment_type', 'customer_payment_amount']);
 
