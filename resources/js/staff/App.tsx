@@ -35,7 +35,7 @@ export default function App() {
                     <Routes>
                       <Route path="/" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant', 'delivery']}><DashboardPage /></ProtectedRoute>} />
                       <Route path="/pos" element={<PosPage />} />
-                      <Route path="/products" element={<ProtectedRoute allowedRoles={['admin', 'stock_manager', 'accountant']}><ProductsPage /></ProtectedRoute>} />
+                      <Route path="/products" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><ProductsPage /></ProtectedRoute>} />
                       <Route path="/customers" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><CustomersPage /></ProtectedRoute>} />
                       <Route path="/customers/:id" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><CustomerDetailPage /></ProtectedRoute>} />
                       <Route path="/campaigns" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><CampaignsPage /></ProtectedRoute>} />
