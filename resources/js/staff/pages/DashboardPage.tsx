@@ -418,7 +418,7 @@ function DeliveryDashboard({ name }: { name: string }) {
 
   const paymentMixData = useMemo(() => {
     if (!data) return [];
-    const items = data.payment_mix.filter(r => r.count > 0);
+    const items = (data.payment_mix ?? []).filter(r => r.count > 0);
     const totalCount = items.reduce((s, r) => s + r.count, 0) || 1;
     return items.map((r, i) => ({
       name: r.payment_method.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
