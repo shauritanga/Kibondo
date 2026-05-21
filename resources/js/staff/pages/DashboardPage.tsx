@@ -432,13 +432,13 @@ function SalesDashboard({ name }: { name: string }) {
         <h1 className="font-heading text-xl font-bold text-slate-900 dark:text-white">
           {greeting}, {name.split(' ')[0]} 👋
         </h1>
-        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Your personal sales overview</p>
+        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Sales overview for today</p>
       </div>
 
       {/* KPI row */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label="My sales today"     value={formatMoney(data.sales_today)}  icon={TrendingUp} />
-        <StatCard label="My sales this month" value={formatMoney(data.sales_month)} icon={DollarSign} />
+        <StatCard label="Sales today"       value={formatMoney(data.sales_today)}  icon={TrendingUp} />
+        <StatCard label="Sales this month"  value={formatMoney(data.sales_month)} icon={DollarSign} />
         <StatCard label="Orders today"   value={data.orders_today}   icon={ShoppingCart} />
         <StatCard label="Pending orders" value={data.pending_orders} icon={Clock} />
       </div>

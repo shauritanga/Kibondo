@@ -119,7 +119,6 @@ class ReportController extends Controller
 
     public function salesDashboard(Request $request): JsonResponse
     {
-        $userId    = auth()->id();
         $period    = $request->input('period', 'week'); // week | month
         $today     = now()->toDateString();
         $yesterday = now()->subDay()->toDateString();
@@ -127,8 +126,8 @@ class ReportController extends Controller
         $lastMonthStart  = now()->subMonth()->startOfMonth()->toDateString();
         $lastMonthSameDay = now()->subMonth()->toDateString();
 
-        // KPIs — only this salesperson's orders
-        $base = Sale::where('user_id', $userId)->where('status', '!=', 'cancelled');
+        // KPIs — all non-cancelled orders (store orders have user_id=null so we show company-wide)
+        $base = Sale::where('status', '!=', 'cancelled');
 
         $stats = (clone $base)->selectRaw("
             SUM(CASE WHEN DATE(created_at) = ? THEN total_amount ELSE 0 END) AS today_revenue,
@@ -157,11 +156,9 @@ class ReportController extends Controller
             ->get();
 
         // Payment mix
-        $paymentMix = Payment::join('sales', 'payments.sale_id', '=', 'sales.id')
-            ->where('sales.user_id', $userId)
-            ->whereDate('payments.created_at', '>=', $trendFrom)
-            ->select('payments.payment_method', DB::raw('SUM(payments.amount) as total'))
-            ->groupBy('payments.payment_method')
+        $paymentMix = Payment::whereDate('created_at', '>=', $trendFrom)
+            ->select('payment_method', DB::raw('SUM(amount) as total'))
+            ->groupBy('payment_method')
             ->get();
 
         // Recent sales
