@@ -207,6 +207,19 @@ export function SaleDrawer({
                 )}
               </div>
 
+              {/* Delivery confirmation */}
+              {sale.delivery_confirmed_at && (
+                <div className="px-5 py-4 space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+                    Delivery confirmation
+                  </p>
+                  <Row label="Confirmed at" value={new Date(sale.delivery_confirmed_at).toLocaleString()} />
+                  {sale.customer_feedback && (
+                    <Row label="Customer feedback" value={sale.customer_feedback} />
+                  )}
+                </div>
+              )}
+
               {/* Items */}
               <div className="px-5 py-4">
                 <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">
