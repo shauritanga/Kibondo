@@ -64,6 +64,11 @@ class UserController extends Controller
 
         $user->update($data);
 
+        // Send welcome email when an inactive account is activated for the first time
+        if (isset($data['is_active']) && $data['is_active'] === true && $before['is_active'] === false) {
+            $user->notify(new \App\Notifications\WelcomeStaffNotification($user->role));
+        }
+
         $after = $user->only('name', 'email', 'role', 'is_active');
 
         $desc = "Updated user {$user->email}";
