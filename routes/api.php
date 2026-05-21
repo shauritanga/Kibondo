@@ -168,9 +168,13 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
         Route::get('/{auditLog}', [AuditController::class, 'show']);
     });
 
-    // Expenses
+    // Expenses — view for admin/accountant/sales; mutations for admin/accountant only
+    Route::get('expenses', [ExpenseController::class, 'index'])->middleware('role:admin,accountant,sales');
+    Route::get('expenses/{expense}', [ExpenseController::class, 'show'])->middleware('role:admin,accountant,sales');
     Route::middleware('role:admin,accountant')->group(function () {
-        Route::apiResource('expenses', ExpenseController::class);
+        Route::post('expenses', [ExpenseController::class, 'store']);
+        Route::put('expenses/{expense}', [ExpenseController::class, 'update']);
+        Route::delete('expenses/{expense}', [ExpenseController::class, 'destroy']);
     });
 
     // Delivery dashboard — delivery and admin
