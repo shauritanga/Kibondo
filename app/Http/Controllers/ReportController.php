@@ -165,13 +165,12 @@ class ReportController extends Controller
 
         // ── Order trend (assigned vs delivered) ──────────────────────────
         if ($period === 'year') {
-            // January through the current month of the current year
-            $trendFrom   = now()->startOfYear();
-            $bucketExpr  = "TO_CHAR(created_at, 'YYYY-MM')";
-            $delBucket   = "TO_CHAR(updated_at, 'YYYY-MM')";
-            $currentYear = now()->year;
-            $dates = collect(range(1, now()->month))
-                ->map(fn ($m) => sprintf('%d-%02d', $currentYear, $m));
+            // Last 12 months up to (and including) the current month
+            $trendFrom  = now()->subMonths(11)->startOfMonth();
+            $bucketExpr = "TO_CHAR(created_at, 'YYYY-MM')";
+            $delBucket  = "TO_CHAR(updated_at, 'YYYY-MM')";
+            $dates = collect(range(0, 11))
+                ->map(fn ($i) => now()->subMonths(11 - $i)->format('Y-m'));
 
         } elseif ($period === 'month') {
             // Current month broken into ISO weeks (Monday start)
