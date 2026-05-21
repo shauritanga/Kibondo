@@ -60,10 +60,7 @@ export function SaleDrawer({
     salesApi.get(saleId)
       .then(s => {
         setSale(s);
-        const prefill = s.customer_payment_type === 'paid_partial' && s.customer_payment_amount
-          ? String(s.customer_payment_amount)
-          : s.outstanding > 0 ? String(s.outstanding) : '';
-        setPayAmount(prefill);
+        setPayAmount(s.outstanding > 0 ? String(s.outstanding) : '');
       })
       .catch(() => setLoadError('Failed to load sale details.'))
       .finally(() => setLoading(false));
