@@ -255,7 +255,7 @@ export const reportsApi = {
     const { data } = await http.get<{ data: DashboardData }>('/reports/dashboard', { params: { period } });
     return data.data;
   },
-  deliveryDashboard: async () => {
+  deliveryDashboard: async (period: 'week' | 'month' | 'year' = 'week') => {
     const { data } = await http.get<{
       assigned_total: number;
       out_for_delivery: number;
@@ -277,7 +277,9 @@ export const reportsApi = {
         updated_at: string;
         delivery_confirmed_at: string | null;
       }[];
-    }>('/reports/delivery-dashboard');
+      order_trend: { date: string; assigned: number; delivered: number }[];
+      payment_mix: { payment_method: string; count: number; total: number }[];
+    }>('/reports/delivery-dashboard', { params: { period } });
     return data;
   },
   sales: async (params?: { from?: string; to?: string; group_by?: string }) => {

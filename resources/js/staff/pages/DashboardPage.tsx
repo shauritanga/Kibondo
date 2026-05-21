@@ -398,13 +398,16 @@ function DeliveryDashboard({ name }: { name: string }) {
   const [chartLoading, setChartLoading] = useState(false);
   const [error, setError] = useState('');
   const [period, setPeriod] = useState<DeliveryPeriod>('week');
+  const [dataPeriod, setDataPeriod] = useState<DeliveryPeriod>('week');
 
   async function load(p: DeliveryPeriod, isInitial = false) {
     if (isInitial) setLoading(true);
     else setChartLoading(true);
     setError('');
     try {
-      setData(await reportsApi.deliveryDashboard(p));
+      const result = await reportsApi.deliveryDashboard(p);
+      setData(result);
+      setDataPeriod(p);
     } catch (err: any) {
       setError(err.userMessage ?? 'Failed to load dashboard.');
     } finally {
@@ -416,12 +419,17 @@ function DeliveryDashboard({ name }: { name: string }) {
   useEffect(() => { load(period, !data); }, [period]);
 
   const trendData = useMemo(
-    () => (data?.order_trend ?? []).map((row, i) => ({
-      label: formatTrendLabel(row.date, period, i),
-      assigned: row.assigned,
-      delivered: row.delivered,
-    })),
-    [data, period]
+    () => {
+      // Guard against stale data from a previous period — prevents wrong labels
+      // while the new period's data is still loading
+      if (!data || dataPeriod !== period) return [];
+      return data.order_trend.map((row, i) => ({
+        label: formatTrendLabel(row.date, period, i),
+        assigned: row.assigned,
+        delivered: row.delivered,
+      }));
+    },
+    [data, dataPeriod, period]
   );
 
   const paymentMixData = useMemo(() => {

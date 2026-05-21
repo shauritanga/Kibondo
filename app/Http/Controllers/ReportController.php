@@ -173,19 +173,12 @@ class ReportController extends Controller
                 ->map(fn ($i) => now()->subMonths(11 - $i)->format('Y-m'));
 
         } elseif ($period === 'month') {
-            // Current month broken into ISO weeks (Monday start)
+            // Current month: days 1-7 = Wk 1, 8-14 = Wk 2, 15-21 = Wk 3, 22-28 = Wk 4, 29+ = Wk 5
             $trendFrom      = now()->startOfMonth();
-            $bucketExpr     = "DATE_TRUNC('week', created_at)::date";
-            $delBucket      = "DATE_TRUNC('week', updated_at)::date";
-            // Walk Monday-by-Monday from the week that contains the 1st
-            // through the week that contains today
-            $weekCursor    = now()->copy()->startOfMonth()->startOfWeek(\Carbon\Carbon::MONDAY);
-            $thisWeekStart = now()->copy()->startOfWeek(\Carbon\Carbon::MONDAY);
-            $dates = collect();
-            while ($weekCursor->lessThanOrEqualTo($thisWeekStart)) {
-                $dates->push($weekCursor->toDateString());
-                $weekCursor->addWeek();
-            }
+            $bucketExpr     = "CEIL(EXTRACT(DAY FROM created_at) / 7.0)::integer::text";
+            $delBucket      = "CEIL(EXTRACT(DAY FROM updated_at)  / 7.0)::integer::text";
+            $currentWeekNum = (int) ceil(now()->day / 7);
+            $dates          = collect(range(1, $currentWeekNum))->map(fn ($w) => (string) $w);
 
         } else {
             // Last 7 days — one bar per day
