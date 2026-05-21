@@ -639,7 +639,7 @@ function DeliveryDashboard({ name }: { name: string }) {
                           ) : order.customer_payment_type === 'not_paid' ? (
                             <span className="font-semibold text-red-500">Not paid</span>
                           ) : order.payment_status === 'paid' ? (
-                            <span className="font-bold text-brand-green">Paid</span>
+                            <span className="font-bold text-brand-green">{formatMoney(order.total_amount)}</span>
                           ) : (
                             <span className="text-slate-300 dark:text-slate-600">—</span>
                           )
