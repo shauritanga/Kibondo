@@ -2,7 +2,7 @@ import clsx from 'clsx';
 import { AlertTriangle, Boxes, CheckCircle2, Clock, DollarSign, PackageCheck, ShoppingCart, Truck, TrendingDown, TrendingUp, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Area, AreaChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Area, AreaChart, Bar, BarChart, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { PageError, Skeleton, TablePageSkeleton } from '../components/Skeleton';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
@@ -373,18 +373,31 @@ const DELIVERY_STATUS_TONE: Record<string, 'green' | 'amber' | 'red' | 'blue' | 
   partial:               'blue',
 };
 
+type DeliveryPeriod = 'week' | 'month' | 'year';
+
+function formatTrendDate(dateStr: string, p: DeliveryPeriod): string {
+  if (p === 'year') {
+    const [year, month] = dateStr.split('-');
+    return new Date(parseInt(year), parseInt(month) - 1, 1)
+      .toLocaleDateString('en-GB', { month: 'short' });
+  }
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
 function DeliveryDashboard({ name }: { name: string }) {
   type DeliveryData = Awaited<ReturnType<typeof reportsApi.deliveryDashboard>>;
 
   const [data, setData] = useState<DeliveryData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [period, setPeriod] = useState<DeliveryPeriod>('week');
 
-  async function load() {
+  async function load(p: DeliveryPeriod) {
     setLoading(true);
     setError('');
     try {
-      setData(await reportsApi.deliveryDashboard());
+      setData(await reportsApi.deliveryDashboard(p));
     } catch (err: any) {
       setError(err.userMessage ?? 'Failed to load dashboard.');
     } finally {
@@ -392,7 +405,29 @@ function DeliveryDashboard({ name }: { name: string }) {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(period); }, [period]);
+
+  const trendData = useMemo(
+    () => (data?.order_trend ?? []).map(row => ({
+      label: formatTrendDate(row.date, period),
+      assigned: row.assigned,
+      delivered: row.delivered,
+    })),
+    [data, period]
+  );
+
+  const paymentMixData = useMemo(() => {
+    if (!data) return [];
+    const items = data.payment_mix.filter(r => r.count > 0);
+    const totalCount = items.reduce((s, r) => s + r.count, 0) || 1;
+    return items.map((r, i) => ({
+      name: r.payment_method.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      value: r.count,
+      pct: Math.round((r.count / totalCount) * 100),
+      total: r.total,
+      color: CHART_COLORS[i % CHART_COLORS.length],
+    }));
+  }, [data]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -400,10 +435,16 @@ function DeliveryDashboard({ name }: { name: string }) {
   if (loading) return <TablePageSkeleton cols={4} />;
 
   if (error) return (
-    <PageError message={error} onRetry={load} />
+    <PageError message={error} onRetry={() => load(period)} />
   );
 
   if (!data) return null;
+
+  const periodLabels: Record<DeliveryPeriod, string> = {
+    week: '7 Days',
+    month: 'This Month',
+    year: 'This Year',
+  };
 
   return (
     <div className="space-y-6">
@@ -435,6 +476,94 @@ function DeliveryDashboard({ name }: { name: string }) {
           <p className="font-heading text-2xl font-bold text-brand-green">{formatMoney(data.earnings_month)}</p>
           <p className="text-xs text-slate-400 mt-0.5">{formatMoney(data.earnings_total)} total all-time</p>
         </div>
+      </div>
+
+      {/* Charts row */}
+      <div className="grid gap-4 xl:grid-cols-2">
+        {/* Assigned vs Delivered bar chart */}
+        <section className="card p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-heading text-sm font-bold text-slate-900 dark:text-white">Assigned vs Delivered</h2>
+            <div className="flex overflow-hidden rounded-lg border border-slate-200 text-[11px] font-bold dark:border-slate-700">
+              {(['week', 'month', 'year'] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={p === period
+                    ? 'px-2.5 py-1 bg-brand-green text-white'
+                    : 'px-2.5 py-1 text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}
+                >
+                  {periodLabels[p]}
+                </button>
+              ))}
+            </div>
+          </div>
+          {trendData.length === 0 ? (
+            <p className="py-10 text-center text-xs text-slate-400">No data for this period.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={trendData} barGap={2} barCategoryGap="30%">
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip
+                  formatter={(value, key) =>
+                    [value, key === 'assigned' ? 'Assigned' : 'Delivered']}
+                  contentStyle={{ fontSize: 12 }}
+                />
+                <Legend
+                  iconType="circle"
+                  iconSize={8}
+                  wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
+                  formatter={(v) => v === 'assigned' ? 'Assigned' : 'Delivered'}
+                />
+                <Bar dataKey="assigned" name="assigned" fill="#93c5fd" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="delivered" name="delivered" fill="#3d7639" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </section>
+
+        {/* Payment methods pie chart */}
+        <section className="card p-4">
+          <h2 className="font-heading text-sm font-bold text-slate-900 dark:text-white mb-3">Payment Methods</h2>
+          {paymentMixData.length === 0 ? (
+            <p className="py-10 text-center text-xs text-slate-400">No payment data yet.</p>
+          ) : (
+            <div className="grid items-center gap-4 sm:grid-cols-[180px_1fr]">
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie
+                    data={paymentMixData}
+                    innerRadius={52}
+                    outerRadius={80}
+                    dataKey="value"
+                    paddingAngle={3}
+                  >
+                    {paymentMixData.map(item => (
+                      <Cell key={item.name} fill={item.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value, _, props: any) =>
+                      [`${props.payload.pct}% (${value} orders)`, props.payload.name]}
+                    contentStyle={{ fontSize: 12 }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-2">
+                {paymentMixData.map(item => (
+                  <div key={item.name} className="flex items-center justify-between text-[11px] font-bold gap-2">
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
+                      <span className="truncate dark:text-slate-200">{item.name}</span>
+                    </span>
+                    <span className="text-slate-500 dark:text-slate-400 shrink-0">{item.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
       </div>
 
       {/* Recent orders */}
