@@ -22,6 +22,17 @@ class UserController extends Controller
         return response()->json(['data' => $users]);
     }
 
+    /** Lightweight list of active delivery users — accessible to admin and sales. */
+    public function drivers(): JsonResponse
+    {
+        $drivers = User::where('role', 'delivery')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return response()->json(['data' => $drivers]);
+    }
+
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate([

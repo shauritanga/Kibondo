@@ -74,6 +74,9 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
     // Users (admin only)
     Route::apiResource('users', UserController::class)->middleware('role:admin');
 
+    // Delivery drivers list — for assign dropdowns (admin + sales)
+    Route::get('/drivers', [UserController::class, 'drivers'])->middleware('role:admin,sales');
+
     // Delivery zones — list for all staff, mutations for admin only
     Route::get('delivery-zones', [DeliveryZoneController::class, 'index']);
     Route::middleware('role:admin')->group(function () {

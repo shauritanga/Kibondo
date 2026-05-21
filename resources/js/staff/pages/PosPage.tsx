@@ -111,7 +111,7 @@ export function PosPage() {
       productsApi.list({ low_stock: false }),
       customersApi.list(),
       salesApi.list(buildSaleParams(1)),
-      ['admin', 'sales'].includes(user?.role ?? '') ? usersApi.list({ role: 'delivery' }) : Promise.resolve([]),
+      user?.role === 'admin' ? usersApi.list({ role: 'delivery' }) : user?.role === 'sales' ? usersApi.drivers() : Promise.resolve([]),
       deliveryZonesApi.list(),
     ]).then(([prods, custs, salesPage, drivers, zones]) => {
       setProducts(prods);

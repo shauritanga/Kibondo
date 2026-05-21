@@ -388,6 +388,11 @@ export const usersApi = {
     const { data } = await http.get<{ data: User[] }>('/users', { params });
     return data.data;
   },
+  /** Delivery users only — accessible to admin and sales (no auth wall on full user list). */
+  drivers: async () => {
+    const { data } = await http.get<{ data: User[] }>('/drivers');
+    return data.data;
+  },
   create: async (payload: { name: string; email: string; password: string; role: string }) => {
     const { data } = await http.post<{ data: User }>('/users', payload);
     return data.data;
