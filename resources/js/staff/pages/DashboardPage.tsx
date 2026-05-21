@@ -408,7 +408,9 @@ function SalesDashboard({ name }: { name: string }) {
 
   const paymentMixData = useMemo(() => {
     if (!data) return [];
-    const items = (data.payment_mix ?? []).filter(r => r.total > 0);
+    const items = (data.payment_mix ?? [])
+      .map(r => ({ ...r, total: Number(r.total) }))
+      .filter(r => r.total > 0);
     const sum = items.reduce((s, r) => s + r.total, 0) || 1;
     return items.map((r, i) => ({
       name: r.payment_method.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
