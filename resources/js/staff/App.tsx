@@ -33,15 +33,15 @@ export default function App() {
                 <ProtectedRoute>
                   <AppShell>
                     <Routes>
-                      <Route path="/" element={<DashboardPage />} />
+                      <Route path="/" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><DashboardPage /></ProtectedRoute>} />
                       <Route path="/pos" element={<PosPage />} />
-                      <Route path="/products" element={<ProductsPage />} />
-                      <Route path="/customers" element={<CustomersPage />} />
-                      <Route path="/customers/:id" element={<CustomerDetailPage />} />
-                      <Route path="/campaigns" element={<CampaignsPage />} />
-                      <Route path="/reports" element={<ReportsPage />} />
-                      <Route path="/users" element={<UsersPage />} />
-                      <Route path="/warehouse" element={<WarehousePage />} />
+                      <Route path="/products" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><ProductsPage /></ProtectedRoute>} />
+                      <Route path="/customers" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><CustomersPage /></ProtectedRoute>} />
+                      <Route path="/customers/:id" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><CustomerDetailPage /></ProtectedRoute>} />
+                      <Route path="/campaigns" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><CampaignsPage /></ProtectedRoute>} />
+                      <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><ReportsPage /></ProtectedRoute>} />
+                      <Route path="/users" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><UsersPage /></ProtectedRoute>} />
+                      <Route path="/warehouse" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><WarehousePage /></ProtectedRoute>} />
                       <Route path="/delivery-zones" element={<ProtectedRoute allowedRoles={['admin']}><DeliveryZonesPage /></ProtectedRoute>} />
                       <Route path="/expenses" element={<ProtectedRoute allowedRoles={['admin', 'accountant']}><ExpensesPage /></ProtectedRoute>} />
                       <Route path="/audit-logs" element={<ProtectedRoute allowedRoles={['admin']}><AuditLogsPage /></ProtectedRoute>} />

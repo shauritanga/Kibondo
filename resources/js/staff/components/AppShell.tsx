@@ -28,17 +28,19 @@ import { NotificationBell } from './NotificationBell';
 import { useIdleTimeout } from '../hooks/useIdleTimeout';
 import { SessionWarningModal } from './SessionWarningModal';
 
+const NON_DELIVERY: string[] = ['admin', 'sales', 'stock_manager', 'accountant'];
+
 const navItems = [
-  { label: 'Dashboard',      path: '/',               icon: Home,          adminOnly: false, roles: null },
+  { label: 'Dashboard',      path: '/',               icon: Home,          adminOnly: false, roles: NON_DELIVERY },
   { label: 'Sales',          path: '/pos',             icon: ShoppingCart,  adminOnly: false, roles: null },
-  { label: 'Customers',      path: '/customers',       icon: Users,         adminOnly: false, roles: null },
-  { label: 'Campaigns',      path: '/campaigns',       icon: Mail,          adminOnly: false, roles: null },
-  { label: 'Packages',       path: '/products',        icon: Package,       adminOnly: false, roles: null },
-  { label: 'Warehouse',      path: '/warehouse',       icon: Warehouse,     adminOnly: false, roles: null },
+  { label: 'Customers',      path: '/customers',       icon: Users,         adminOnly: false, roles: NON_DELIVERY },
+  { label: 'Campaigns',      path: '/campaigns',       icon: Mail,          adminOnly: false, roles: NON_DELIVERY },
+  { label: 'Packages',       path: '/products',        icon: Package,       adminOnly: false, roles: NON_DELIVERY },
+  { label: 'Warehouse',      path: '/warehouse',       icon: Warehouse,     adminOnly: false, roles: NON_DELIVERY },
   { label: 'Delivery Zones', path: '/delivery-zones',  icon: Truck,         adminOnly: true,  roles: null },
   { label: 'Expenses',       path: '/expenses',        icon: Receipt,       adminOnly: false, roles: ['admin', 'accountant'] },
-  { label: 'Reports',        path: '/reports',         icon: BarChart3,     adminOnly: false, roles: null },
-  { label: 'Users & Roles',  path: '/users',           icon: Settings,      adminOnly: false, roles: null },
+  { label: 'Reports',        path: '/reports',         icon: BarChart3,     adminOnly: false, roles: NON_DELIVERY },
+  { label: 'Users & Roles',  path: '/users',           icon: Settings,      adminOnly: false, roles: NON_DELIVERY },
   { label: 'Audit Logs',     path: '/audit-logs',      icon: ClipboardList, adminOnly: true,  roles: null },
 ];
 
