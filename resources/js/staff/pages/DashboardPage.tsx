@@ -498,16 +498,19 @@ function DeliveryDashboard({ name }: { name: string }) {
       <div className={`grid gap-4 xl:grid-cols-2 transition-opacity duration-200 ${chartLoading ? 'opacity-40 pointer-events-none' : ''}`}>
         {/* Assigned vs Delivered bar chart */}
         <section className="card p-4">
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-heading text-sm font-bold text-slate-900 dark:text-white">Assigned vs Delivered</h2>
-            <div className="flex overflow-hidden rounded-lg border border-slate-200 text-[11px] font-bold dark:border-slate-700">
+            <div className="flex w-full overflow-hidden rounded-xl border border-slate-200 text-[11px] font-bold dark:border-slate-700 sm:w-auto">
               {(['week', 'month', 'year'] as const).map(p => (
                 <button
                   key={p}
                   onClick={() => setPeriod(p)}
-                  className={p === period
-                    ? 'px-2.5 py-1 bg-brand-green text-white'
-                    : 'px-2.5 py-1 text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}
+                  className={clsx(
+                    'flex-1 py-2 sm:flex-none sm:px-3 sm:py-1.5 transition-colors',
+                    p === period
+                      ? 'bg-brand-green text-white'
+                      : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'
+                  )}
                 >
                   {periodLabels[p]}
                 </button>
