@@ -117,6 +117,73 @@ class ReportController extends Controller
         ]);
     }
 
+    public function salesDashboard(Request $request): JsonResponse
+    {
+        $userId    = auth()->id();
+        $period    = $request->input('period', 'week'); // week | month
+        $today     = now()->toDateString();
+        $yesterday = now()->subDay()->toDateString();
+        $monthStart      = now()->startOfMonth()->toDateString();
+        $lastMonthStart  = now()->subMonth()->startOfMonth()->toDateString();
+        $lastMonthSameDay = now()->subMonth()->toDateString();
+
+        // KPIs — only this salesperson's orders
+        $base = Sale::where('user_id', $userId)->where('status', '!=', 'cancelled');
+
+        $stats = (clone $base)->selectRaw("
+            SUM(CASE WHEN DATE(created_at) = ? THEN total_amount ELSE 0 END) AS today_revenue,
+            SUM(CASE WHEN DATE(created_at) = ? THEN total_amount ELSE 0 END) AS yesterday_revenue,
+            SUM(CASE WHEN DATE(created_at) >= ? THEN total_amount ELSE 0 END) AS month_revenue,
+            SUM(CASE WHEN DATE(created_at) BETWEEN ? AND ? THEN total_amount ELSE 0 END) AS last_month_revenue,
+            COUNT(CASE WHEN DATE(created_at) = ? THEN 1 END) AS today_orders
+        ", [$today, $yesterday, $monthStart, $lastMonthStart, $lastMonthSameDay, $today])->first();
+
+        $pct = fn ($now, $prev) => $prev > 0 ? round(($now - $prev) / $prev * 100, 1) : null;
+
+        $pendingOrders = (clone $base)
+            ->whereIn('status', ['pending', 'confirmed', 'out_for_delivery', 'awaiting_confirmation'])
+            ->count();
+
+        // Sales trend
+        $trendFrom = $period === 'month'
+            ? $monthStart
+            : now()->subDays(6)->toDateString();
+
+        $salesTrend = (clone $base)
+            ->select(DB::raw('DATE(created_at) as date'), DB::raw('SUM(total_amount) as total'))
+            ->whereDate('created_at', '>=', $trendFrom)
+            ->groupBy(DB::raw('DATE(created_at)'))
+            ->orderBy('date')
+            ->get();
+
+        // Payment mix
+        $paymentMix = Payment::join('sales', 'payments.sale_id', '=', 'sales.id')
+            ->where('sales.user_id', $userId)
+            ->whereDate('payments.created_at', '>=', $trendFrom)
+            ->select('payments.payment_method', DB::raw('SUM(payments.amount) as total'))
+            ->groupBy('payments.payment_method')
+            ->get();
+
+        // Recent sales
+        $recentSales = (clone $base)
+            ->with('customer:id,name')
+            ->orderByDesc('created_at')
+            ->limit(8)
+            ->get(['id', 'sale_number', 'customer_id', 'guest_name', 'total_amount', 'status', 'payment_status', 'created_at']);
+
+        return response()->json([
+            'sales_today'        => (int) $stats->today_revenue,
+            'sales_today_change' => $pct((int) $stats->today_revenue, (int) $stats->yesterday_revenue),
+            'sales_month'        => (int) $stats->month_revenue,
+            'sales_month_change' => $pct((int) $stats->month_revenue, (int) $stats->last_month_revenue),
+            'orders_today'       => (int) $stats->today_orders,
+            'pending_orders'     => $pendingOrders,
+            'sales_trend'        => $salesTrend,
+            'payment_mix'        => $paymentMix,
+            'recent_sales'       => $recentSales,
+        ]);
+    }
+
     public function deliveryDashboard(Request $request): JsonResponse
     {
         $userId     = auth()->id();

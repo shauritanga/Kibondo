@@ -111,7 +111,7 @@ export function PosPage() {
       productsApi.list({ low_stock: false }),
       customersApi.list(),
       salesApi.list(buildSaleParams(1)),
-      user?.role === 'admin' ? usersApi.list({ role: 'delivery' }) : Promise.resolve([]),
+      ['admin', 'sales'].includes(user?.role ?? '') ? usersApi.list({ role: 'delivery' }) : Promise.resolve([]),
       deliveryZonesApi.list(),
     ]).then(([prods, custs, salesPage, drivers, zones]) => {
       setProducts(prods);
@@ -207,6 +207,7 @@ export function PosPage() {
 
   const isAdmin    = user?.role === 'admin';
   const isDelivery = user?.role === 'delivery';
+  const isSales    = user?.role === 'sales';
 
   if (loading) return <TablePageSkeleton cols={6} />;
   if (error && !products.length) return <PageError message={error} onRetry={() => window.location.reload()} />;
@@ -624,6 +625,7 @@ export function PosPage() {
         deliveryUsers={deliveryUsers}
         isAdmin={isAdmin}
         isDelivery={isDelivery}
+        isSales={isSales}
         currentUserId={user?.id ?? ''}
         onActionComplete={loadSales}
       />

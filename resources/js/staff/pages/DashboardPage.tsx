@@ -48,6 +48,11 @@ export function DashboardPage() {
     return <DeliveryDashboard name={user.name} />;
   }
 
+  // ── Sales dashboard ─────────────────────────────────────────────────────
+  if (user?.role === 'sales') {
+    return <SalesDashboard name={user.name} />;
+  }
+
   // ── Admin / other roles dashboard ───────────────────────────────────────
   return <AdminDashboard />;
 }
@@ -356,6 +361,203 @@ function AdminDashboard() {
             ))}
           </div>
         </section>
+      </div>
+    </div>
+  );
+}
+
+// ─── Delivery Dashboard ────────────────────────────────────────────────────────
+
+// ─── Sales Dashboard ──────────────────────────────────────────────────────────
+
+function SalesDashboard({ name }: { name: string }) {
+  type SalesData = Awaited<ReturnType<typeof reportsApi.salesDashboard>>;
+
+  const [data, setData] = useState<SalesData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [chartLoading, setChartLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [period, setPeriod] = useState<'week' | 'month'>('week');
+  const [dataPeriod, setDataPeriod] = useState<'week' | 'month'>('week');
+
+  async function load(p: 'week' | 'month', isInitial = false) {
+    if (isInitial) setLoading(true);
+    else setChartLoading(true);
+    setError('');
+    try {
+      const result = await reportsApi.salesDashboard(p);
+      setData(result);
+      setDataPeriod(p);
+    } catch (err: any) {
+      setError(err.userMessage ?? 'Failed to load dashboard.');
+    } finally {
+      setLoading(false);
+      setChartLoading(false);
+    }
+  }
+
+  useEffect(() => { load(period, !data); }, [period]);
+
+  const trendData = useMemo(() => {
+    if (!data || dataPeriod !== period) return [];
+    return data.sales_trend.map(row => ({
+      label: new Date(row.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }),
+      total: row.total,
+    }));
+  }, [data, dataPeriod, period]);
+
+  const paymentMixData = useMemo(() => {
+    if (!data) return [];
+    const items = (data.payment_mix ?? []).filter(r => r.total > 0);
+    const sum = items.reduce((s, r) => s + r.total, 0) || 1;
+    return items.map((r, i) => ({
+      name: r.payment_method.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+      value: r.total,
+      pct: Math.round((r.total / sum) * 100),
+      color: CHART_COLORS[i % CHART_COLORS.length],
+    }));
+  }, [data]);
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  if (loading) return <TablePageSkeleton cols={4} />;
+  if (error) return <PageError message={error} onRetry={() => load(period, true)} />;
+  if (!data) return null;
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="font-heading text-xl font-bold text-slate-900 dark:text-white">
+          {greeting}, {name.split(' ')[0]} 👋
+        </h1>
+        <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">Your personal sales overview</p>
+      </div>
+
+      {/* KPI row */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="My sales today"     value={formatMoney(data.sales_today)}  icon={TrendingUp} />
+        <StatCard label="My sales this month" value={formatMoney(data.sales_month)} icon={DollarSign} />
+        <StatCard label="Orders today"   value={data.orders_today}   icon={ShoppingCart} />
+        <StatCard label="Pending orders" value={data.pending_orders} icon={Clock} />
+      </div>
+
+      {/* Charts */}
+      <div className={`grid gap-4 xl:grid-cols-2 transition-opacity duration-200 ${chartLoading ? 'opacity-40 pointer-events-none' : ''}`}>
+        {/* Sales trend */}
+        <section className="card p-4">
+          <div className="mb-4 flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="font-heading text-sm font-bold text-slate-900 dark:text-white">Sales Trend</h2>
+            <div className="flex w-full overflow-hidden rounded-xl border border-slate-200 text-[11px] font-bold dark:border-slate-700 sm:w-auto">
+              {(['week', 'month'] as const).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={clsx(
+                    'flex-1 py-2 sm:flex-none sm:px-3 sm:py-1.5 transition-colors',
+                    p === period
+                      ? 'bg-brand-green text-white'
+                      : 'text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'
+                  )}
+                >
+                  {p === 'week' ? '7 Days' : 'This Month'}
+                </button>
+              ))}
+            </div>
+          </div>
+          {trendData.length === 0 ? (
+            <p className="py-10 text-center text-xs text-slate-400">No sales in this period.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={trendData}>
+                <defs>
+                  <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3d7639" stopOpacity={0.18} />
+                    <stop offset="95%" stopColor="#3d7639" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={v => formatMoney(v)} width={72} />
+                <Tooltip formatter={(v: any) => [formatMoney(v), 'Revenue']} contentStyle={{ fontSize: 12 }} />
+                <Area type="monotone" dataKey="total" stroke="#3d7639" strokeWidth={2} fill="url(#salesGrad)" dot={false} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </section>
+
+        {/* Payment mix */}
+        <section className="card p-4">
+          <h2 className="font-heading text-sm font-bold text-slate-900 dark:text-white mb-3">Payment Methods</h2>
+          {paymentMixData.length === 0 ? (
+            <p className="py-10 text-center text-xs text-slate-400">No payment data yet.</p>
+          ) : (
+            <div className="grid items-center gap-4 sm:grid-cols-[180px_1fr]">
+              <ResponsiveContainer width="100%" height={180}>
+                <PieChart>
+                  <Pie data={paymentMixData} innerRadius={52} outerRadius={80} dataKey="value" paddingAngle={3}>
+                    {paymentMixData.map(item => <Cell key={item.name} fill={item.color} />)}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value, _, props: any) =>
+                      [`${props.payload.pct}% — ${formatMoney(props.payload.value)}`, props.payload.name]}
+                    contentStyle={{ fontSize: 12 }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-2">
+                {paymentMixData.map(item => (
+                  <div key={item.name} className="flex items-center justify-between text-[11px] font-bold gap-2">
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: item.color }} />
+                      <span className="truncate dark:text-slate-200">{item.name}</span>
+                    </span>
+                    <span className="text-slate-500 dark:text-slate-400 shrink-0">{item.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* Recent sales */}
+      <div className="card overflow-hidden">
+        <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-700/50">
+          <h2 className="font-heading text-sm font-bold text-slate-900 dark:text-white">Recent Sales</h2>
+        </div>
+        {data.recent_sales.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-slate-400">No sales yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px]">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50/60 dark:border-slate-700/50 dark:bg-slate-800/30">
+                  <th className="px-5 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Order</th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Customer</th>
+                  <th className="px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">Date</th>
+                  <th className="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-400">Amount</th>
+                  <th className="px-5 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-400">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+                {data.recent_sales.map(sale => (
+                  <tr key={sale.id} className="transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-800/20">
+                    <td className="whitespace-nowrap px-5 py-3 text-xs font-bold text-slate-900 dark:text-white">{sale.sale_number}</td>
+                    <td className="px-4 py-3 text-xs text-slate-700 dark:text-slate-300">{sale.customer?.name ?? sale.guest_name ?? 'Walk-in'}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">{new Date(sale.created_at).toLocaleDateString('en-GB')}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-xs font-bold text-slate-900 dark:text-white">{formatMoney(sale.total_amount)}</td>
+                    <td className="px-5 py-3 text-right">
+                      <StatusBadge tone={(STATUS_TONE[sale.status] ?? 'slate') as any}>
+                        {sale.status.replace(/_/g, ' ')}
+                      </StatusBadge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

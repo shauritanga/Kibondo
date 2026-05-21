@@ -22,13 +22,14 @@ interface Props {
   deliveryUsers: User[];
   isAdmin: boolean;
   isDelivery: boolean;
+  isSales?: boolean;
   currentUserId: string;
   onActionComplete: () => void;
 }
 
 export function SaleDrawer({
   saleId, isOpen, onClose,
-  deliveryUsers, isAdmin, isDelivery, currentUserId,
+  deliveryUsers, isAdmin, isDelivery, isSales = false, currentUserId,
   onActionComplete,
 }: Props) {
   const [sale, setSale] = useState<Sale | null>(null);
@@ -352,7 +353,7 @@ export function SaleDrawer({
                     )}
 
                     {/* Assign & Dispatch */}
-                    {isAdmin && sale.status === 'confirmed' && (
+                    {(isAdmin || isSales) && sale.status === 'confirmed' && (
                       <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
                         <select
                           value={assignUserId}

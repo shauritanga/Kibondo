@@ -127,7 +127,7 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
 
     // Sales + order lifecycle
     Route::post('/sales/{sale}/confirm',  [SaleController::class, 'confirm'])->middleware('role:admin');
-    Route::post('/sales/{sale}/assign',   [SaleController::class, 'assign'])->middleware('role:admin');
+    Route::post('/sales/{sale}/assign',   [SaleController::class, 'assign'])->middleware('role:admin,sales');
     Route::post('/sales/{sale}/deliver',  [SaleController::class, 'deliver'])->middleware('role:admin,delivery');
     Route::put('/sales/{sale}/status', [SaleController::class, 'updateStatus'])->middleware('role:admin,accountant');
     Route::apiResource('sales', SaleController::class)->except(['update']);
@@ -173,6 +173,10 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
     // Delivery dashboard — delivery and admin
     Route::get('/reports/delivery-dashboard', [ReportController::class, 'deliveryDashboard'])
         ->middleware('role:delivery,admin');
+
+    // Sales dashboard — personal KPIs for sales role
+    Route::get('/reports/sales-dashboard', [ReportController::class, 'salesDashboard'])
+        ->middleware('role:admin,sales');
 
     // Reports — admin and accountant only
     Route::prefix('reports')->middleware('role:admin,accountant')->group(function () {
