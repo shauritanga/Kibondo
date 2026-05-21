@@ -117,10 +117,11 @@ class ReportController extends Controller
         ]);
     }
 
-    public function deliveryDashboard(): JsonResponse
+    public function deliveryDashboard(Request $request): JsonResponse
     {
         $userId     = auth()->id();
         $monthStart = now()->startOfMonth();
+        $period     = $request->input('period', 'week'); // week | month | year
 
         $base = Sale::where('assigned_to', $userId);
 
@@ -162,6 +163,50 @@ class ReportController extends Controller
             ->get(['id', 'sale_number', 'status', 'delivery_cost', 'total_amount',
                    'customer_id', 'guest_name', 'updated_at', 'delivery_confirmed_at']);
 
+        // ── Order trend (assigned vs delivered) ──────────────────────────
+        if ($period === 'year') {
+            $trendFrom  = now()->subMonths(11)->startOfMonth();
+            $bucketExpr = "TO_CHAR(created_at, 'YYYY-MM')";
+            $delBucket  = "TO_CHAR(updated_at, 'YYYY-MM')";
+            $dates      = collect(range(0, 11))
+                ->map(fn ($i) => now()->subMonths(11 - $i)->format('Y-m'));
+        } else {
+            $days       = $period === 'month' ? 29 : 6;
+            $trendFrom  = now()->subDays($days)->startOfDay();
+            $bucketExpr = 'DATE(created_at)';
+            $delBucket  = 'DATE(updated_at)';
+            $dates      = collect(range(0, $days))
+                ->map(fn ($i) => now()->subDays($days - $i)->toDateString());
+        }
+
+        $assignedRaw = (clone $base)
+            ->where('created_at', '>=', $trendFrom)
+            ->selectRaw("$bucketExpr as bucket, COUNT(*) as cnt")
+            ->groupBy(DB::raw($bucketExpr))
+            ->pluck('cnt', 'bucket');
+
+        $deliveredRaw = (clone $base)
+            ->whereIn('status', ['awaiting_confirmation', 'completed'])
+            ->where('updated_at', '>=', $trendFrom)
+            ->selectRaw("$delBucket as bucket, COUNT(*) as cnt")
+            ->groupBy(DB::raw($delBucket))
+            ->pluck('cnt', 'bucket');
+
+        $orderTrend = $dates->map(fn ($d) => [
+            'date'      => $d,
+            'assigned'  => (int) ($assignedRaw[$d] ?? 0),
+            'delivered' => (int) ($deliveredRaw[$d] ?? 0),
+        ])->values();
+
+        // ── Payment methods breakdown ─────────────────────────────────────
+        $paymentMix = DB::table('payments')
+            ->join('sales', 'payments.sale_id', '=', 'sales.id')
+            ->where('sales.assigned_to', $userId)
+            ->whereNull('sales.deleted_at')
+            ->selectRaw('payments.payment_method, COUNT(*) as count, SUM(payments.amount) as total')
+            ->groupBy('payments.payment_method')
+            ->get();
+
         return response()->json([
             'assigned_total'   => $assignedTotal,
             'out_for_delivery' => $outForDelivery,
@@ -172,6 +217,8 @@ class ReportController extends Controller
             'earnings_month'   => (int) $earningsMonth,
             'earnings_total'   => (int) $earningsTotal,
             'recent_orders'    => $recentOrders,
+            'order_trend'      => $orderTrend,
+            'payment_mix'      => $paymentMix,
         ]);
     }
 

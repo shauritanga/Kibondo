@@ -390,11 +390,13 @@ function DeliveryDashboard({ name }: { name: string }) {
 
   const [data, setData] = useState<DeliveryData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [chartLoading, setChartLoading] = useState(false);
   const [error, setError] = useState('');
   const [period, setPeriod] = useState<DeliveryPeriod>('week');
 
-  async function load(p: DeliveryPeriod) {
-    setLoading(true);
+  async function load(p: DeliveryPeriod, isInitial = false) {
+    if (isInitial) setLoading(true);
+    else setChartLoading(true);
     setError('');
     try {
       setData(await reportsApi.deliveryDashboard(p));
@@ -402,10 +404,11 @@ function DeliveryDashboard({ name }: { name: string }) {
       setError(err.userMessage ?? 'Failed to load dashboard.');
     } finally {
       setLoading(false);
+      setChartLoading(false);
     }
   }
 
-  useEffect(() => { load(period); }, [period]);
+  useEffect(() => { load(period, !data); }, [period]);
 
   const trendData = useMemo(
     () => (data?.order_trend ?? []).map(row => ({
@@ -435,7 +438,7 @@ function DeliveryDashboard({ name }: { name: string }) {
   if (loading) return <TablePageSkeleton cols={4} />;
 
   if (error) return (
-    <PageError message={error} onRetry={() => load(period)} />
+    <PageError message={error} onRetry={() => load(period, true)} />
   );
 
   if (!data) return null;
@@ -479,7 +482,7 @@ function DeliveryDashboard({ name }: { name: string }) {
       </div>
 
       {/* Charts row */}
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className={`grid gap-4 xl:grid-cols-2 transition-opacity duration-200 ${chartLoading ? 'opacity-40 pointer-events-none' : ''}`}>
         {/* Assigned vs Delivered bar chart */}
         <section className="card p-4">
           <div className="mb-3 flex items-center justify-between">
