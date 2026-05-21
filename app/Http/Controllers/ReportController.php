@@ -165,18 +165,36 @@ class ReportController extends Controller
 
         // ── Order trend (assigned vs delivered) ──────────────────────────
         if ($period === 'year') {
-            $trendFrom  = now()->subMonths(11)->startOfMonth();
-            $bucketExpr = "TO_CHAR(created_at, 'YYYY-MM')";
-            $delBucket  = "TO_CHAR(updated_at, 'YYYY-MM')";
-            $dates      = collect(range(0, 11))
-                ->map(fn ($i) => now()->subMonths(11 - $i)->format('Y-m'));
+            // January through the current month of the current year
+            $trendFrom   = now()->startOfYear();
+            $bucketExpr  = "TO_CHAR(created_at, 'YYYY-MM')";
+            $delBucket   = "TO_CHAR(updated_at, 'YYYY-MM')";
+            $currentYear = now()->year;
+            $dates = collect(range(1, now()->month))
+                ->map(fn ($m) => sprintf('%d-%02d', $currentYear, $m));
+
+        } elseif ($period === 'month') {
+            // Current month broken into ISO weeks (Monday start)
+            $trendFrom      = now()->startOfMonth();
+            $bucketExpr     = "DATE_TRUNC('week', created_at)::date";
+            $delBucket      = "DATE_TRUNC('week', updated_at)::date";
+            // Walk Monday-by-Monday from the week that contains the 1st
+            // through the week that contains today
+            $weekCursor    = now()->copy()->startOfMonth()->startOfWeek(\Carbon\Carbon::MONDAY);
+            $thisWeekStart = now()->copy()->startOfWeek(\Carbon\Carbon::MONDAY);
+            $dates = collect();
+            while ($weekCursor->lessThanOrEqualTo($thisWeekStart)) {
+                $dates->push($weekCursor->toDateString());
+                $weekCursor->addWeek();
+            }
+
         } else {
-            $days       = $period === 'month' ? 29 : 6;
-            $trendFrom  = now()->subDays($days)->startOfDay();
+            // Last 7 days — one bar per day
+            $trendFrom  = now()->subDays(6)->startOfDay();
             $bucketExpr = 'DATE(created_at)';
             $delBucket  = 'DATE(updated_at)';
-            $dates      = collect(range(0, $days))
-                ->map(fn ($i) => now()->subDays($days - $i)->toDateString());
+            $dates = collect(range(0, 6))
+                ->map(fn ($i) => now()->subDays(6 - $i)->toDateString());
         }
 
         $assignedRaw = (clone $base)

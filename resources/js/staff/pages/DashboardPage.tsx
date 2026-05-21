@@ -375,14 +375,19 @@ const DELIVERY_STATUS_TONE: Record<string, 'green' | 'amber' | 'red' | 'blue' | 
 
 type DeliveryPeriod = 'week' | 'month' | 'year';
 
-function formatTrendDate(dateStr: string, p: DeliveryPeriod): string {
+function formatTrendLabel(dateStr: string, p: DeliveryPeriod, index: number): string {
   if (p === 'year') {
     const [year, month] = dateStr.split('-');
     return new Date(parseInt(year), parseInt(month) - 1, 1)
       .toLocaleDateString('en-GB', { month: 'short' });
   }
+  if (p === 'month') {
+    return `Wk ${index + 1}`;
+  }
+  // week — short weekday + day number e.g. "Mon 19"
   const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  const wd = d.toLocaleDateString('en-GB', { weekday: 'short' });
+  return `${wd} ${d.getDate()}`;
 }
 
 function DeliveryDashboard({ name }: { name: string }) {
@@ -411,8 +416,8 @@ function DeliveryDashboard({ name }: { name: string }) {
   useEffect(() => { load(period, !data); }, [period]);
 
   const trendData = useMemo(
-    () => (data?.order_trend ?? []).map(row => ({
-      label: formatTrendDate(row.date, period),
+    () => (data?.order_trend ?? []).map((row, i) => ({
+      label: formatTrendLabel(row.date, period, i),
       assigned: row.assigned,
       delivered: row.delivered,
     })),
