@@ -137,6 +137,10 @@ export interface Sale {
   delivery_address?: string | null;
   assigned_to?: string | null;
   assignedTo?: { id: string; name: string } | null;
+  customer_feedback?: string | null;
+  customer_payment_type?: 'paid_full' | 'paid_partial' | 'not_paid' | null;
+  customer_payment_amount?: number | null;
+  delivery_confirmed_at?: string | null;
   items?: SaleItem[];
   payments?: Payment[];
   items_count?: number;

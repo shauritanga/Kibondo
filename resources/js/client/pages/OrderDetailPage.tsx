@@ -10,6 +10,8 @@ export function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [paymentType, setPaymentType] = useState<'paid_full' | 'paid_partial' | 'not_paid' | ''>('');
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [confirmDone, setConfirmDone] = useState(false);
   const [confirmError, setConfirmError] = useState('');
@@ -36,7 +38,12 @@ export function OrderDetailPage() {
     setConfirming(true);
     setConfirmError('');
     try {
-      await storeOrdersApi.confirm(order.id, feedback);
+      await storeOrdersApi.confirm(
+        order.id,
+        feedback,
+        paymentType || undefined,
+        paymentType === 'paid_partial' ? (parseInt(paymentAmount) || undefined) : undefined,
+      );
       setOrder(o => o ? { ...o, status: 'completed', delivery_confirmed_at: new Date().toISOString(), customer_feedback: feedback } : o);
       setConfirmDone(true);
     } catch (err: any) {
@@ -156,6 +163,40 @@ export function OrderDetailPage() {
             )}
 
             <form onSubmit={handleConfirm} className="space-y-4">
+              {/* Payment status */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Payment</label>
+                <div className="space-y-2">
+                  {(['paid_full', 'paid_partial', 'not_paid'] as const).map(t => (
+                    <label key={t} className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="payment_type"
+                        value={t}
+                        checked={paymentType === t}
+                        onChange={() => setPaymentType(t)}
+                        className="accent-green-600"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {t === 'paid_full' ? 'I have already paid in full'
+                          : t === 'paid_partial' ? 'I paid a partial amount'
+                          : 'I have not paid yet'}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {paymentType === 'paid_partial' && (
+                  <input
+                    type="number"
+                    min="1"
+                    value={paymentAmount}
+                    onChange={e => setPaymentAmount(e.target.value)}
+                    placeholder="Amount paid (TZS)"
+                    className="mt-3 w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Feedback (optional)</label>
                 <textarea

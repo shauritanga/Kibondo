@@ -544,6 +544,9 @@ export function PosPage() {
                     <StatusBadge tone={STATUS_TONE[sale.status] ?? 'slate'}>
                       {sale.status.replace(/_/g, ' ')}
                     </StatusBadge>
+                    {sale.status === 'out_for_delivery' && isDelivery && (
+                      <span className="block text-[10px] font-semibold text-amber-600 mt-0.5">↗ Tap to mark delivered</span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <StatusBadge tone={sale.payment_status === 'paid' ? 'green' : sale.payment_status === 'partial' ? 'amber' : 'slate'}>

@@ -58,7 +58,13 @@ export function SaleDrawer({
     setPayError('');
     setDeliveryCostInput('');
     salesApi.get(saleId)
-      .then(s => { setSale(s); setPayAmount(s.outstanding > 0 ? String(s.outstanding) : ''); })
+      .then(s => {
+        setSale(s);
+        const prefill = s.customer_payment_type === 'paid_partial' && s.customer_payment_amount
+          ? String(s.customer_payment_amount)
+          : s.outstanding > 0 ? String(s.outstanding) : '';
+        setPayAmount(prefill);
+      })
       .catch(() => setLoadError('Failed to load sale details.'))
       .finally(() => setLoading(false));
   }, [saleId]);
@@ -114,7 +120,9 @@ export function SaleDrawer({
 
   const canCancel = sale ? ['pending', 'confirmed', 'out_for_delivery'].includes(sale.status) : false;
   const canForceComplete = sale ? sale.status === 'awaiting_confirmation' : false;
-  const isMyDelivery = sale?.assigned_to === currentUserId;
+  const isMyDelivery = sale
+    ? sale.assigned_to === currentUserId || sale.assignedTo?.id === currentUserId
+    : false;
 
   return (
     <>
@@ -409,8 +417,22 @@ export function SaleDrawer({
                     )}
                   </div>
 
+                  {/* Customer payment note */}
+                  {!isDelivery && sale.status === 'completed' && sale.customer_payment_type && (
+                    <div className="rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 text-xs dark:bg-blue-900/20 dark:border-blue-800">
+                      <p className="font-bold text-blue-700 dark:text-blue-400 mb-0.5">Customer payment note</p>
+                      <p className="text-blue-600 dark:text-blue-300">
+                        {sale.customer_payment_type === 'paid_full'
+                          ? 'Customer said they have paid in full.'
+                          : sale.customer_payment_type === 'paid_partial'
+                          ? `Customer said they paid ${formatMoney(sale.customer_payment_amount ?? 0)}.`
+                          : 'Customer said they have not paid yet.'}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Record Payment */}
-                  {sale.status === 'completed' && sale.payment_status !== 'paid' && (
+                  {!isDelivery && sale.status === 'completed' && sale.payment_status !== 'paid' && (
                     <div className="rounded-lg border border-slate-200 p-4 space-y-3 dark:border-slate-700">
                       <p className="text-xs font-bold text-slate-500 dark:text-slate-400">Record payment</p>
                       {payError && (

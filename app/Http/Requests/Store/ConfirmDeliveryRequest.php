@@ -9,7 +9,9 @@ class ConfirmDeliveryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'feedback' => 'nullable|string|max:1000',
+            'feedback'       => 'nullable|string|max:1000',
+            'payment_type'   => 'nullable|in:paid_full,paid_partial,not_paid',
+            'payment_amount' => 'nullable|integer|min:1',
         ];
     }
 

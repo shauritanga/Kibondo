@@ -148,9 +148,11 @@ class OrderController extends Controller
         }
 
         $sale->update([
-            'delivery_confirmed_at' => now(),
-            'customer_feedback'     => $request->feedback,
-            'status'                => 'completed',
+            'delivery_confirmed_at'   => now(),
+            'customer_feedback'       => $request->feedback,
+            'status'                  => 'completed',
+            'customer_payment_type'   => $request->payment_type,
+            'customer_payment_amount' => $request->payment_amount,
         ]);
 
         $admins = User::where('role', 'admin')->get();

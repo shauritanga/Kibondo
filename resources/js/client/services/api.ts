@@ -101,6 +101,8 @@ export interface StoreOrderDetail extends StoreOrderSummary {
   payment_method: string | null;
   assigned_to_name: string | null;
   customer_feedback: string | null;
+  customer_payment_type?: 'paid_full' | 'paid_partial' | 'not_paid' | null;
+  customer_payment_amount?: number | null;
   items: StoreOrderItem[];
 }
 
@@ -228,8 +230,12 @@ export const storeOrdersApi = {
     const { data } = await http.get<{ data: StoreOrderDetail }>(`/orders/${id}`);
     return data.data;
   },
-  confirm: async (id: string, feedback?: string) => {
-    const { data } = await http.post<{ message: string }>(`/orders/${id}/confirm`, { feedback });
+  confirm: async (id: string, feedback?: string, paymentType?: string, paymentAmount?: number) => {
+    const { data } = await http.post<{ message: string }>(`/orders/${id}/confirm`, {
+      feedback,
+      payment_type: paymentType,
+      payment_amount: paymentAmount,
+    });
     return data;
   },
 };

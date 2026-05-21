@@ -20,6 +20,7 @@ class Sale extends Model
         'note', 'delivery_address', 'billing_address', 'delivery_zone_id', 'delivery_cost', 'assigned_to',
         'is_offline_sync', 'synced_at', 'payment_method',
         'delivery_confirmed_at', 'customer_feedback',
+        'customer_payment_type', 'customer_payment_amount',
     ];
 
     protected $casts = [
