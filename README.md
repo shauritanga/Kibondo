@@ -148,12 +148,25 @@ Run the test suite inside Docker:
 docker compose --profile test run --rm test
 ```
 
+**Default admin login** (seeded automatically on first start):
+
+| Field | Value |
+|---|---|
+| URL | http://localhost:8000/login |
+| Email | `admin@kibondo.local` |
+| Password | `password` |
+
+Email OTP for admins is disabled in Docker (`REQUIRE_2FA_FOR_ADMINS=0`). Override credentials with `DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD`.
+
+If the stack was already running before seeding was enabled:
+
+```bash
+docker compose exec app php artisan db:seed --force
+```
+
 Optional:
 
 ```bash
-# Seed the database (requires database/seeders/AdminUserSeeder.php — gitignored)
-RUN_SEED=true docker compose up --build -d
-
 # View logs
 docker compose logs -f app
 
@@ -167,10 +180,13 @@ Environment variables (see `docker-compose.yml`):
 |---|---|---|
 | `APP_PORT` | `8000` | Host port for the web app |
 | `DB_PASSWORD` | `Kibondo@2026` | PostgreSQL password (matches `phpunit.xml`) |
-| `RUN_SEED` | `false` | Run `php artisan db:seed` on container start |
+| `RUN_SEED` | `true` | Run `php artisan db:seed` on container start |
+| `DEV_ADMIN_EMAIL` | `admin@kibondo.local` | Seeded admin email |
+| `DEV_ADMIN_PASSWORD` | `password` | Seeded admin password |
+| `REQUIRE_2FA_FOR_ADMINS` | `0` | Set to `1` to require email OTP on admin login |
 | `APP_KEY` | (built-in dev key) | Laravel encryption key |
 
-> **Note:** `AdminUserSeeder` is not committed (see `.gitignore`). Create it locally before using `RUN_SEED=true`, or add users via `php artisan tinker` inside the app container.
+> For non-Docker setups, copy `database/seeders/AdminUserSeeder.example.php` to `AdminUserSeeder.php` (gitignored) with your own credentials.
 
 ## Roles
 

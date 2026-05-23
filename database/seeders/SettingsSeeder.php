@@ -9,6 +9,6 @@ class SettingsSeeder extends Seeder
 {
     public function run(): void
     {
-        Setting::set('require_2fa_for_admins', '1');
+        Setting::set('require_2fa_for_admins', env('REQUIRE_2FA_FOR_ADMINS', '1'));
     }
 }

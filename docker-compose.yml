@@ -24,9 +24,14 @@ services:
       QUEUE_CONNECTION: database
       CACHE_STORE: database
       MAIL_MAILER: log
-      CORS_ALLOWED_ORIGINS: http://localhost:${APP_PORT:-8000}
-      SANCTUM_STATEFUL_DOMAINS: localhost:${APP_PORT:-8000}
-      RUN_SEED: ${RUN_SEED:-false}
+      CORS_ALLOWED_ORIGINS: http://localhost:${APP_PORT:-8000},http://127.0.0.1:${APP_PORT:-8000}
+      SANCTUM_STATEFUL_DOMAINS: localhost:${APP_PORT:-8000},127.0.0.1:${APP_PORT:-8000}
+      RUN_SEED: ${RUN_SEED:-true}
+      SEED_DEV_ADMIN: ${SEED_DEV_ADMIN:-true}
+      REQUIRE_2FA_FOR_ADMINS: ${REQUIRE_2FA_FOR_ADMINS:-0}
+      DEV_ADMIN_EMAIL: ${DEV_ADMIN_EMAIL:-admin@kibondo.local}
+      DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-password}
+      DEV_ADMIN_NAME: ${DEV_ADMIN_NAME:-Admin}
     depends_on:
       db:
         condition: service_healthy
