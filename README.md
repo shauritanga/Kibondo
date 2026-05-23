@@ -131,62 +131,69 @@ php artisan test
 
 ## Docker
 
-Run the full stack (app, queue worker, PostgreSQL) without installing PHP or Node locally:
+Two Compose stacks: **development** and **production**.
 
-```bash
-# Build and start (first run may take a few minutes)
-docker compose up --build -d
-
-# Staff dashboard: http://localhost:8000
-# Storefront:      http://localhost:8000/store
-# Health check:    http://localhost:8000/up
-```
-
-Run the test suite inside Docker:
-
-```bash
-docker compose --profile test run --rm test
-```
-
-**Default admin login** (seeded automatically on first start):
-
-| Field | Value |
+| File | Purpose |
 |---|---|
-| URL | http://localhost:8000/login |
+| `docker-compose.dev.yml` | Local dev — `artisan serve`, debug, dev admin seed |
+| `docker-compose.prod.yml` | Production — nginx + php-fpm, opcache, scheduler |
+| `docker-compose.yml` | Includes dev stack (default) |
+| `Makefile` | Shortcuts — `make dev-up`, `make prod-up`, etc. |
+
+### Development
+
+```bash
+make dev-up
+# or: docker compose -f docker-compose.dev.yml up --build -d
+
+# http://localhost:8000        — staff dashboard
+# http://localhost:8000/store  — storefront
+# http://127.0.0.1:8000/login  — admin login (use 127.0.0.1 or localhost consistently)
+```
+
 | Email | `admin@kibondo.local` |
 | Password | `password` |
 
-Email OTP for admins is disabled in Docker (`REQUIRE_2FA_FOR_ADMINS=0`). Override credentials with `DEV_ADMIN_EMAIL` / `DEV_ADMIN_PASSWORD`.
-
-If the stack was already running before seeding was enabled:
-
 ```bash
-docker compose exec app php artisan db:seed --force
+make dev-test          # PHPUnit
+make dev-seed          # Re-run seeders
+make dev-logs
+make dev-vite          # Vite HMR on :5173 (optional --profile vite)
+make dev-down
 ```
 
-Optional:
+See `.env.docker.dev.example` for optional overrides.
+
+### Production
 
 ```bash
-# View logs
-docker compose logs -f app
+cp .env.docker.prod.example .env
+# Set APP_KEY (php artisan key:generate --show) and DB_PASSWORD
 
-# Stop and remove containers (keeps database volume)
-docker compose down
+make prod-up
+# or: docker compose -f docker-compose.prod.yml up --build -d
+
+# http://localhost:8080  (override with HTTP_PORT in .env)
 ```
 
-Environment variables (see `docker-compose.yml`):
+Production stack: **web** (nginx + php-fpm), **queue**, **scheduler**, **PostgreSQL**. No dev admin seeding. Create users via `AdminUserSeeder` or tinker.
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `APP_PORT` | `8000` | Host port for the web app |
-| `DB_PASSWORD` | `Kibondo@2026` | PostgreSQL password (matches `phpunit.xml`) |
-| `RUN_SEED` | `true` | Run `php artisan db:seed` on container start |
-| `DEV_ADMIN_EMAIL` | `admin@kibondo.local` | Seeded admin email |
-| `DEV_ADMIN_PASSWORD` | `password` | Seeded admin password |
-| `REQUIRE_2FA_FOR_ADMINS` | `0` | Set to `1` to require email OTP on admin login |
-| `APP_KEY` | (built-in dev key) | Laravel encryption key |
+```bash
+make prod-logs
+make prod-down
+```
 
-> For non-Docker setups, copy `database/seeders/AdminUserSeeder.example.php` to `AdminUserSeeder.php` (gitignored) with your own credentials.
+Use a reverse proxy (Caddy, Traefik, host nginx) in front of port `8080` for HTTPS. Set `APP_URL`, `SANCTUM_STATEFUL_DOMAINS`, `CORS_ALLOWED_ORIGINS`, and `SESSION_SECURE_COOKIE=true` in `.env`.
+
+### Docker images
+
+| Dockerfile target | Used by |
+|---|---|
+| `dev` | Development app, queue, tests |
+| `prod` | Production web (nginx + php-fpm) |
+| `prod-worker` | Production queue + scheduler |
+
+> For non-Docker setups, copy `database/seeders/AdminUserSeeder.example.php` to `AdminUserSeeder.php` (gitignored).
 
 ## Roles
 

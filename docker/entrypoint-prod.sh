@@ -4,7 +4,7 @@ set -e
 cd /var/www/html
 
 if [ -z "$APP_KEY" ]; then
-    echo "ERROR: APP_KEY is not set. Add APP_KEY to docker-compose or your environment." >&2
+    echo "ERROR: APP_KEY must be set in production." >&2
     exit 1
 fi
 
@@ -24,10 +24,14 @@ until php -r "
     sleep 1
 done
 
-php artisan migrate --force --no-interaction
+if [ "${RUN_MIGRATE:-true}" = "true" ]; then
+    php artisan migrate --force --no-interaction
+fi
 
-if [ "${RUN_SEED:-false}" = "true" ]; then
-    php artisan db:seed --force --no-interaction
+if [ "${RUN_OPTIMIZE:-true}" = "true" ] && [ "${APP_ENV:-production}" = "production" ]; then
+    php artisan config:cache --no-interaction
+    php artisan route:cache --no-interaction
+    php artisan view:cache --no-interaction
 fi
 
 exec "$@"
