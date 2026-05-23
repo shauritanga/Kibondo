@@ -127,7 +127,50 @@ The staff dashboard is served at `http://localhost:8000` and the customer storef
 php artisan test
 ```
 
-28 feature tests, 80 assertions. Tests use an in-memory SQLite database and refresh between runs.
+28 feature tests, 80 assertions. Tests use PostgreSQL (`kibondo_test` by default; see `phpunit.xml`).
+
+## Docker
+
+Run the full stack (app, queue worker, PostgreSQL) without installing PHP or Node locally:
+
+```bash
+# Build and start (first run may take a few minutes)
+docker compose up --build -d
+
+# Staff dashboard: http://localhost:8000
+# Storefront:      http://localhost:8000/store
+# Health check:    http://localhost:8000/up
+```
+
+Run the test suite inside Docker:
+
+```bash
+docker compose --profile test run --rm test
+```
+
+Optional:
+
+```bash
+# Seed the database (requires database/seeders/AdminUserSeeder.php — gitignored)
+RUN_SEED=true docker compose up --build -d
+
+# View logs
+docker compose logs -f app
+
+# Stop and remove containers (keeps database volume)
+docker compose down
+```
+
+Environment variables (see `docker-compose.yml`):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `APP_PORT` | `8000` | Host port for the web app |
+| `DB_PASSWORD` | `Kibondo@2026` | PostgreSQL password (matches `phpunit.xml`) |
+| `RUN_SEED` | `false` | Run `php artisan db:seed` on container start |
+| `APP_KEY` | (built-in dev key) | Laravel encryption key |
+
+> **Note:** `AdminUserSeeder` is not committed (see `.gitignore`). Create it locally before using `RUN_SEED=true`, or add users via `php artisan tinker` inside the app container.
 
 ## Roles
 
