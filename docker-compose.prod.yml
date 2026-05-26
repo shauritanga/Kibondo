@@ -95,7 +95,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:16-alpine
+    image: postgres:13-alpine
     environment:
       POSTGRES_USER: ${DB_USERNAME:-kibondo}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}

@@ -23,7 +23,7 @@ Business management system for Kibondo Green Farm — a fresh produce supplier i
 |---|---|
 | Backend | Laravel 13, PHP 8.2 |
 | Auth | Laravel Sanctum (two guards: `staff` and `customer`) |
-| Database | MySQL / SQLite (tests) |
+| Database | PostgreSQL 13+ (SQLite for some local tests) |
 | Frontend | React 19, TypeScript, Tailwind CSS v4 |
 | Build | Vite — two independent bundles (staff + client) |
 | Routing | react-router-dom v7 |
@@ -176,7 +176,11 @@ make prod-up
 # http://localhost:8080  (override with HTTP_PORT in .env)
 ```
 
-Production stack: **web** (nginx + php-fpm), **queue**, **scheduler**, **PostgreSQL**. No dev admin seeding. Create users via `AdminUserSeeder` or tinker.
+Production stack: **web** (nginx + php-fpm), **queue**, **scheduler**, **PostgreSQL 13**. No dev admin seeding. Create users via `AdminUserSeeder` or tinker.
+
+### cPanel (shared hosting)
+
+See [deploy/CPANEL.md](deploy/CPANEL.md) — terminal commands for deploy, database, storage, cron, and admin user.
 
 ```bash
 make prod-logs

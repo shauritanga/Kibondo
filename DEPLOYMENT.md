@@ -30,7 +30,7 @@ apt install -y php8.4 php8.4-fpm php8.4-cli php8.4-pgsql php8.4-mbstring \
 # Nginx
 apt install -y nginx
 
-# PostgreSQL
+# PostgreSQL 13+ (app minimum; Docker images use postgres:13-alpine)
 apt install -y postgresql postgresql-contrib
 
 # Node.js 20 + npm
@@ -85,7 +85,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON FUNCTIONS TO kibondo;
 \q
 ```
 
-> **Note:** PostgreSQL 15+ removed the default CREATE privilege on the public schema. The steps above are required — skipping them will cause Laravel migrations to fail with "permission denied for schema public".
+> **Note:** PostgreSQL 13 is the minimum version (`gen_random_uuid`, `jsonb`). PostgreSQL 15+ removed the default CREATE privilege on the public schema — the GRANT steps above are required on 15+ and are safe on 13/14. For **cPanel**, see [deploy/CPANEL.md](deploy/CPANEL.md).
 
 ---
 
