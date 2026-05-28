@@ -492,6 +492,34 @@ export const expensesApi = {
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 export const settingsApi = {
+  getAll: async () => {
+    const { data } = await http.get<{
+      social_links: { label: string; url: string }[];
+      company: {
+        name: string;
+        phone: string;
+        email: string;
+        address: string;
+        city: string;
+        country: string;
+      };
+    }>('/settings');
+    return data;
+  },
+  updateCompany: async (payload: {
+    name: string;
+    phone: string;
+    email: string;
+    address: string;
+    city: string;
+    country: string;
+  }) => {
+    const { data } = await http.put<{
+      message: string;
+      company: typeof payload;
+    }>('/settings/company', payload);
+    return data;
+  },
   getPromo: async () => {
     const { data } = await http.get<{ promo_percentage: number }>('/store/settings/promo');
     return data;
@@ -530,4 +558,3 @@ export const auditApi = {
     URL.revokeObjectURL(url);
   },
 };
-

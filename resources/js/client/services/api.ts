@@ -189,6 +189,15 @@ export interface StoreSocialLink {
   url: string;
 }
 
+export interface StoreCompanySettings {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  country: string;
+}
+
 export const storeSettingsApi = {
   getPromo: async (): Promise<{ promo_percentage: number }> => {
     const { data } = await http.get<{ promo_percentage: number }>('/settings/promo');
@@ -196,6 +205,10 @@ export const storeSettingsApi = {
   },
   socialLinks: async (): Promise<StoreSocialLink[]> => {
     const { data } = await http.get<StoreSocialLink[]>('/settings/social-links');
+    return data;
+  },
+  company: async (): Promise<StoreCompanySettings> => {
+    const { data } = await http.get<StoreCompanySettings>('/settings/company');
     return data;
   },
 };

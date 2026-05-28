@@ -44,10 +44,10 @@ export function SettingsPage() {
   // Company info
   const [company, setCompany] = useState({
     name: 'Kibondo Green Farm',
-    phone: '',
-    email: '',
+    phone: '+255 655 591 660',
+    email: 'sales@kibondo.co.tz',
     address: '',
-    city: '',
+    city: 'Dar es Salaam',
     country: 'Tanzania',
   });
   const [companySaving, setCompanySaving] = useState(false);
@@ -87,7 +87,10 @@ export function SettingsPage() {
   const [securityError, setSecurityError]     = useState('');
 
   useEffect(() => {
-    http.get('/settings').then(res => setSocialLinks(res.data.social_links ?? [])).catch(() => {});
+    settingsApi.getAll().then(data => {
+      setSocialLinks(data.social_links ?? []);
+      if (data.company) setCompany(data.company);
+    }).catch(() => {});
     settingsApi.getPromo().then(d => setPromoPercent(String(d.promo_percentage))).catch(() => {});
     settingsApi.getSecurity().then(d => setRequire2fa(d.require_2fa_for_admins)).catch(() => {});
   }, []);
@@ -147,9 +150,15 @@ export function SettingsPage() {
   async function saveCompany(e: FormEvent) {
     e.preventDefault();
     setCompanySaving(true); setCompanySuccess(''); setCompanyError('');
-    await new Promise((r) => setTimeout(r, 600)); // placeholder
-    setCompanySaving(false);
-    setCompanySuccess('Company information saved.');
+    try {
+      const data = await settingsApi.updateCompany(company);
+      setCompany(data.company);
+      setCompanySuccess(data.message);
+    } catch {
+      setCompanyError('Failed to save. Please check the details and try again.');
+    } finally {
+      setCompanySaving(false);
+    }
   }
 
   function toggleMaintenance() {
