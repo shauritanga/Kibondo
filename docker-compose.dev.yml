@@ -1,0 +1,125 @@
+# Development — artisan serve, debug on, optional Vite HMR
+# Usage: docker compose -f docker-compose.dev.yml up --build -d
+
+name: kibondo-dev
+
+x-app-env: &app-env
+  APP_NAME: "Kibondo Green Farm"
+  APP_ENV: local
+  APP_DEBUG: "true"
+  APP_KEY: ${APP_KEY:-base64:2fl+KtvkdphvQo6GI9sop4+tI0b4SrRGkg/7EIJ47wk=}
+  APP_URL: http://localhost:${APP_PORT:-8000}
+  LOG_CHANNEL: stderr
+  LOG_LEVEL: debug
+  DB_CONNECTION: pgsql
+  DB_HOST: db
+  DB_PORT: 5432
+  DB_DATABASE: kibondo_db
+  DB_USERNAME: kibondo
+  DB_PASSWORD: ${DB_PASSWORD:-Kibondo@2026}
+  SESSION_DRIVER: database
+  QUEUE_CONNECTION: database
+  CACHE_STORE: database
+  MAIL_MAILER: log
+  CORS_ALLOWED_ORIGINS: http://localhost:${APP_PORT:-8000},http://127.0.0.1:${APP_PORT:-8000}
+  SANCTUM_STATEFUL_DOMAINS: localhost:${APP_PORT:-8000},127.0.0.1:${APP_PORT:-8000}
+  RUN_SEED: ${RUN_SEED:-true}
+  SEED_DEV_ADMIN: ${SEED_DEV_ADMIN:-true}
+  REQUIRE_2FA_FOR_ADMINS: ${REQUIRE_2FA_FOR_ADMINS:-0}
+  DEV_ADMIN_EMAIL: ${DEV_ADMIN_EMAIL:-admin@kibondo.local}
+  DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-password}
+  DEV_ADMIN_NAME: ${DEV_ADMIN_NAME:-Admin}
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - storage:/var/www/html/storage
+      - bootstrap-cache:/var/www/html/bootstrap/cache
+    restart: unless-stopped
+
+  queue:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+      app:
+        condition: service_started
+    volumes:
+      - storage:/var/www/html/storage
+      - bootstrap-cache:/var/www/html/bootstrap/cache
+    command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
+    restart: unless-stopped
+
+  db:
+    image: postgres:13-alpine
+    environment:
+      POSTGRES_USER: kibondo
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-Kibondo@2026}
+      POSTGRES_DB: kibondo_db
+    ports:
+      - "${DB_PUBLISH_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kibondo -d kibondo_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # Hot reload: docker compose -f docker-compose.dev.yml --profile vite up
+  vite:
+    profiles: [vite]
+    image: node:22-alpine
+    working_dir: /var/www/html
+    ports:
+      - "${VITE_PORT:-5173}:5173"
+    environment:
+      VITE_DEV_SERVER_URL: http://localhost:${VITE_PORT:-5173}
+    volumes:
+      - .:/var/www/html
+      - vite_node_modules:/var/www/html/node_modules
+    command: sh -c "npm install --ignore-scripts && npm run dev -- --host 0.0.0.0 --port 5173"
+    restart: unless-stopped
+
+  test:
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    environment:
+      <<: *app-env
+      APP_ENV: testing
+      DB_DATABASE: kibondo_test
+      QUEUE_CONNECTION: sync
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - storage:/var/www/html/storage
+      - bootstrap-cache:/var/www/html/bootstrap/cache
+    command: php artisan test
+
+volumes:
+  postgres_data:
+  storage:
+  bootstrap-cache:
+  vite_node_modules:

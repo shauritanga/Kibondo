@@ -23,7 +23,7 @@ Business management system for Kibondo Green Farm — a fresh produce supplier i
 |---|---|
 | Backend | Laravel 13, PHP 8.2 |
 | Auth | Laravel Sanctum (two guards: `staff` and `customer`) |
-| Database | MySQL / SQLite (tests) |
+| Database | PostgreSQL 13+ (SQLite for some local tests) |
 | Frontend | React 19, TypeScript, Tailwind CSS v4 |
 | Build | Vite — two independent bundles (staff + client) |
 | Routing | react-router-dom v7 |
@@ -127,7 +127,77 @@ The staff dashboard is served at `http://localhost:8000` and the customer storef
 php artisan test
 ```
 
-28 feature tests, 80 assertions. Tests use an in-memory SQLite database and refresh between runs.
+28 feature tests, 80 assertions. Tests use PostgreSQL (`kibondo_test` by default; see `phpunit.xml`).
+
+## Docker
+
+Two Compose stacks: **development** and **production**.
+
+| File | Purpose |
+|---|---|
+| `docker-compose.dev.yml` | Local dev — `artisan serve`, debug, dev admin seed |
+| `docker-compose.prod.yml` | Production — nginx + php-fpm, opcache, scheduler |
+| `docker-compose.yml` | Includes dev stack (default) |
+| `Makefile` | Shortcuts — `make dev-up`, `make prod-up`, etc. |
+
+### Development
+
+```bash
+make dev-up
+# or: docker compose -f docker-compose.dev.yml up --build -d
+
+# http://localhost:8000        — staff dashboard
+# http://localhost:8000/store  — storefront
+# http://127.0.0.1:8000/login  — admin login (use 127.0.0.1 or localhost consistently)
+```
+
+| Email | `admin@kibondo.local` |
+| Password | `password` |
+
+```bash
+make dev-test          # PHPUnit
+make dev-seed          # Re-run seeders
+make dev-logs
+make dev-vite          # Vite HMR on :5173 (optional --profile vite)
+make dev-down
+```
+
+See `.env.docker.dev.example` for optional overrides.
+
+### Production
+
+```bash
+cp .env.docker.prod.example .env
+# Set APP_KEY (php artisan key:generate --show) and DB_PASSWORD
+
+make prod-up
+# or: docker compose -f docker-compose.prod.yml up --build -d
+
+# http://localhost:8080  (override with HTTP_PORT in .env)
+```
+
+Production stack: **web** (nginx + php-fpm), **queue**, **scheduler**, **PostgreSQL 13**. No dev admin seeding. Create users via `AdminUserSeeder` or tinker.
+
+### cPanel (shared hosting)
+
+See [deploy/CPANEL.md](deploy/CPANEL.md) — terminal commands for deploy, database, storage, cron, and admin user.
+
+```bash
+make prod-logs
+make prod-down
+```
+
+Use a reverse proxy (Caddy, Traefik, host nginx) in front of port `8080` for HTTPS. Set `APP_URL`, `SANCTUM_STATEFUL_DOMAINS`, `CORS_ALLOWED_ORIGINS`, and `SESSION_SECURE_COOKIE=true` in `.env`.
+
+### Docker images
+
+| Dockerfile target | Used by |
+|---|---|
+| `dev` | Development app, queue, tests |
+| `prod` | Production web (nginx + php-fpm) |
+| `prod-worker` | Production queue + scheduler |
+
+> For non-Docker setups, copy `database/seeders/AdminUserSeeder.example.php` to `AdminUserSeeder.php` (gitignored).
 
 ## Roles
 

@@ -57,3 +57,6 @@ web.config
 /coverage
 /.nyc_output
 review_*.md
+
+# cPanel SQL dumps (generated locally)
+/deploy/kibondo_database*.sql
