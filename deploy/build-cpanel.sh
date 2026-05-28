@@ -21,6 +21,25 @@ fi
 
 echo "==> PHP: $($PHP -v | head -1)"
 
+# Required for Laravel + Firebase (lcobucci/jwt needs ext-sodium)
+REQUIRED_EXTS=(bcmath ctype curl dom fileinfo json mbstring openssl pdo pdo_pgsql pgsql sodium tokenizer xml zip)
+MISSING_EXTS=()
+for ext in "${REQUIRED_EXTS[@]}"; do
+  if ! "$PHP" -m 2>/dev/null | grep -qi "^${ext}$"; then
+    MISSING_EXTS+=("$ext")
+  fi
+done
+if [[ ${#MISSING_EXTS[@]} -gt 0 ]]; then
+  echo "error: missing PHP extensions: ${MISSING_EXTS[*]}" >&2
+  echo "" >&2
+  echo "Enable in cPanel → Software → Select PHP Version (or MultiPHP INI Editor) → PHP 8.3 → Extensions." >&2
+  echo "Required: sodium (Firebase JWT), pdo_pgsql, and the rest listed above." >&2
+  echo "Verify: $PHP -m | grep -E 'sodium|pdo_pgsql'" >&2
+  echo "If sodium is not in the list, ask hosting to install ea-php83-php-sodium." >&2
+  exit 1
+fi
+echo "==> PHP extensions OK (sodium, pgsql, …)"
+
 # --- Node (cPanel: install via "Setup Node.js App" or ea-nodejs) ---
 if [[ -z "${NODE:-}" ]] || [[ -z "${NPM:-}" ]]; then
   for dir in /opt/cpanel/ea-nodejs22 /opt/cpanel/ea-nodejs20 /opt/cpanel/ea-nodejs18; do

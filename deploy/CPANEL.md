@@ -267,11 +267,25 @@ Use this when the repo is cloned on cPanel and you deploy with **Terminal + git*
    node -v   # v20.x or v22.x
    ```
 
-3. **Composer** — usually `composer` in PATH, or the build script downloads `composer.phar`.
+3. **PHP 8.3 extensions** — required for Composer and Firebase:
 
-4. **`.env`** — never commit; keep on server only. `git pull` must not overwrite it (`git update-index --assume-unchanged .env` optional if tracked by mistake).
+   cPanel → **Software** → **Select PHP Version** (or **MultiPHP INI Editor**) → choose **PHP 8.3** → **Extensions** → enable at least:
 
-5. **Web root** — `index.php`, `.htaccess`, [storage symlink](#storage-link-uploads--product-images) as in [Folder layout](#folder-layout).
+   `sodium`, `pdo_pgsql`, `pgsql`, `mbstring`, `curl`, `openssl`, `fileinfo`, `bcmath`, `zip`, `intl` (recommended)
+
+   Verify in Terminal (CLI must show `sodium` too):
+
+   ```bash
+   /opt/cpanel/ea-php83/root/usr/bin/php -m | grep -E 'sodium|pdo_pgsql'
+   ```
+
+   If **sodium** is not in the Extensions list, ask the host to install **`ea-php83-php-sodium`** (EasyApache 4). Do **not** use `composer update` or `--ignore-platform-req=ext-sodium` on production — Firebase JWT needs real sodium.
+
+4. **Composer** — the build script downloads `composer.phar` and runs it with PHP 8.3 (`composer` alone is often missing or uses PHP 8.2).
+
+5. **`.env`** — never commit; keep on server only. `git pull` must not overwrite it (`git update-index --assume-unchanged .env` optional if tracked by mistake).
+
+6. **Web root** — `index.php`, `.htaccess`, [storage symlink](#storage-link-uploads--product-images) as in [Folder layout](#folder-layout).
 
 ### Every deploy
 
@@ -308,7 +322,7 @@ php artisan migrate --force
 cd "$APP_ROOT"
 export PATH=/opt/cpanel/ea-nodejs22/bin:$PATH
 
-composer install --no-dev --optimize-autoloader --no-interaction
+$PHP -d allow_url_fopen=On composer.phar install --no-dev --optimize-autoloader --no-interaction
 npm ci
 npm run build
 rsync -a --delete public/build/ "$WEB_ROOT/build/"
@@ -324,6 +338,8 @@ php artisan migrate --force
 | `npm run build` killed / heap | `export NODE_OPTIONS=--max-old-space-size=2048` then retry |
 | Composer PHP version error | Use `$PHP` = `ea-php83`, not default `php` 8.2 |
 | `allow_url_fopen` / Composer installer fails | Script uses `curl` for `composer.phar` + `php -d allow_url_fopen=On`; or run: `$PHP -d allow_url_fopen=On composer.phar install ...` |
+| `ext-sodium` missing / lock file incompatible | Enable **sodium** for PHP 8.3 in cPanel Extensions; verify with `$PHP -m \| grep sodium`. Do not run `composer update` on server. |
+| `composer: command not found` | Use `$PHP -d allow_url_fopen=On composer.phar install` (script creates `composer.phar` in app root) |
 | Site loads but no CSS/JS | Missing `$WEB_ROOT/build/` — run script or `rsync` build folder |
 | `git pull` conflicts | `git stash` local changes, pull, `git stash pop`; never stash `.env` secrets carelessly |
 
