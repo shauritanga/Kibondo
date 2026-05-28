@@ -10,6 +10,7 @@ use App\Models\Customer;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -82,13 +83,29 @@ class CustomerAuthController extends Controller
         return response()->json(new CustomerResource(Auth::guard('customer')->user()));
     }
 
-    public function verifyEmail(Request $request, string $id, string $hash): JsonResponse
+    public function verifyEmail(Request $request, string $id, string $hash): Response
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Customer::find($id);
+
+        if (! $customer) {
+            return $this->verificationResult(
+                'Invalid verification link',
+                'We could not find the account for this verification link.',
+                'error',
+                404
+            );
+        }
 
         $expires = (int) $request->query('expires', 0);
 
-        abort_unless($expires > 0 && $expires >= now()->timestamp, 403, 'Verification link has expired.');
+        if ($expires <= 0 || $expires < now()->timestamp) {
+            return $this->verificationResult(
+                'Verification link expired',
+                'This verification link has expired. Please sign in and request a new verification email.',
+                'error',
+                403
+            );
+        }
 
         $expected = hash_hmac(
             'sha256',
@@ -96,12 +113,39 @@ class CustomerAuthController extends Controller
             config('app.key')
         );
 
-        abort_unless(hash_equals($expected, $hash), 403, 'Invalid verification link.');
-        abort_if($customer->hasVerifiedEmail(), 422, 'Email already verified.');
+        if (! hash_equals($expected, $hash)) {
+            return $this->verificationResult(
+                'Invalid verification link',
+                'This verification link is invalid or has been changed.',
+                'error',
+                403
+            );
+        }
+
+        if ($customer->hasVerifiedEmail()) {
+            return $this->verificationResult(
+                'Email already verified',
+                'Your email address has already been verified. You can continue shopping.',
+                'success'
+            );
+        }
 
         $customer->markEmailAsVerified();
 
-        return response()->json(['message' => 'Email verified successfully.']);
+        return $this->verificationResult(
+            'Email verified successfully',
+            'Your Kibondo account is ready. Continue to the store to browse products and place orders.',
+            'success'
+        );
+    }
+
+    private function verificationResult(string $title, string $message, string $tone, int $status = 200): Response
+    {
+        return response()->view('store.email-verification-result', [
+            'title'   => $title,
+            'message' => $message,
+            'tone'    => $tone,
+        ], $status);
     }
 
     public function resendVerification(Request $request): JsonResponse

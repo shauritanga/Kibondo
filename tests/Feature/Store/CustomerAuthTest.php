@@ -103,4 +103,62 @@ class CustomerAuthTest extends TestCase
             ->postJson('/api/v1/store/auth/logout')
             ->assertOk();
     }
+
+    public function test_email_verification_link_shows_success_page(): void
+    {
+        $customer = Customer::factory()->create(['email_verified_at' => null]);
+
+        $this->get($this->verificationUrl($customer))
+            ->assertOk()
+            ->assertSee('Email verified successfully')
+            ->assertSee('Continue to Store');
+
+        $this->assertTrue($customer->fresh()->hasVerifiedEmail());
+    }
+
+    public function test_email_verification_link_shows_already_verified_page(): void
+    {
+        $customer = Customer::factory()->create(['email_verified_at' => now()]);
+
+        $this->get($this->verificationUrl($customer))
+            ->assertOk()
+            ->assertSee('Email already verified')
+            ->assertSee('Continue to Store');
+    }
+
+    public function test_expired_email_verification_link_shows_error_page(): void
+    {
+        $customer = Customer::factory()->create(['email_verified_at' => null]);
+        $expires = now()->subMinute()->timestamp;
+
+        $this->get($this->verificationUrl($customer, $expires))
+            ->assertForbidden()
+            ->assertSee('Verification link expired')
+            ->assertSee('Back to Store');
+    }
+
+    public function test_invalid_email_verification_link_shows_error_page(): void
+    {
+        $customer = Customer::factory()->create(['email_verified_at' => null]);
+
+        $this->get($this->verificationUrl($customer, null, 'invalid-hash'))
+            ->assertForbidden()
+            ->assertSee('Invalid verification link')
+            ->assertSee('Back to Store');
+    }
+
+    private function verificationUrl(Customer $customer, ?int $expires = null, ?string $hash = null): string
+    {
+        $expires ??= now()->addHour()->timestamp;
+        $hash ??= hash_hmac(
+            'sha256',
+            $customer->getKey() . '|' . $customer->getEmailForVerification() . '|' . $expires,
+            config('app.key')
+        );
+
+        return route('store.verification.verify', [
+            'id'   => $customer->getKey(),
+            'hash' => $hash,
+        ]) . '?expires=' . $expires;
+    }
 }
