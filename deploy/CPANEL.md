@@ -90,11 +90,66 @@ SESSION_SECURE_COOKIE=true
 
 ## Database
 
-### Run migrations (empty database)
+### Migrations without losing data
+
+`php artisan migrate` only applies **new** migration files that are not yet recorded in the `migrations` table. It changes **schema** (tables, columns, indexes). It does **not** delete rows in `users`, `sales`, `products`, or other data tables.
+
+Use this on production after every code deploy that includes new files under `database/migrations/`:
 
 ```bash
 cd "$APP_ROOT"
+
+# Optional: confirm DB connection and pending migrations
+php artisan migrate:status
+
+# Safe: run only pending migrations (non-interactive in production)
 php artisan migrate --force
+
+# Optional: verify row counts were not wiped
+php artisan tinker --execute="echo 'users: '.\DB::table('users')->count().\"\n\";"
+```
+
+**Safe commands (keep existing data)**
+
+| Command | What it does |
+|---------|----------------|
+| `php artisan migrate --force` | Runs pending migrations only |
+| `php artisan migrate:status` | Lists applied vs pending migrations |
+| `php artisan db:seed --class=SomeSeeder --force` | Inserts/updates seed data (only if you intend to) |
+
+**Never on production (wipes or replaces data)**
+
+| Command / action | Why |
+|------------------|-----|
+| `php artisan migrate:fresh` | Drops all tables, re-runs all migrations — **all data gone** |
+| `php artisan migrate:fresh --seed` | Same as above, then seeds |
+| `php artisan migrate:refresh` | Rolls back all migrations, then re-runs — **data loss** |
+| `php artisan migrate:reset` | Rolls back all migrations — **data loss** |
+| `php artisan db:wipe` | Drops all tables |
+| `DROP SCHEMA public CASCADE` in SQL | Removes every table and row |
+| Re-importing a full SQL dump over an existing DB | Replaces data unless you use a careful partial import |
+
+**Why staff admin “disappeared”**
+
+Migrations did not delete the admin. The user row was lost because the database was **reset** (fresh migrate, schema drop, or import into an empty DB) without re-creating the admin. Production does not auto-run `AdminUserSeeder` unless you run `db:seed` (see [Staff admin user](#staff-admin-user)).
+
+**First-time database — pick one path**
+
+| Path | When | Steps |
+|------|------|--------|
+| **A — Import SQL** | You have a dump from Docker (`export-database-cpanel.sh`) | Import in phpPgAdmin/psql → fix [GRANTs](#fix-table-permissions-after-sql-import) → run `migrate --force` only for migrations **newer** than the dump |
+| **B — Empty DB** | No dump; brand-new database | `migrate --force` → create admin via [tinker](#staff-admin-user) → optional `db:seed` for categories/settings |
+
+After path A or B, **updates** are always: upload code → `php artisan migrate --force` → clear caches (see [Deploy code updates](#deploy-code-updates)).
+
+```mermaid
+flowchart TD
+  deploy[Upload new code] --> status[migrate:status]
+  status --> pending{Pending migrations?}
+  pending -->|No| caches[config/route/view clear]
+  pending -->|Yes| migrate["migrate --force"]
+  migrate --> caches
+  caches --> done[Site live with data intact]
 ```
 
 ### Import from local Docker (on your PC)
@@ -190,15 +245,19 @@ Add (use `$PHP` path):
 
 ## Deploy code updates
 
-Upload changed files (or `git pull` if repo is on server), then:
+Upload changed files (or `git pull` if repo is on server), then run **only** the safe migration flow (see [Migrations without losing data](#migrations-without-losing-data)):
 
 ```bash
 cd "$APP_ROOT"
-php artisan migrate --force
+
+php artisan migrate:status    # optional: see what will run
+php artisan migrate --force   # pending schema changes only — does not delete rows
 php artisan config:clear
 php artisan route:clear
 php artisan view:clear
 ```
+
+Do **not** use `migrate:fresh`, `migrate:refresh`, or `db:wipe` on a live store.
 
 If frontend changed on PC: upload `WEB_ROOT/build/` after `npm run build`.
 
@@ -230,6 +289,7 @@ npm ci && npm run build
 | Composer “requires PHP >= 8.3” | Use `$PHP` = `ea-php83`, not default `php` |
 | 404 on `/sanctum/csrf-cookie` | `test -f "$WEB_ROOT/.htaccess"`; `php artisan route:list --path=sanctum` |
 | 500 after DB import | GRANT privileges; read `tail -30 storage/logs/laravel.log` |
+| Admin missing after deploy | You reset DB or never seeded; use [Staff admin user](#staff-admin-user) — not caused by `migrate --force` |
 | Login / CSRF fails | `.env` `APP_URL`, `SANCTUM_STATEFUL_DOMAINS`, `SESSION_DOMAIN` |
 | Images 404 | `ls -la "$WEB_ROOT/storage"` → symlink to `storage/app/public` |
 
