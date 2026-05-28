@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\Customer;
 use App\Models\Sale;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -16,6 +17,10 @@ class OrderAssignedNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
+        if ($this->recipientType === 'customer' && ! $notifiable instanceof Customer) {
+            return ['mail'];
+        }
+
         return ['database', 'mail', 'fcm'];
     }
 
@@ -75,6 +80,10 @@ class OrderAssignedNotification extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->subject("Your order {$this->sale->sale_number} is on its way")
-            ->view('emails.notifications.order-assigned-customer', ['sale' => $this->sale, 'customer' => $notifiable]);
+            ->view('emails.notifications.order-assigned-customer', [
+                'sale'          => $this->sale,
+                'customer'      => $notifiable instanceof Customer ? $notifiable : null,
+                'customer_name' => $notifiable instanceof Customer ? $notifiable->name : ($this->sale->guest_name ?? 'Customer'),
+            ]);
     }
 }

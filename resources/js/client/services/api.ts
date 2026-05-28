@@ -100,6 +100,8 @@ export interface StoreOrderDetail extends StoreOrderSummary {
   billing_address: string | null;
   payment_method: string | null;
   assigned_to_name: string | null;
+  external_delivery_phone?: string | null;
+  external_delivery_vehicle_plate?: string | null;
   customer_feedback: string | null;
   customer_payment_type?: 'paid_full' | 'paid_partial' | 'not_paid' | null;
   customer_payment_amount?: number | null;

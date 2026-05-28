@@ -227,8 +227,12 @@ export const salesApi = {
     const { data } = await http.post<{ data: Sale }>(`/sales/${id}/confirm`, payload);
     return data.data;
   },
-  assign: async (id: string, userId: string) => {
-    const { data } = await http.post<{ data: Sale }>(`/sales/${id}/assign`, { user_id: userId });
+  assign: async (id: string, payload: { user_id: string } | {
+    external_delivery_name: string;
+    external_delivery_phone: string;
+    external_delivery_vehicle_plate: string;
+  }) => {
+    const { data } = await http.post<{ data: Sale }>(`/sales/${id}/assign`, payload);
     return data.data;
   },
   deliver: async (id: string) => {

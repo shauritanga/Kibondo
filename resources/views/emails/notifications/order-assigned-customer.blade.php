@@ -37,8 +37,14 @@
         <div class="detail-row"><span class="label">Delivery address</span><span class="value">{{ $sale->delivery_address ?? '—' }}</span></div>
         <div class="detail-row"><span class="label">Total due</span><span class="value">TZS {{ number_format($sale->total_amount) }}</span></div>
         <div class="detail-row"><span class="label">Payment</span><span class="value">Cash on delivery</span></div>
-        @if($sale->assignedTo)
-        <div class="detail-row"><span class="label">Delivery person</span><span class="value">{{ $sale->assignedTo->name }}</span></div>
+        @if($sale->assignedTo || $sale->external_delivery_name)
+        <div class="detail-row"><span class="label">Delivery person</span><span class="value">{{ $sale->assignedTo?->name ?? $sale->external_delivery_name }}</span></div>
+        @endif
+        @if($sale->external_delivery_phone)
+        <div class="detail-row"><span class="label">Courier phone</span><span class="value">{{ $sale->external_delivery_phone }}</span></div>
+        @endif
+        @if($sale->external_delivery_vehicle_plate)
+        <div class="detail-row"><span class="label">Vehicle plate</span><span class="value">{{ $sale->external_delivery_vehicle_plate }}</span></div>
         @endif
       </div>
       <p>Please have <strong>TZS {{ number_format($sale->total_amount) }}</strong> ready for the delivery person.</p>

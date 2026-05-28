@@ -160,13 +160,16 @@ class SaleController extends Controller
 
     public function assign(Request $request, Sale $sale): JsonResponse
     {
-        $request->validate([
-            'user_id' => 'required|uuid|exists:users,id',
+        $data = $request->validate([
+            'user_id'                         => 'nullable|required_without:external_delivery_name|uuid|exists:users,id',
+            'external_delivery_name'          => 'nullable|required_without:user_id|string|max:120',
+            'external_delivery_phone'         => 'nullable|required_with:external_delivery_name|string|max:40',
+            'external_delivery_vehicle_plate' => 'nullable|required_with:external_delivery_name|string|max:40',
         ]);
 
-        $deliveryUser = User::where('id', $request->user_id)
-            ->where('role', 'delivery')
-            ->firstOrFail();
+        if (! empty($data['user_id']) && ! empty($data['external_delivery_name'])) {
+            return response()->json(['message' => 'Choose either an internal driver or an external courier, not both.'], 422);
+        }
 
         abort_unless(
             in_array($sale->status, ['confirmed', 'pending'], true),
@@ -174,26 +177,61 @@ class SaleController extends Controller
             'Order must be pending or confirmed before assigning a delivery person.'
         );
 
+        if (! empty($data['user_id'])) {
+            $deliveryUser = User::where('id', $data['user_id'])
+                ->where('role', 'delivery')
+                ->firstOrFail();
+
+            $sale->update([
+                'status'                           => 'out_for_delivery',
+                'assigned_to'                      => $deliveryUser->id,
+                'external_delivery_name'           => null,
+                'external_delivery_phone'          => null,
+                'external_delivery_vehicle_plate'  => null,
+                'processed_by'                     => auth()->id(),
+            ]);
+
+            AuditService::log([
+                'action'      => 'order_assigned',
+                'module'      => 'orders',
+                'description' => "Order {$sale->sale_number} assigned to {$deliveryUser->name}",
+                'record_id'   => $sale->id,
+                'table_name'  => 'sales',
+                'metadata'    => ['delivery_user_id' => $deliveryUser->id, 'delivery_user_name' => $deliveryUser->name],
+            ]);
+
+            $this->notifyBuyer($sale, new OrderAssignedNotification($sale, 'customer'));
+
+            $deliveryUser->notify(new OrderAssignedNotification($sale, 'delivery'));
+
+            $sale->load('assignedTo:id,name');
+
+            return response()->json(['data' => $sale]);
+        }
+
         $sale->update([
-            'status'        => 'out_for_delivery',
-            'assigned_to'   => $deliveryUser->id,
-            'processed_by'  => auth()->id(),
+            'status'                           => 'out_for_delivery',
+            'assigned_to'                      => null,
+            'external_delivery_name'           => $data['external_delivery_name'],
+            'external_delivery_phone'          => $data['external_delivery_phone'],
+            'external_delivery_vehicle_plate'  => $data['external_delivery_vehicle_plate'],
+            'processed_by'                     => auth()->id(),
         ]);
 
         AuditService::log([
             'action'      => 'order_assigned',
             'module'      => 'orders',
-            'description' => "Order {$sale->sale_number} assigned to {$deliveryUser->name}",
+            'description' => "Order {$sale->sale_number} assigned to external courier {$data['external_delivery_name']}",
             'record_id'   => $sale->id,
             'table_name'  => 'sales',
-            'metadata'    => ['delivery_user_id' => $deliveryUser->id, 'delivery_user_name' => $deliveryUser->name],
+            'metadata'    => [
+                'external_delivery_name'          => $data['external_delivery_name'],
+                'external_delivery_phone'         => $data['external_delivery_phone'],
+                'external_delivery_vehicle_plate' => $data['external_delivery_vehicle_plate'],
+            ],
         ]);
 
-        if ($sale->customer_id) {
-            $sale->customer->notify(new OrderAssignedNotification($sale, 'customer'));
-        }
-
-        $deliveryUser->notify(new OrderAssignedNotification($sale, 'delivery'));
+        $this->notifyBuyer($sale, new OrderAssignedNotification($sale, 'customer'));
 
         $sale->load('assignedTo:id,name');
 

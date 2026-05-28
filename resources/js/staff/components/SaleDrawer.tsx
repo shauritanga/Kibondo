@@ -38,7 +38,9 @@ export function SaleDrawer({
 
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [assignMode, setAssignMode] = useState<'internal' | 'external'>('internal');
   const [assignUserId, setAssignUserId] = useState('');
+  const [externalDelivery, setExternalDelivery] = useState({ name: '', phone: '', vehiclePlate: '' });
   const [cancelConfirm, setCancelConfirm] = useState(false);
 
   const [payAmount, setPayAmount] = useState('');
@@ -54,7 +56,9 @@ export function SaleDrawer({
     setLoadError('');
     setActionError('');
     setCancelConfirm(false);
+    setAssignMode('internal');
     setAssignUserId('');
+    setExternalDelivery({ name: '', phone: '', vehiclePlate: '' });
     setPayAmount('');
     setPayError('');
     setDeliveryCostInput('');
@@ -199,6 +203,17 @@ export function SaleDrawer({
                 )}
                 {sale.assignedTo && (
                   <Row label="Assigned driver" value={sale.assignedTo.name} />
+                )}
+                {sale.external_delivery_name && (
+                  <>
+                    <Row label="External courier" value={sale.external_delivery_name} />
+                    {sale.external_delivery_phone && (
+                      <Row label="Courier phone" value={sale.external_delivery_phone} />
+                    )}
+                    {sale.external_delivery_vehicle_plate && (
+                      <Row label="Vehicle plate" value={sale.external_delivery_vehicle_plate} />
+                    )}
+                  </>
                 )}
                 {sale.user && (
                   <Row label="Processed by" value={sale.user.name} />
@@ -354,32 +369,104 @@ export function SaleDrawer({
 
                     {/* Assign & Dispatch */}
                     {(isAdmin || isSales) && sale.status === 'confirmed' && (
-                      <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
-                        <select
-                          value={assignUserId}
-                          onChange={e => setAssignUserId(e.target.value)}
-                          className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
-                        >
-                          <option value="">Select delivery person…</option>
-                          {deliveryUsers.map(u => (
-                            <option key={u.id} value={u.id}>{u.name}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => {
-                            if (!assignUserId) { setActionError('Select a delivery person first.'); return; }
-                            runAction(() => salesApi.assign(sale.id, assignUserId));
-                          }}
-                          disabled={actionLoading || !assignUserId}
-                          className="h-9 shrink-0 rounded-lg bg-orange-500 px-4 text-xs font-bold text-white hover:bg-orange-600 disabled:opacity-50"
-                        >
-                          {actionLoading ? 'Working…' : 'Assign & Dispatch'}
-                        </button>
+                      <div className="w-full space-y-3 rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAssignMode('internal')}
+                            className={clsx(
+                              'h-8 rounded-lg text-xs font-bold transition-colors',
+                              assignMode === 'internal'
+                                ? 'bg-brand-green text-white'
+                                : 'bg-white text-slate-500 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+                            )}
+                          >
+                            Internal driver
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAssignMode('external')}
+                            className={clsx(
+                              'h-8 rounded-lg text-xs font-bold transition-colors',
+                              assignMode === 'external'
+                                ? 'bg-brand-green text-white'
+                                : 'bg-white text-slate-500 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800'
+                            )}
+                          >
+                            External courier
+                          </button>
+                        </div>
+
+                        {assignMode === 'internal' ? (
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <select
+                              value={assignUserId}
+                              onChange={e => setAssignUserId(e.target.value)}
+                              className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                            >
+                              <option value="">Select delivery person…</option>
+                              {deliveryUsers.map(u => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => {
+                                if (!assignUserId) { setActionError('Select a delivery person first.'); return; }
+                                runAction(() => salesApi.assign(sale.id, { user_id: assignUserId }));
+                              }}
+                              disabled={actionLoading || !assignUserId}
+                              className="h-9 shrink-0 rounded-lg bg-orange-500 px-4 text-xs font-bold text-white hover:bg-orange-600 disabled:opacity-50"
+                            >
+                              {actionLoading ? 'Working…' : 'Assign & Dispatch'}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <div className="grid gap-2 sm:grid-cols-3">
+                              <input
+                                value={externalDelivery.name}
+                                onChange={e => setExternalDelivery(p => ({ ...p, name: e.target.value }))}
+                                placeholder="Courier name"
+                                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                              />
+                              <input
+                                value={externalDelivery.phone}
+                                onChange={e => setExternalDelivery(p => ({ ...p, phone: e.target.value }))}
+                                placeholder="Phone number"
+                                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                              />
+                              <input
+                                value={externalDelivery.vehiclePlate}
+                                onChange={e => setExternalDelivery(p => ({ ...p, vehiclePlate: e.target.value }))}
+                                placeholder="Vehicle plate"
+                                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                              />
+                            </div>
+                            <button
+                              onClick={() => {
+                                const payload = {
+                                  external_delivery_name: externalDelivery.name.trim(),
+                                  external_delivery_phone: externalDelivery.phone.trim(),
+                                  external_delivery_vehicle_plate: externalDelivery.vehiclePlate.trim(),
+                                };
+                                if (!payload.external_delivery_name || !payload.external_delivery_phone || !payload.external_delivery_vehicle_plate) {
+                                  setActionError('Enter courier name, phone, and vehicle plate.');
+                                  return;
+                                }
+                                runAction(() => salesApi.assign(sale.id, payload));
+                              }}
+                              disabled={actionLoading}
+                              className="h-9 rounded-lg bg-orange-500 px-4 text-xs font-bold text-white hover:bg-orange-600 disabled:opacity-50"
+                            >
+                              {actionLoading ? 'Working…' : 'Assign External Courier'}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {/* Mark Delivered */}
-                    {sale.status === 'out_for_delivery' && (isAdmin || (isDelivery && isMyDelivery)) && (
+                    {sale.status === 'out_for_delivery' && (isAdmin || (isSales && !!sale.external_delivery_name) || (isDelivery && isMyDelivery)) && (
                       <button
                         onClick={() => runAction(() => salesApi.deliver(sale.id))}
                         disabled={actionLoading}
