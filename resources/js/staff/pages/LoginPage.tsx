@@ -100,8 +100,9 @@ export function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setPasswordVisible((v) => !v)}
-                  className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-600 dark:hover:text-slate-200"
+                  className="absolute right-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
                   aria-label={passwordVisible ? 'Hide password' : 'Show password'}
+                  title={passwordVisible ? 'Hide password' : 'Show password'}
                 >
                   {passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
