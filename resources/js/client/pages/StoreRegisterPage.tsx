@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { useStoreAuth } from '../contexts/StoreAuthContext';
 import { storeNotificationsApi } from '../services/api';
 import { requestNotificationPermission, saveCurrentFcmToken } from '../../shared/lib/fcm';
@@ -8,8 +9,9 @@ export function StoreRegisterPage() {
   const { register } = useStoreAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    name: '', phone: '', email: '', password: '', password_confirmation: '',
+    name: '', phone: '', location: '', email: '', password: '',
   });
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -52,6 +54,10 @@ export function StoreRegisterPage() {
     }`;
   }
 
+  function passwordInputClass(field: string) {
+    return `${inputClass(field)} pr-10`;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Branded top strip */}
@@ -88,6 +94,12 @@ export function StoreRegisterPage() {
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Delivery address</label>
+            <input type="text" required className={inputClass('location')} placeholder="Area, street, city" {...field('location')} />
+            {errors.location && <p className="text-red-500 text-xs mt-1">{errors.location}</p>}
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email address</label>
             <input type="email" required className={inputClass('email')} placeholder="you@example.com" {...field('email')} />
             {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
@@ -95,14 +107,25 @@ export function StoreRegisterPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input type="password" required minLength={8} className={inputClass('password')} placeholder="Min. 8 characters" {...field('password')} />
+            <div className="relative">
+              <input
+                type={passwordVisible ? 'text' : 'password'}
+                required
+                minLength={8}
+                className={passwordInputClass('password')}
+                placeholder="Min. 8 characters"
+                {...field('password')}
+              />
+              <button
+                type="button"
+                onClick={() => setPasswordVisible((v) => !v)}
+                className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                aria-label={passwordVisible ? 'Hide password' : 'Show password'}
+              >
+                {passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
             {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
-            <input type="password" required className={inputClass('password_confirmation')} placeholder="Repeat password" {...field('password_confirmation')} />
-            {errors.password_confirmation && <p className="text-red-500 text-xs mt-1">{errors.password_confirmation}</p>}
           </div>
 
           <button

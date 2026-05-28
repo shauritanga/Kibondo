@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationsApi } from '../services/api';
@@ -11,6 +12,7 @@ export function LoginPage() {
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
@@ -88,12 +90,22 @@ export function LoginPage() {
             </label>
             <label className="block">
               <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Password</span>
-              <input
-                type="password" required
-                value={password} onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
-                placeholder="••••••••"
-              />
+              <span className="relative mt-1 block">
+                <input
+                  type={passwordVisible ? 'text' : 'password'} required
+                  value={password} onChange={(e) => setPassword(e.target.value)}
+                  className="block h-10 w-full rounded-lg border border-slate-200 bg-white px-3 pr-10 text-sm outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPasswordVisible((v) => !v)}
+                  className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-600 dark:hover:text-slate-200"
+                  aria-label={passwordVisible ? 'Hide password' : 'Show password'}
+                >
+                  {passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </span>
             </label>
             <button type="submit" disabled={loading} className="h-10 w-full rounded-lg bg-brand-green text-sm font-bold text-white disabled:opacity-60">
               {loading ? 'Signing in…' : 'Sign in'}

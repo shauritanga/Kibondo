@@ -15,15 +15,18 @@ class CustomerAuthTest extends TestCase
         $response = $this->postJson('/api/v1/store/auth/register', [
             'name'                  => 'Jane Doe',
             'phone'                 => '+255 712 345 678',
+            'location'              => 'Msasani, Dar es Salaam',
             'email'                 => 'jane@example.com',
             'password'              => 'password123',
-            'password_confirmation' => 'password123',
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonStructure(['token', 'customer' => ['id', 'name', 'email', 'phone']]);
+            ->assertJsonStructure(['customer' => ['id', 'name', 'email', 'phone', 'location']]);
 
-        $this->assertDatabaseHas('customers', ['email' => 'jane@example.com']);
+        $this->assertDatabaseHas('customers', [
+            'email'    => 'jane@example.com',
+            'location' => 'Msasani, Dar es Salaam',
+        ]);
     }
 
     public function test_register_requires_unique_email(): void
@@ -33,9 +36,9 @@ class CustomerAuthTest extends TestCase
         $this->postJson('/api/v1/store/auth/register', [
             'name'                  => 'Jane Doe',
             'phone'                 => '+255 712 999 999',
+            'location'              => 'Msasani, Dar es Salaam',
             'email'                 => 'jane@example.com',
             'password'              => 'password123',
-            'password_confirmation' => 'password123',
         ])->assertUnprocessable()
           ->assertJsonValidationErrors(['email']);
     }
@@ -47,9 +50,9 @@ class CustomerAuthTest extends TestCase
         $this->postJson('/api/v1/store/auth/register', [
             'name'                  => 'Jane Doe',
             'phone'                 => '+255 712 345 678',
+            'location'              => 'Msasani, Dar es Salaam',
             'email'                 => 'unique@example.com',
             'password'              => 'password123',
-            'password_confirmation' => 'password123',
         ])->assertUnprocessable()
           ->assertJsonValidationErrors(['phone']);
     }

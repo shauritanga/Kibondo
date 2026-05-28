@@ -26,6 +26,7 @@ class CustomerAuthController extends Controller
         $customer = Customer::create([
             'name'     => $request->name,
             'phone'    => $request->phone,
+            'location' => $request->location,
             'email'    => $request->email,
             'password' => Hash::make($request->password),
             'type'     => 'retail',
@@ -34,7 +35,9 @@ class CustomerAuthController extends Controller
         event(new Registered($customer));
 
         Auth::guard('customer')->login($customer);
-        $request->session()->regenerate();
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
 
         return response()->json([
             'customer' => new CustomerResource($customer),
@@ -53,7 +56,9 @@ class CustomerAuthController extends Controller
         }
 
         Auth::guard('customer')->login($customer);
-        $request->session()->regenerate();
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
 
         return response()->json([
             'customer' => new CustomerResource($customer),

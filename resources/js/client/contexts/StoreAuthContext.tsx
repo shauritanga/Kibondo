@@ -5,7 +5,7 @@ interface StoreAuthState {
   customer: StoreCustomer | null;
   isLoading: boolean;
   initialising: boolean;
-  register: (payload: { name: string; phone: string; email: string; password: string; password_confirmation: string }) => Promise<void>;
+  register: (payload: { name: string; phone: string; location: string; email: string; password: string }) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   updateCustomer: (c: StoreCustomer) => void;
