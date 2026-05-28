@@ -180,7 +180,7 @@ Production stack: **web** (nginx + php-fpm), **queue**, **scheduler**, **Postgre
 
 ### cPanel (shared hosting)
 
-See [deploy/CPANEL.md](deploy/CPANEL.md) — terminal commands for deploy, database, storage, cron, and admin user.
+See [deploy/CPANEL.md](deploy/CPANEL.md) — git pull, `./deploy/build-cpanel.sh`, database, storage, cron, and admin user.
 
 ```bash
 make prod-logs
