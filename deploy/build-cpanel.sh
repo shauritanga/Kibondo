@@ -47,20 +47,26 @@ fi
 
 echo "==> Node: $($NODE -v)"
 
-# --- Composer ---
-COMPOSER_CMD=()
-if command -v composer >/dev/null 2>&1; then
-  COMPOSER_CMD=(composer)
-elif [[ -f "$APP_ROOT/composer.phar" ]]; then
-  COMPOSER_CMD=("$PHP" "$APP_ROOT/composer.phar")
-else
-  echo "==> Installing composer.phar locally..."
-  curl -sS https://getcomposer.org/installer | "$PHP" -- --install-dir="$APP_ROOT" --filename=composer.phar
-  COMPOSER_CMD=("$PHP" "$APP_ROOT/composer.phar")
-fi
+# --- Composer (cPanel CLI often has allow_url_fopen=Off) ---
+PHP_COMPOSER=("$PHP" -d allow_url_fopen=On)
+COMPOSER_PHAR="$APP_ROOT/composer.phar"
+
+ensure_composer_phar() {
+  if [[ -f "$COMPOSER_PHAR" ]]; then
+    return 0
+  fi
+  echo "==> Downloading composer.phar (curl — no allow_url_fopen needed)..."
+  curl -fsSL -o "$COMPOSER_PHAR" https://getcomposer.org/download/latest-stable/composer.phar
+  chmod +x "$COMPOSER_PHAR"
+}
+
+ensure_composer_phar
+COMPOSER_CMD=("${PHP_COMPOSER[@]}" "$COMPOSER_PHAR")
+
+echo "==> Composer: $("${COMPOSER_CMD[@]}" --version 2>/dev/null | head -1)"
 
 echo "==> Composer install (production)..."
-"${COMPOSER_CMD[@]}" install --no-dev --optimize-autoloader --no-interaction
+COMPOSER_ALLOW_SUPERUSER=1 "${COMPOSER_CMD[@]}" install --no-dev --optimize-autoloader --no-interaction
 
 echo "==> npm ci + build..."
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"

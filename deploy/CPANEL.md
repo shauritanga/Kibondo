@@ -323,6 +323,7 @@ php artisan migrate --force
 | `node: command not found` | Setup Node.js App or `export PATH=/opt/cpanel/ea-nodejs22/bin:$PATH` |
 | `npm run build` killed / heap | `export NODE_OPTIONS=--max-old-space-size=2048` then retry |
 | Composer PHP version error | Use `$PHP` = `ea-php83`, not default `php` 8.2 |
+| `allow_url_fopen` / Composer installer fails | Script uses `curl` for `composer.phar` + `php -d allow_url_fopen=On`; or run: `$PHP -d allow_url_fopen=On composer.phar install ...` |
 | Site loads but no CSS/JS | Missing `$WEB_ROOT/build/` — run script or `rsync` build folder |
 | `git pull` conflicts | `git stash` local changes, pull, `git stash pop`; never stash `.env` secrets carelessly |
 
