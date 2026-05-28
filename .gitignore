@@ -58,5 +58,6 @@ web.config
 /.nyc_output
 review_*.md
 
-# cPanel SQL dumps (generated locally)
+# cPanel SQL dumps and deploy zips (generated locally)
 /deploy/kibondo_database*.sql
+/deploy/kibondo-cpanel*.zip

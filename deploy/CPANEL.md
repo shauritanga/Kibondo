@@ -243,40 +243,200 @@ Add (use `$PHP` path):
 
 ---
 
-## Deploy code updates
+## Upload zip from your PC (recommended if server build fails)
 
-Upload changed files (or `git pull` if repo is on server), then run **only** the safe migration flow (see [Migrations without losing data](#migrations-without-losing-data)):
+Build locally, zip, upload via **File Manager** or **SFTP** — no Node/Composer on the server required.
+
+### On your PC
+
+```bash
+cd /path/to/Kibondo
+chmod +x deploy/package-cpanel.sh
+./deploy/package-cpanel.sh
+```
+
+Creates `deploy/kibondo-cpanel-YYYYMMDD-HHMM.zip` containing `vendor/`, `public/build/`, and app code (no `.env`, no `node_modules`).
+
+Requires **Docker** (for Composer with PHP 8.3) or local Composer 8.3 + Node 20+.
+
+Re-zip only (already built):
+
+```bash
+./deploy/package-cpanel.sh --skip-build
+```
+
+### Upload
+
+1. cPanel → **File Manager** (or SFTP).
+2. Upload the zip to e.g. `/home/kibondogreenfarm/`.
+3. **Backup** the live app folder and `.env` before replacing files.
+
+### On server after upload
+
+```bash
+export APP_ROOT=/home/kibondogreenfarm/Kibondo
+export WEB_ROOT=/home/kibondogreenfarm/public_html/store.kibondogreenfarm.co.tz
+export PHP=/opt/cpanel/ea-php83/root/usr/bin/php
+
+# Backup .env
+cp "$APP_ROOT/.env" /home/kibondogreenfarm/.env.backup.$(date +%Y%m%d) 2>/dev/null || true
+
+# Extract (adjust zip path/name)
+cd /home/kibondogreenfarm
+unzip -o kibondo-cpanel-*.zip
+# Zip contains top folder kibondo/ — either:
+rsync -a kibondo/ "$APP_ROOT/"
+# or extract directly into APP_ROOT if you renamed the folder
+
+# Restore .env if the zip overwrote it
+# cp /home/kibondogreenfarm/.env.backup.YYYYMMDD "$APP_ROOT/.env"
+
+# Frontend assets → subdomain web root
+rsync -a --delete "$APP_ROOT/public/build/" "$WEB_ROOT/build/"
+for f in favicon.svg icon-192.png apple-touch-icon.png manifest.json robots.txt; do
+  [[ -f "$APP_ROOT/public/$f" ]] && cp -f "$APP_ROOT/public/$f" "$WEB_ROOT/$f"
+done
+
+chmod -R 775 "$APP_ROOT/storage" "$APP_ROOT/bootstrap/cache"
+
+cd "$APP_ROOT"
+$PHP artisan migrate --force
+$PHP artisan config:clear
+$PHP artisan route:clear
+$PHP artisan view:clear
+```
+
+**Never upload** `.env` inside the zip — keep production secrets only on the server.
+
+First-time: also set [storage symlink](#storage-link-uploads--product-images), `index.php` in `WEB_ROOT`, and [cron](#cron-scheduler--queue).
+
+---
+
+## Build on server after `git pull`
+
+Use this when the repo is cloned on cPanel and you deploy with **Terminal + git**, not zip upload.
+
+### One-time prerequisites
+
+1. **Git clone** into `APP_ROOT` (private dir, not web-accessible):
+
+   ```bash
+   cd /home/kibondogreenfarm
+   git clone <your-repo-url> kibondo_store
+   cd kibondo_store
+   cp .env.example .env   # then edit .env for production (DB, APP_URL, mail, etc.)
+   php artisan key:generate
+   ```
+
+2. **Node.js 20+** — cPanel → **Software** → **Setup Node.js App** (or use EA Node):
+
+   ```bash
+   ls /opt/cpanel/ea-nodejs*/bin/node
+   export PATH=/opt/cpanel/ea-nodejs22/bin:$PATH   # pick highest 20+ you have
+   node -v   # v20.x or v22.x
+   ```
+
+3. **PHP 8.3 extensions** — required for Composer and Firebase:
+
+   cPanel → **Software** → **Select PHP Version** (or **MultiPHP INI Editor**) → choose **PHP 8.3** → **Extensions** → enable at least:
+
+   `sodium`, `pdo_pgsql`, `pgsql`, `mbstring`, `curl`, `openssl`, `fileinfo`, `bcmath`, `zip`, `intl` (recommended)
+
+   Verify in Terminal (CLI must show `sodium` too):
+
+   ```bash
+   /opt/cpanel/ea-php83/root/usr/bin/php -m | grep -E 'sodium|pdo_pgsql'
+   ```
+
+   If **sodium** is not in the Extensions list, ask the host to install **`ea-php83-php-sodium`** (EasyApache 4). Do **not** use `composer update` or `--ignore-platform-req=ext-sodium` on production — Firebase JWT needs real sodium.
+
+4. **Composer** — the build script downloads `composer.phar` and runs it with PHP 8.3 (`composer` alone is often missing or uses PHP 8.2).
+
+5. **`.env`** — never commit; keep on server only. `git pull` must not overwrite it (`git update-index --assume-unchanged .env` optional if tracked by mistake).
+
+6. **Web root** — `index.php`, `.htaccess`, [storage symlink](#storage-link-uploads--product-images) as in [Folder layout](#folder-layout).
+
+### Every deploy
+
+```bash
+export APP_ROOT=/home/kibondogreenfarm/kibondo_store
+export WEB_ROOT=/home/kibondogreenfarm/public_html/store.kibondogreenfarm.co.tz
+export PHP=/opt/cpanel/ea-php83/root/usr/bin/php
+# If node not in PATH:
+# export PATH=/opt/cpanel/ea-nodejs22/bin:$PATH
+
+cd "$APP_ROOT"
+git pull
+
+chmod +x deploy/build-cpanel.sh
+./deploy/build-cpanel.sh
+```
+
+The script runs:
+
+- `composer install --no-dev --optimize-autoloader` (PHP 8.3 platform in `composer.json`)
+- `npm ci` + `npm run build` → `public/build/`
+- `rsync` of `public/build/` → `$WEB_ROOT/build/`
+- `config:clear`, `route:clear`, `view:clear`
+
+Then apply DB changes if any:
+
+```bash
+php artisan migrate --force
+```
+
+### Manual build (without script)
 
 ```bash
 cd "$APP_ROOT"
+export PATH=/opt/cpanel/ea-nodejs22/bin:$PATH
 
-php artisan migrate:status    # optional: see what will run
-php artisan migrate --force   # pending schema changes only — does not delete rows
-php artisan config:clear
-php artisan route:clear
-php artisan view:clear
+$PHP -d allow_url_fopen=On composer.phar install --no-dev --optimize-autoloader --no-interaction
+npm ci
+npm run build
+rsync -a --delete public/build/ "$WEB_ROOT/build/"
+$PHP artisan config:clear && $PHP artisan route:clear && $PHP artisan view:clear
+php artisan migrate --force
+```
+
+### Troubleshooting server builds
+
+| Problem | Fix |
+|---------|-----|
+| `node: command not found` | Setup Node.js App or `export PATH=/opt/cpanel/ea-nodejs22/bin:$PATH` |
+| `npm run build` killed / heap | `export NODE_OPTIONS=--max-old-space-size=2048` then retry |
+| Composer PHP version error | Use `$PHP` = `ea-php83`, not default `php` 8.2 |
+| `allow_url_fopen` / Composer installer fails | Script uses `curl` for `composer.phar` + `php -d allow_url_fopen=On`; or run: `$PHP -d allow_url_fopen=On composer.phar install ...` |
+| `ext-sodium` missing / lock file incompatible | Enable **sodium** for PHP 8.3 in cPanel Extensions; verify with `$PHP -m \| grep sodium`. Do not run `composer update` on server. |
+| `composer: command not found` | Use `$PHP -d allow_url_fopen=On composer.phar install` (script creates `composer.phar` in app root) |
+| Site loads but no CSS/JS | Missing `$WEB_ROOT/build/` — run script or `rsync` build folder |
+| `git pull` conflicts | `git stash` local changes, pull, `git stash pop`; never stash `.env` secrets carelessly |
+
+---
+
+## Deploy code updates
+
+After [building on server](#build-on-server-after-git-pull) (or uploading a pre-built zip), run migrations only when needed (see [Migrations without losing data](#migrations-without-losing-data)):
+
+```bash
+cd "$APP_ROOT"
+php artisan migrate:status    # optional
+php artisan migrate --force
 ```
 
 Do **not** use `migrate:fresh`, `migrate:refresh`, or `db:wipe` on a live store.
 
-If frontend changed on PC: upload `WEB_ROOT/build/` after `npm run build`.
-
-If Composer dependencies changed on PC: re-upload `vendor/` (built with PHP 8.3 — see README / Docker).
+**Alternative:** [Upload zip from your PC](#upload-zip-from-your-pc-recommended-if-server-build-fails) (`./deploy/package-cpanel.sh`).
 
 ---
 
-## Local PC — build before upload
+## Local PC — other commands
 
 ```bash
-cd /path/to/Kibondo
+# Full deploy zip for cPanel
+./deploy/package-cpanel.sh
 
-# PHP deps for cPanel PHP 8.3
-docker run --rm -v "$(pwd):/app" -w /app composer:2 \
-  sh -c "composer config platform.php 8.3.31 && composer install --no-dev --optimize-autoloader"
-
-npm ci && npm run build
-
-# Database dump for import
+# Database dump for phpPgAdmin import
 ./deploy/export-database-cpanel.sh
 ```
 
@@ -319,6 +479,8 @@ rm -f "$WEB_ROOT/cpanel-check.php" "$WEB_ROOT/cpanel-create-admin.php"
 
 | File | Purpose |
 |------|---------|
+| `package-cpanel.sh` | Build locally + zip for manual upload (run on PC) |
+| `build-cpanel.sh` | `composer` + `npm run build` + sync `build/` to web root (run on server) |
 | `export-database-cpanel.sh` | Export PG 13 SQL dump from Docker (run on PC) |
 | `crontab.txt` | Cron comment reference |
 | `supervisor-worker.conf` | VPS/Docker queue worker (not cPanel) |
