@@ -243,6 +243,75 @@ Add (use `$PHP` path):
 
 ---
 
+## Upload zip from your PC (recommended if server build fails)
+
+Build locally, zip, upload via **File Manager** or **SFTP** — no Node/Composer on the server required.
+
+### On your PC
+
+```bash
+cd /path/to/Kibondo
+chmod +x deploy/package-cpanel.sh
+./deploy/package-cpanel.sh
+```
+
+Creates `deploy/kibondo-cpanel-YYYYMMDD-HHMM.zip` containing `vendor/`, `public/build/`, and app code (no `.env`, no `node_modules`).
+
+Requires **Docker** (for Composer with PHP 8.3) or local Composer 8.3 + Node 20+.
+
+Re-zip only (already built):
+
+```bash
+./deploy/package-cpanel.sh --skip-build
+```
+
+### Upload
+
+1. cPanel → **File Manager** (or SFTP).
+2. Upload the zip to e.g. `/home/kibondogreenfarm/`.
+3. **Backup** the live app folder and `.env` before replacing files.
+
+### On server after upload
+
+```bash
+export APP_ROOT=/home/kibondogreenfarm/Kibondo
+export WEB_ROOT=/home/kibondogreenfarm/public_html/store.kibondogreenfarm.co.tz
+export PHP=/opt/cpanel/ea-php83/root/usr/bin/php
+
+# Backup .env
+cp "$APP_ROOT/.env" /home/kibondogreenfarm/.env.backup.$(date +%Y%m%d) 2>/dev/null || true
+
+# Extract (adjust zip path/name)
+cd /home/kibondogreenfarm
+unzip -o kibondo-cpanel-*.zip
+# Zip contains top folder kibondo/ — either:
+rsync -a kibondo/ "$APP_ROOT/"
+# or extract directly into APP_ROOT if you renamed the folder
+
+# Restore .env if the zip overwrote it
+# cp /home/kibondogreenfarm/.env.backup.YYYYMMDD "$APP_ROOT/.env"
+
+# Frontend assets → subdomain web root
+rsync -a --delete "$APP_ROOT/public/build/" "$WEB_ROOT/build/"
+for f in favicon.svg icon-192.png apple-touch-icon.png manifest.json robots.txt; do
+  [[ -f "$APP_ROOT/public/$f" ]] && cp -f "$APP_ROOT/public/$f" "$WEB_ROOT/$f"
+done
+
+chmod -R 775 "$APP_ROOT/storage" "$APP_ROOT/bootstrap/cache"
+
+cd "$APP_ROOT"
+$PHP artisan migrate --force
+$PHP artisan config:clear
+$PHP artisan route:clear
+$PHP artisan view:clear
+```
+
+**Never upload** `.env` inside the zip — keep production secrets only on the server.
+
+First-time: also set [storage symlink](#storage-link-uploads--product-images), `index.php` in `WEB_ROOT`, and [cron](#cron-scheduler--queue).
+
+---
+
 ## Build on server after `git pull`
 
 Use this when the repo is cloned on cPanel and you deploy with **Terminal + git**, not zip upload.
@@ -357,22 +426,17 @@ php artisan migrate --force
 
 Do **not** use `migrate:fresh`, `migrate:refresh`, or `db:wipe` on a live store.
 
-**Alternative:** build on your PC and upload `vendor/` + `WEB_ROOT/build/` if the host cannot run Node (see below).
+**Alternative:** [Upload zip from your PC](#upload-zip-from-your-pc-recommended-if-server-build-fails) (`./deploy/package-cpanel.sh`).
 
 ---
 
-## Local PC — build before upload
+## Local PC — other commands
 
 ```bash
-cd /path/to/Kibondo
+# Full deploy zip for cPanel
+./deploy/package-cpanel.sh
 
-# PHP deps for cPanel PHP 8.3
-docker run --rm -v "$(pwd):/app" -w /app composer:2 \
-  sh -c "composer config platform.php 8.3.31 && composer install --no-dev --optimize-autoloader"
-
-npm ci && npm run build
-
-# Database dump for import
+# Database dump for phpPgAdmin import
 ./deploy/export-database-cpanel.sh
 ```
 
@@ -415,6 +479,7 @@ rm -f "$WEB_ROOT/cpanel-check.php" "$WEB_ROOT/cpanel-create-admin.php"
 
 | File | Purpose |
 |------|---------|
+| `package-cpanel.sh` | Build locally + zip for manual upload (run on PC) |
 | `build-cpanel.sh` | `composer` + `npm run build` + sync `build/` to web root (run on server) |
 | `export-database-cpanel.sh` | Export PG 13 SQL dump from Docker (run on PC) |
 | `crontab.txt` | Cron comment reference |
