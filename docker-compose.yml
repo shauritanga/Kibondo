@@ -59,7 +59,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:16-alpine
+    image: postgres:13-alpine
     environment:
       POSTGRES_USER: kibondo
       POSTGRES_PASSWORD: ${DB_PASSWORD:-Kibondo@2026}
