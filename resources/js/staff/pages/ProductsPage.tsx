@@ -170,8 +170,11 @@ export function ProductsPage() {
       stock_qty: String(product.stock_qty),
       min_stock: String(product.min_stock),
     });
-    setImageUrl(product.image_url ?? '');
-    setImageMode(product.image_url ? 'url' : 'upload');
+    setImageFile(null);
+    setImagePreview(product.image_url ?? '');
+    setImageUrl(product.image_url?.startsWith('http') ? product.image_url : '');
+    setImageMode(product.image_url?.startsWith('http') ? 'url' : 'upload');
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setRecipeForm({
       material_id: product.recipe?.material_id ?? '',
       quantity_per_unit: product.recipe?.quantity_per_unit ? String(product.recipe.quantity_per_unit) : '',
@@ -204,8 +207,13 @@ export function ProductsPage() {
         price: Math.round(Number(form.price) || 0),
         stock_qty: Math.round(Number(form.stock_qty) || 0),
         min_stock: Math.round(Number(form.min_stock) || 0),
-        image: imageMode === 'upload' ? imageFile ?? null : null,
-        image_url: imageMode === 'url' && imageUrl.trim() ? imageUrl.trim() : undefined,
+        image: imageFile ?? undefined,
+        image_url:
+          imageMode === 'url' &&
+          imageUrl.trim() &&
+          imageUrl.trim() !== (editingProduct.image_url ?? '')
+            ? imageUrl.trim()
+            : undefined,
       });
       if (recipeForm.material_id && recipeForm.quantity_per_unit) {
         await recipesApi.upsert(editingProduct.id, {
@@ -652,7 +660,7 @@ export function ProductsPage() {
                 {/* Image picker */}
                 <div className="space-y-2.5">
                   <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Product image <span className="font-normal text-slate-400">(optional)</span>
+                    Product image <span className="font-normal text-slate-400">(optional{editingProduct ? ' — leave unchanged to keep current' : ''})</span>
                   </p>
                   <div className="flex items-center gap-1 w-fit rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
                     <button type="button" onClick={() => { setImageMode('upload'); setImageUrl(''); }}
@@ -689,7 +697,7 @@ export function ProductsPage() {
                   ) : (
                     <div className="flex items-center gap-4">
                       <input
-                        type="url"
+                        type="text"
                         value={imageUrl}
                         onChange={e => setImageUrl(e.target.value)}
                         placeholder="https://example.com/product.jpg"
