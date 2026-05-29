@@ -12,14 +12,16 @@ import { categoriesApi, formatMoney, materialsApi, packagingRunsApi, productsApi
 import type { Category, Material, Product } from '../types';
 
 type ProductForm = {
-  name: string; category_id: string; description: string;
+  name: string; category_id: string; unit: string; description: string;
   key_benefits: string; ingredients: string; nutrition_info: string;
   packaging_details: string; storage_instructions: string;
   price: string; stock_qty: string; min_stock: string;
 };
 
+const PRODUCT_UNIT_SUGGESTIONS = ['g', 'kg', 'crate', 'box', 'litre', 'piece', 'bunch', 'pack'] as const;
+
 const emptyForm: ProductForm = {
-  name: '', category_id: '', description: '',
+  name: '', category_id: '', unit: 'kg', description: '',
   key_benefits: '', ingredients: '', nutrition_info: '',
   packaging_details: '', storage_instructions: '',
   price: '', stock_qty: '', min_stock: '',
@@ -157,6 +159,7 @@ export function ProductsPage() {
     setForm({
       name: product.name,
       category_id: product.category_id,
+      unit: product.unit,
       description: product.description ?? '',
       key_benefits: product.key_benefits ?? '',
       ingredients: product.ingredients ?? '',
@@ -183,10 +186,12 @@ export function ProductsPage() {
     if (!editingProduct) return;
     setSaving(true); setError('');
     try {
-      const selectedMaterial = materials.find(m => m.id === recipeForm.material_id);
-      const unit = recipeForm.quantity_per_unit && selectedMaterial
-        ? `${recipeForm.quantity_per_unit}${selectedMaterial.unit}`
-        : editingProduct.unit;
+      const unit = form.unit.trim();
+      if (!unit) {
+        setError('Selling unit is required (e.g. kg, g, crate).');
+        setSaving(false);
+        return;
+      }
       await productsApi.update(editingProduct.id, {
         name: form.name.trim(), category_id: form.category_id,
         description: cleanText(form.description),
@@ -242,10 +247,12 @@ export function ProductsPage() {
     if (!form.name.trim()) return;
     setSaving(true); setError('');
     try {
-      const selectedMaterial = materials.find(m => m.id === recipeForm.material_id);
-      const unit = recipeForm.quantity_per_unit && selectedMaterial
-        ? `${recipeForm.quantity_per_unit}${selectedMaterial.unit}`
-        : 'unit';
+      const unit = form.unit.trim();
+      if (!unit) {
+        setError('Selling unit is required (e.g. kg, g, crate).');
+        setSaving(false);
+        return;
+      }
       const created = await productsApi.create({
         name: form.name.trim(), category_id: form.category_id,
         description: cleanText(form.description),
@@ -549,10 +556,6 @@ export function ProductsPage() {
                   />
                 </div>
 
-                <FormSelect label="Category" value={form.category_id} onChange={(e) => updateField('category_id', e.target.value)}>
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </FormSelect>
-
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/40">
                   <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Customer-facing details</p>
                   <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
@@ -574,6 +577,25 @@ export function ProductsPage() {
                     ))}
                   </div>
                 </div>
+
+                <FormSelect label="Category" value={form.category_id} onChange={(e) => updateField('category_id', e.target.value)}>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </FormSelect>
+
+                <FormInput
+                  label="Selling unit"
+                  value={form.unit}
+                  onChange={(e) => updateField('unit', e.target.value)}
+                  placeholder="e.g. kg, g, 500g pack, crate"
+                  list="product-unit-suggestions"
+                  required
+                />
+                <datalist id="product-unit-suggestions">
+                  {PRODUCT_UNIT_SUGGESTIONS.map((u) => <option key={u} value={u} />)}
+                </datalist>
+                <p className="-mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+                  Shown on the store (e.g. price per kg or per g). Recipe qty below is for warehouse stock only.
+                </p>
 
                 {/* Recipe section — defines what this product is made from */}
                 {materials.length > 0 && (

@@ -65,4 +65,14 @@ class StoreCatalogTest extends TestCase
             ->assertOk()
             ->assertJsonStructure(['data' => [['id', 'name']]]);
     }
+
+    public function test_product_unit_is_returned_from_database(): void
+    {
+        $product = Product::factory()->create(['unit' => 'g', 'stock_qty' => 10]);
+
+        $this->getJson('/api/v1/store/products')
+            ->assertOk()
+            ->assertJsonPath('data.0.unit', 'g')
+            ->assertJsonPath('data.0.id', $product->id);
+    }
 }
