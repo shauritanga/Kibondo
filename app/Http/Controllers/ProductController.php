@@ -48,7 +48,7 @@ class ProductController extends Controller
             'stock_qty'   => 'sometimes|integer|min:0',
             'min_stock'   => 'sometimes|integer|min:0',
             'image'       => 'sometimes|nullable|image|max:4096',
-            'image_url'   => 'sometimes|nullable|url|max:500',
+            'image_url'   => ['sometimes', 'nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
         ]);
 
         if ($request->hasFile('image')) {
@@ -94,7 +94,7 @@ class ProductController extends Controller
             'min_stock'   => 'sometimes|integer|min:0',
             'is_active'   => 'sometimes|boolean',
             'image'       => 'sometimes|nullable|image|max:4096',
-            'image_url'   => 'sometimes|nullable|url|max:500',
+            'image_url'   => ['sometimes', 'nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
         ]);
 
         if ($request->hasFile('image')) {
