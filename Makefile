@@ -26,13 +26,13 @@ dev-migrate:
 	$(COMPOSE_DEV) exec app php artisan migrate --force
 
 dev-migrate-seed:
-	$(COMPOSE_DEV) exec app php artisan migrate:seed --force
+	$(COMPOSE_DEV) exec app php artisan migrate --seed --force
 
 dev-migrate-fresh:
 	$(COMPOSE_DEV) exec app php artisan migrate:fresh --force
 
 dev-migrate-fresh-seed:
-	$(COMPOSE_DEV) exec app php migrate:fresh --seed --force
+	$(COMPOSE_DEV) exec app php artisan migrate:fresh --seed --force
 # ─── Production ────────────────────────────────────────────────────────────────
 prod-build:
 	$(COMPOSE_PROD) build
