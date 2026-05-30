@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\SendCampaignEmailJob;
+use App\Jobs\SendCampaignSmsJob;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Customer;
@@ -15,7 +16,8 @@ class CampaignService
     {
         return Campaign::create([
             'name' => $data['name'],
-            'subject' => $data['subject'],
+            'channel' => $data['channel'] ?? 'email',
+            'subject' => $data['subject'] ?? '',
             'body' => $data['body'],
             'recipient_filter' => $data['recipient_filter'] ?? [],
             'status' => 'draft',
@@ -29,10 +31,11 @@ class CampaignService
             throw ValidationException::withMessages(['campaign' => 'Only draft campaigns can be sent.']);
         }
 
-        $customers = $this->resolveRecipients($campaign->recipient_filter);
+        $customers = $this->resolveRecipients($campaign->recipient_filter, $campaign->channel);
 
         if ($customers->isEmpty()) {
-            throw ValidationException::withMessages(['campaign' => 'No customers with email addresses match the selected filter.']);
+            $channel = $campaign->channel === 'sms' ? 'phone numbers' : 'email addresses';
+            throw ValidationException::withMessages(['campaign' => "No customers with {$channel} match the selected filter."]);
         }
 
         $campaign->update([
@@ -46,21 +49,28 @@ class CampaignService
             $recipient = CampaignRecipient::create([
                 'campaign_id' => $campaign->id,
                 'customer_id' => $customer->id,
+                'channel' => $campaign->channel,
+                'destination' => $campaign->channel === 'sms' ? $customer->phone : $customer->email,
                 'status' => 'pending',
             ]);
 
-            SendCampaignEmailJob::dispatch($campaign, $customer, $recipient->id);
+            if ($campaign->channel === 'sms') {
+                SendCampaignSmsJob::dispatch($campaign, $customer, $recipient->id);
+            } else {
+                SendCampaignEmailJob::dispatch($campaign, $customer, $recipient->id);
+            }
         }
     }
 
-    public function recipientCount(array $filter): int
+    public function recipientCount(array $filter, string $channel = 'email'): int
     {
-        return $this->resolveRecipients($filter)->count();
+        return $this->resolveRecipients($filter, $channel)->count();
     }
 
-    private function resolveRecipients(array $filter)
+    private function resolveRecipients(array $filter, string $channel = 'email')
     {
-        $query = Customer::whereNotNull('email')->where('email', '!=', '');
+        $column = $channel === 'sms' ? 'phone' : 'email';
+        $query = Customer::whereNotNull($column)->where($column, '!=', '');
 
         if (empty($filter['all']) && !empty($filter['type'])) {
             $query->whereIn('type', $filter['type']);

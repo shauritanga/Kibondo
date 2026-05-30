@@ -23,6 +23,7 @@ class AuthController extends Controller
         $request->validate([
             'email'    => 'required|email',
             'password' => 'required|string',
+            'otp_channel' => 'sometimes|in:email,sms',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -58,7 +59,7 @@ class AuthController extends Controller
 
         // Email OTP required for admins when the setting is on
         if (Setting::get('require_2fa_for_admins', '1') === '1') {
-            return $this->sendOtp($user);
+            return $this->sendOtp($user, $request->input('otp_channel', 'email'));
         }
 
         return $this->startSession($request, $user, 'User logged in');
@@ -138,6 +139,7 @@ class AuthController extends Controller
         $data = $request->validate([
             'name'  => 'required|string|max:200',
             'email' => 'required|email|max:180|unique:users,email,' . $request->user()->id,
+            'phone' => 'nullable|string|max:40',
         ]);
 
         $request->user()->update($data);
@@ -198,8 +200,14 @@ class AuthController extends Controller
         return response()->json(['user' => $this->userPayload($user)]);
     }
 
-    private function sendOtp(User $user): JsonResponse
+    private function sendOtp(User $user, string $channel): JsonResponse
     {
+        if ($channel === 'sms' && blank($user->phone)) {
+            throw ValidationException::withMessages([
+                'otp_channel' => ['Your account does not have a phone number for SMS login codes.'],
+            ]);
+        }
+
         $otp            = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $challengeToken = Str::uuid()->toString();
 
@@ -209,12 +217,14 @@ class AuthController extends Controller
             'ip'       => request()->ip(),
         ], now()->addMinutes(10));
 
-        $user->notify(new StaffLoginOtpNotification($otp));
+        $user->notify(new StaffLoginOtpNotification($otp, $channel));
 
         return response()->json([
             'otp_required'    => true,
             'challenge_token' => $challengeToken,
-            'message'         => "A login code has been sent to {$user->email}",
+            'message'         => $channel === 'sms'
+                ? 'A login code has been sent to your phone.'
+                : "A login code has been sent to {$user->email}",
         ]);
     }
 
@@ -224,6 +234,7 @@ class AuthController extends Controller
             'id'         => $user->id,
             'name'       => $user->name,
             'email'      => $user->email,
+            'phone'      => $user->phone,
             'role'       => $user->role,
             'avatar_url' => $user->avatar_url,
         ];

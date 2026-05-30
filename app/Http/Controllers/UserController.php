@@ -17,7 +17,7 @@ class UserController extends Controller
             $query->where('role', $request->role);
         }
 
-        $users = $query->get(['id', 'name', 'email', 'role', 'is_active', 'created_at']);
+        $users = $query->get(['id', 'name', 'email', 'phone', 'role', 'is_active', 'created_at']);
 
         return response()->json(['data' => $users]);
     }
@@ -38,6 +38,7 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:120',
             'email' => 'required|email|unique:users,email',
+            'phone' => 'nullable|string|max:40',
             'password' => 'required|string|min:8',
             'role' => 'required|in:admin,sales,stock_manager,accountant,delivery',
         ]);
@@ -50,15 +51,15 @@ class UserController extends Controller
             'description' => "Created user {$user->email} with role {$user->role}",
             'record_id'   => $user->id,
             'table_name'  => 'users',
-            'new_values'  => $user->only('name', 'email', 'role', 'is_active'),
+            'new_values'  => $user->only('name', 'email', 'phone', 'role', 'is_active'),
         ]);
 
-        return response()->json(['data' => $user->only('id', 'name', 'email', 'role', 'is_active')], 201);
+        return response()->json(['data' => $user->only('id', 'name', 'email', 'phone', 'role', 'is_active')], 201);
     }
 
     public function show(User $user): JsonResponse
     {
-        return response()->json(['data' => $user->only('id', 'name', 'email', 'role', 'is_active', 'created_at')]);
+        return response()->json(['data' => $user->only('id', 'name', 'email', 'phone', 'role', 'is_active', 'created_at')]);
     }
 
     public function update(Request $request, User $user): JsonResponse
@@ -66,12 +67,13 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => 'sometimes|string|max:120',
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
+            'phone' => 'nullable|string|max:40',
             'role' => 'sometimes|in:admin,sales,stock_manager,accountant,delivery',
             'is_active' => 'sometimes|boolean',
             'password' => 'sometimes|string|min:8',
         ]);
 
-        $before = $user->only('name', 'email', 'role', 'is_active');
+        $before = $user->only('name', 'email', 'phone', 'role', 'is_active');
 
         $user->update($data);
 
@@ -80,7 +82,7 @@ class UserController extends Controller
             $user->notify(new \App\Notifications\WelcomeStaffNotification($user->role));
         }
 
-        $after = $user->only('name', 'email', 'role', 'is_active');
+        $after = $user->only('name', 'email', 'phone', 'role', 'is_active');
 
         $desc = "Updated user {$user->email}";
         if (isset($data['role']) && ($before['role'] ?? null) !== $data['role']) {
@@ -99,7 +101,7 @@ class UserController extends Controller
             'new_values'  => $after,
         ]);
 
-        return response()->json(['data' => $user->only('id', 'name', 'email', 'role', 'is_active')]);
+        return response()->json(['data' => $user->only('id', 'name', 'email', 'phone', 'role', 'is_active')]);
     }
 
     public function destroy(User $user): JsonResponse

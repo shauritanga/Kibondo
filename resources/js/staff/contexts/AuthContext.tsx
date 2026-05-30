@@ -5,7 +5,7 @@ import type { User } from '../types';
 interface AuthState {
   user: User | null;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ otpRequired: true; challengeToken: string; message: string } | void>;
+  login: (email: string, password: string, otpChannel?: 'email' | 'sms') => Promise<{ otpRequired: true; challengeToken: string; message: string } | void>;
   verifyOtp: (challengeToken: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User) => void;
@@ -28,9 +28,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsLoading(false));
   }, []);
 
-  async function login(email: string, password: string) {
+  async function login(email: string, password: string, otpChannel: 'email' | 'sms' = 'email') {
     await getCsrfCookie();
-    const res = await authApi.login(email, password);
+    const res = await authApi.login(email, password, otpChannel);
     if ('otp_required' in res) {
       return { otpRequired: true as const, challengeToken: res.challenge_token, message: res.message };
     }

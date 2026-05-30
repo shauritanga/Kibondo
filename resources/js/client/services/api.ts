@@ -43,6 +43,7 @@ export interface StoreCustomer {
   name: string;
   email: string;
   phone: string;
+  order_notification_channel?: 'email' | 'sms' | 'both';
   location?: string | null;
 }
 
@@ -165,7 +166,7 @@ export const storeAuthApi = {
     const { data } = await http.get<StoreCustomer>('/auth/me', { _skipAuthRedirect: true } as any);
     return data;
   },
-  updateProfile: async (payload: Partial<Pick<StoreCustomer, 'name' | 'phone' | 'email' | 'location'>>) => {
+  updateProfile: async (payload: Partial<Pick<StoreCustomer, 'name' | 'phone' | 'email' | 'location' | 'order_notification_channel'>>) => {
     const { data } = await http.put<{ data: StoreCustomer }>('/auth/me', payload);
     return data.data;
   },

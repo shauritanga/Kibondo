@@ -168,8 +168,14 @@ class CustomerAuthController extends Controller
             'name'     => 'sometimes|string|max:200',
             'phone'    => ['sometimes', 'string', 'max:30', \Illuminate\Validation\Rule::unique('customers', 'phone')->ignore($customer->id)->whereNull('deleted_at')],
             'email'    => ['sometimes', 'email', 'max:180', \Illuminate\Validation\Rule::unique('customers', 'email')->ignore($customer->id)->whereNull('deleted_at')],
+            'order_notification_channel' => 'sometimes|in:email,sms,both',
             'location' => 'nullable|string|max:200',
         ]);
+        $channel = $data['order_notification_channel'] ?? $customer->order_notification_channel ?? 'email';
+        $phone = $data['phone'] ?? $customer->phone;
+        if (in_array($channel, ['sms', 'both'], true) && blank($phone)) {
+            return response()->json(['message' => 'A phone number is required when order alerts include SMS.'], 422);
+        }
         $customer->update($data);
         return response()->json(['data' => new CustomerResource($customer)]);
     }

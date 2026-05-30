@@ -3,6 +3,9 @@
 namespace App\Providers;
 
 use App\Channels\FcmChannel;
+use App\Channels\SmsChannel;
+use App\Services\Sms\SmsClient;
+use App\Services\Sms\UnitxtSmsClient;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
@@ -11,7 +14,10 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void {}
+    public function register(): void
+    {
+        $this->app->bind(SmsClient::class, UnitxtSmsClient::class);
+    }
 
     public function boot(): void
     {
@@ -19,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->resolving(ChannelManager::class, function (ChannelManager $manager) {
             $manager->extend('fcm', fn ($app) => $app->make(FcmChannel::class));
+            $manager->extend('sms', fn ($app) => $app->make(SmsChannel::class));
         });
     }
 

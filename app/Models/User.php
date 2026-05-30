@@ -16,6 +16,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'avatar_url',
         'password',
         'role',
@@ -40,5 +41,10 @@ class User extends Authenticatable
     public function hasRole(string ...$roles): bool
     {
         return in_array($this->role, $roles);
+    }
+
+    public function routeNotificationForSms(): ?string
+    {
+        return $this->phone;
     }
 }

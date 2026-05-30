@@ -323,9 +323,21 @@ class SaleController extends Controller
     {
         if ($sale->customer_id) {
             $sale->customer->notify($notification);
-        } elseif ($sale->guest_email) {
-            Notification::route('mail', [$sale->guest_email => $sale->guest_name ?? 'Customer'])
-                ->notify($notification);
+            return;
+        }
+
+        $route = Notification::route('mail', []);
+
+        if ($sale->guest_email) {
+            $route = Notification::route('mail', [$sale->guest_email => $sale->guest_name ?? 'Customer']);
+        }
+
+        if ($sale->guest_phone) {
+            $route->route('sms', $sale->guest_phone);
+        }
+
+        if ($sale->guest_email || $sale->guest_phone) {
+            $route->notify($notification);
         }
     }
 

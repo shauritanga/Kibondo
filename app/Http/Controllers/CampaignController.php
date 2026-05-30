@@ -24,7 +24,8 @@ class CampaignController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'subject' => 'required|string|max:255',
+            'channel' => 'sometimes|in:email,sms',
+            'subject' => 'nullable|required_unless:channel,sms|string|max:255',
             'body' => 'required|string',
             'recipient_filter' => 'required|array',
             'recipient_filter.all' => 'sometimes|boolean',
@@ -69,7 +70,11 @@ class CampaignController extends Controller
             'type.*' => 'in:retail,wholesale,distributor,hotel,restaurant,repeat_buyer',
         ]);
 
-        $count = $this->service->recipientCount($filter);
+        $channel = $request->validate([
+            'channel' => 'sometimes|in:email,sms',
+        ])['channel'] ?? 'email';
+
+        $count = $this->service->recipientCount($filter, $channel);
 
         return response()->json(['count' => $count]);
     }

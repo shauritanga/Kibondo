@@ -16,7 +16,7 @@ class Customer extends Authenticatable implements MustVerifyEmail
     use HasUuids, SoftDeletes, HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'business_name', 'type', 'phone', 'alt_phone', 'email', 'password',
+        'name', 'business_name', 'type', 'phone', 'alt_phone', 'email', 'order_notification_channel', 'password',
         'location', 'payment_terms', 'crm_stage', 'crm_score', 'next_follow_up',
         'outstanding_balance', 'credit_limit', 'total_spend',
         'fcm_token', 'fcm_token_updated_at',
@@ -57,5 +57,10 @@ class Customer extends Authenticatable implements MustVerifyEmail
     public function sendEmailVerificationNotification(): void
     {
         $this->notify(new \App\Notifications\CustomerEmailVerificationNotification);
+    }
+
+    public function routeNotificationForSms(): ?string
+    {
+        return $this->phone;
     }
 }

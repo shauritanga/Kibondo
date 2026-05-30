@@ -21,6 +21,7 @@ export function ProfilePage() {
 
   const [name, setName]   = useState(user?.name  ?? '');
   const [email, setEmail] = useState(user?.email ?? '');
+  const [phone, setPhone] = useState(user?.phone ?? '');
   const [infoSaving, setInfoSaving]   = useState(false);
   const [infoError, setInfoError]     = useState('');
   const [infoSuccess, setInfoSuccess] = useState('');
@@ -62,7 +63,7 @@ export function ProfilePage() {
     e.preventDefault();
     setInfoSaving(true); setInfoError(''); setInfoSuccess('');
     try {
-      const updated = await authApi.updateProfile({ name, email });
+      const updated = await authApi.updateProfile({ name, email, phone });
       setUser(updated);
       setInfoSuccess('Profile updated successfully.');
     } catch (err: any) {
@@ -152,6 +153,7 @@ export function ProfilePage() {
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormInput label="Full name"      value={name}  onChange={(e) => setName(e.target.value)}  required />
                 <FormInput label="Email address"  type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <FormInput label="Phone number" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+255 7XX XXX XXX" />
               </div>
               <div>
                 <FormInput label="Role" value={ROLE_LABELS[user?.role ?? ''] ?? user?.role ?? ''} onChange={() => {}} disabled />

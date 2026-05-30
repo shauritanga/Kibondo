@@ -43,11 +43,11 @@ export function formatMoney(value: number) {
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export const authApi = {
-  login: async (email: string, password: string) => {
+  login: async (email: string, password: string, otpChannel: 'email' | 'sms' = 'email') => {
     const { data } = await http.post<
       | { user: User }
       | { otp_required: true; challenge_token: string; message: string }
-    >('/auth/login', { email, password });
+    >('/auth/login', { email, password, otp_channel: otpChannel });
     return data;
   },
   verifyOtp: async (challengeToken: string, code: string) => {
@@ -62,7 +62,7 @@ export const authApi = {
     const { data } = await http.get<User>('/auth/me', { _skipAuthRedirect: true } as any);
     return data;
   },
-  updateProfile: async (payload: { name: string; email: string }) => {
+  updateProfile: async (payload: { name: string; email: string; phone?: string | null }) => {
     const { data } = await http.put<User>('/auth/me', payload);
     return data;
   },
@@ -351,7 +351,8 @@ export const campaignsApi = {
   },
   create: async (payload: {
     name: string;
-    subject: string;
+    channel: 'email' | 'sms';
+    subject?: string;
     body: string;
     recipient_filter: { all?: boolean; type?: string[] };
   }) => {
@@ -363,8 +364,8 @@ export const campaignsApi = {
     return data.data;
   },
   delete: async (id: string) => http.delete(`/campaigns/${id}`),
-  recipientPreview: async (filter: { all?: boolean; type?: string[] }) => {
-    const { data } = await http.get<{ count: number }>('/campaigns/recipient-preview', { params: filter });
+  recipientPreview: async (filter: { all?: boolean; type?: string[] }, channel: 'email' | 'sms' = 'email') => {
+    const { data } = await http.get<{ count: number }>('/campaigns/recipient-preview', { params: { ...filter, channel } });
     return data.count;
   },
 };

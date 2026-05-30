@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'unitxt' => [
+        'base_url' => env('UNITXT_BASE_URL', 'https://unitxt.co.tz'),
+        'endpoint' => env('UNITXT_SMS_ENDPOINT', '/api/v3/sms/send'),
+        'api_key' => env('UNITXT_API_KEY'),
+        'sender_id' => env('UNITXT_SENDER_ID'),
+        'timeout' => env('UNITXT_TIMEOUT', 10),
+        'retries' => env('UNITXT_RETRIES', 1),
+    ],
+
 ];

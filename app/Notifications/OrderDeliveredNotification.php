@@ -3,6 +3,8 @@
 namespace App\Notifications;
 
 use App\Models\Sale;
+use App\Notifications\Concerns\ResolvesBuyerChannels;
+use App\Support\Sms\SmsMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -11,14 +13,22 @@ use Illuminate\Notifications\Notification;
 class OrderDeliveredNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use ResolvesBuyerChannels;
 
     public function __construct(private Sale $sale) {}
 
     public function via(object $notifiable): array
     {
-        return $notifiable instanceof \App\Models\Customer
-            ? ['database', 'mail', 'fcm']
-            : ['mail'];
+        return $this->buyerChannels($notifiable);
+    }
+
+    public function toSms(object $notifiable): SmsMessage
+    {
+        if ($this->sale->customer_id) {
+            return new SmsMessage("Dear customer, your order {$this->sale->sale_number} has been delivered. Please confirm receipt in your account. Thank you.");
+        }
+
+        return new SmsMessage("Dear customer, your order {$this->sale->sale_number} has been delivered. Thank you for shopping with us.");
     }
 
     public function toFcm(object $notifiable): array

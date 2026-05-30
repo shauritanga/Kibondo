@@ -4,6 +4,8 @@ namespace App\Notifications;
 
 use App\Models\Customer;
 use App\Models\Sale;
+use App\Notifications\Concerns\ResolvesBuyerChannels;
+use App\Support\Sms\SmsMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -12,16 +14,26 @@ use Illuminate\Notifications\Notification;
 class OrderAssignedNotification extends Notification implements ShouldQueue
 {
     use Queueable;
+    use ResolvesBuyerChannels;
 
     public function __construct(private Sale $sale, private string $recipientType) {}
 
     public function via(object $notifiable): array
     {
-        if ($this->recipientType === 'customer' && ! $notifiable instanceof Customer) {
-            return ['mail'];
+        if ($this->recipientType === 'customer') {
+            return $this->buyerChannels($notifiable);
         }
 
-        return ['database', 'mail', 'fcm'];
+        return ['database', 'mail', 'fcm', 'sms'];
+    }
+
+    public function toSms(object $notifiable): SmsMessage
+    {
+        if ($this->recipientType === 'delivery') {
+            return new SmsMessage("New delivery assignment {$this->sale->sale_number}.");
+        }
+
+        return new SmsMessage("Dear customer, your order {$this->sale->sale_number} is out for delivery. Please keep your phone nearby.");
     }
 
     public function toFcm(object $notifiable): array

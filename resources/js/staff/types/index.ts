@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string | null;
   role: 'admin' | 'sales' | 'stock_manager' | 'accountant' | 'delivery';
   avatar_url?: string | null;
   is_active?: boolean;
@@ -85,6 +86,7 @@ export interface Customer {
   phone?: string;
   alt_phone?: string;
   email?: string;
+  order_notification_channel?: 'email' | 'sms' | 'both';
   location?: string;
   payment_terms?: 'cod' | 'net_7' | 'net_14' | 'net_30';
   crm_stage?: string;
@@ -269,7 +271,8 @@ export interface AuditLog {
 export interface Campaign {
   id: string;
   name: string;
-  subject: string;
+  channel: 'email' | 'sms';
+  subject?: string | null;
   body: string;
   recipient_filter: { all?: boolean; type?: string[] };
   status: 'draft' | 'sending' | 'sent' | 'failed';

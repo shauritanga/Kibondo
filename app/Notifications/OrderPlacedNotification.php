@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Sale;
+use App\Support\Sms\SmsMessage;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -15,7 +16,12 @@ class OrderPlacedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail', 'fcm'];
+        return ['database', 'mail', 'fcm', 'sms'];
+    }
+
+    public function toSms(object $notifiable): SmsMessage
+    {
+        return new SmsMessage("New order {$this->sale->sale_number} has been placed. Please review it in the admin dashboard.");
     }
 
     public function toFcm(object $notifiable): array
