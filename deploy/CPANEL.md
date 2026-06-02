@@ -102,8 +102,7 @@ cd "$APP_ROOT"
 # Optional: confirm DB connection and pending migrations
 php artisan migrate:status
 
-# If you see "permission denied" — fix grants first (see below)
-php artisan migrate:status
+# If migrate fails on permissions — see PostgreSQL section below
 php artisan migrate --force
 
 # Optional: verify row counts were not wiped
@@ -161,7 +160,7 @@ flowchart TD
 # Upload SQL to server, then in psql or phpPgAdmin import into cPanel DB
 ```
 
-### PostgreSQL permissions (owner vs app user)
+### PostgreSQL: `kibondogreenfarm` vs `kibondogreenfarm_admin`
 
 On cPanel you usually have two PostgreSQL roles:
 
@@ -181,7 +180,19 @@ permission denied for table cache
 **Fix:** connect as the **owner** (`kibondogreenfarm`) and grant rights to **`kibondogreenfarm_admin`**.  
 `kibondogreenfarm_admin` cannot grant itself access to tables it does not own.
 
-**`must be owner of table users` during migrate:** GRANT is not enough to run `ALTER TABLE`. Either [migrate as owner](#4-run-migrate-as-owner-app-still-uses-kibondogreenfarm_admin) once, or [reassign table ownership](#3b-reassign-tables-to-app-user-one-time) to `kibondogreenfarm_admin` so normal `migrate --force` works.
+**`must be owner of table users` during migrate:** GRANT is not enough for `ALTER TABLE` — use [migrate as owner](#migrate-as-owner-keep-env-on-_admin).
+
+#### cPanel errors (what to do)
+
+| Error | Action |
+|-------|--------|
+| `permission denied for table migrations` | [Grant app user](#grant-app-user-terminal) |
+| `must be owner of table users` | [Migrate as owner](#migrate-as-owner-keep-env-on-_admin) |
+| `must be member of role "kibondogreenfarm_admin"` | Ignore — skip `ALTER DEFAULT PRIVILEGES FOR ROLE kibondogreenfarm_admin` |
+| `permission denied to reassign objects` | Do not use `REASSIGN OWNED` — use owner migrate |
+| `must have admin option on role "kibondogreenfarm_admin"` | Do not run `GRANT kibondogreenfarm_admin TO kibondogreenfarm` |
+| `Database connection [pgsql_owner] not configured` | Use [inline owner migrate](#migrate-as-owner-keep-env-on-_admin) or deploy `config/database.php` with `pgsql_owner` |
+| `WARNING: no privileges were granted for "public"` | Usually OK if other lines show `GRANT` |
 
 #### 1. Confirm `.env` matches cPanel
 
@@ -217,129 +228,114 @@ export PGPASSWORD='APP_USER_PASSWORD'   # kibondogreenfarm_admin password
 psql -h localhost -U kibondogreenfarm_admin -d kibondogreenfarm_db -c "SELECT COUNT(*) FROM migrations;"
 ```
 
-#### 3. Grant permissions (Terminal — recommended)
+#### Grant app user (Terminal)
 
-Use the **owner** password (same as cPanel login / main PostgreSQL role for the account, **not** the `_admin` user password):
+Use the **owner** password (cPanel account postgres role, **not** `_admin`):
 
 ```bash
-cd "$APP_ROOT"
-
 export PGPASSWORD='OWNER_PASSWORD'
 
-psql -h localhost -U kibondogreenfarm -d kibondogreenfarm_db -f deploy/grant-pgsql-cpanel.sql
-```
-
-The SQL file is in the repo: [`deploy/grant-pgsql-cpanel.sql`](grant-pgsql-cpanel.sql). Edit the database name inside if yours is not `kibondogreenfarm_db`.
-
-**One-shot SQL** (paste in `psql` as `kibondogreenfarm` if you prefer not to use the file):
-
-```sql
+psql -h localhost -U kibondogreenfarm -d kibondogreenfarm_db <<'SQL'
 GRANT CONNECT ON DATABASE kibondogreenfarm_db TO kibondogreenfarm_admin;
-
 GRANT USAGE, CREATE ON SCHEMA public TO kibondogreenfarm_admin;
-
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO kibondogreenfarm_admin;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO kibondogreenfarm_admin;
 GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO kibondogreenfarm_admin;
-
-ALTER DEFAULT PRIVILEGES FOR ROLE kibondogreenfarm IN SCHEMA public
-    GRANT ALL ON TABLES TO kibondogreenfarm_admin;
-ALTER DEFAULT PRIVILEGES FOR ROLE kibondogreenfarm IN SCHEMA public
-    GRANT ALL ON SEQUENCES TO kibondogreenfarm_admin;
-
-ALTER DEFAULT PRIVILEGES FOR ROLE kibondogreenfarm_admin IN SCHEMA public
-    GRANT ALL ON TABLES TO kibondogreenfarm_admin;
-ALTER DEFAULT PRIVILEGES FOR ROLE kibondogreenfarm_admin IN SCHEMA public
-    GRANT ALL ON SEQUENCES TO kibondogreenfarm_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE kibondogreenfarm IN SCHEMA public GRANT ALL ON TABLES TO kibondogreenfarm_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE kibondogreenfarm IN SCHEMA public GRANT ALL ON SEQUENCES TO kibondogreenfarm_admin;
+SQL
 ```
 
-#### 3b. Reassign tables to app user (one-time)
+Do **not** run `ALTER DEFAULT PRIVILEGES FOR ROLE kibondogreenfarm_admin` — fails with `must be member of role` on cPanel.
 
-If migrate fails with **`must be owner of table users`** (or `customers`, etc.), run as owner:
+Optional helper file: [`grant-pgsql-cpanel.sql`](grant-pgsql-cpanel.sql) (same SQL).
+
+#### Migrate as owner (keep `.env` on `_admin`)
+
+**Recommended on cPanel** — no `pgsql_owner` config required:
 
 ```bash
 cd "$APP_ROOT"
-export PGPASSWORD='OWNER_PASSWORD'
+export PHP=/opt/cpanel/ea-php83/root/usr/bin/php
 
-psql -h localhost -U kibondogreenfarm -d kibondogreenfarm_db -f deploy/reassign-tables-cpanel.sql
-```
+$PHP artisan config:clear
 
-Then migrate as the app user:
-
-```bash
+DB_USERNAME=kibondogreenfarm \
+DB_PASSWORD='OWNER_PASSWORD' \
 $PHP artisan migrate --force
+
+$PHP artisan migrate:status
 ```
 
-[`reassign-tables-cpanel.sql`](reassign-tables-cpanel.sql) runs `REASSIGN OWNED BY kibondogreenfarm TO kibondogreenfarm_admin`. Re-run after a SQL import owned by `kibondogreenfarm`.
-
-#### 4. Run migrate as owner (app still uses `kibondogreenfarm_admin`)
-
-The site keeps `DB_USERNAME=kibondogreenfarm_admin` in `.env`. Migrations can use a separate connection **`pgsql_owner`** (see `config/database.php`).
-
-**Option A — owner password only on the command line (nothing stored in `.env`):**
+**Alternative** (only if `pgsql_owner` exists in `config/database.php` on server):
 
 ```bash
-cd "$APP_ROOT"
-$PHP artisan config:clear   # required if config was cached
-
 DB_OWNER_USERNAME=kibondogreenfarm \
-DB_OWNER_PASSWORD='OWNER_POSTGRES_PASSWORD' \
+DB_OWNER_PASSWORD='OWNER_PASSWORD' \
 $PHP artisan migrate --database=pgsql_owner --force
 ```
 
-Only that `artisan` process uses the owner. HTTP requests still use `DB_USERNAME` from `.env`.
-
-**Option B — owner vars in `.env` (optional, not used by the app):**
-
-```env
-DB_USERNAME=kibondogreenfarm_admin
-DB_PASSWORD=...
-DB_OWNER_USERNAME=kibondogreenfarm
-DB_OWNER_PASSWORD=...
-```
+#### Standard deploy with migrations (copy-paste)
 
 ```bash
-$PHP artisan migrate --database=pgsql_owner --force
+export APP_ROOT=/home/kibondogreenfarm/kibondo_store
+export PHP=/opt/cpanel/ea-php83/root/usr/bin/php
+cd "$APP_ROOT"
+
+export PGPASSWORD='OWNER_PASSWORD'
+psql -h localhost -U kibondogreenfarm -d kibondogreenfarm_db <<'SQL'
+GRANT CONNECT ON DATABASE kibondogreenfarm_db TO kibondogreenfarm_admin;
+GRANT USAGE, CREATE ON SCHEMA public TO kibondogreenfarm_admin;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO kibondogreenfarm_admin;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO kibondogreenfarm_admin;
+GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO kibondogreenfarm_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE kibondogreenfarm IN SCHEMA public GRANT ALL ON TABLES TO kibondogreenfarm_admin;
+ALTER DEFAULT PRIVILEGES FOR ROLE kibondogreenfarm IN SCHEMA public GRANT ALL ON SEQUENCES TO kibondogreenfarm_admin;
+SQL
+
+$PHP artisan config:clear
+DB_USERNAME=kibondogreenfarm DB_PASSWORD='OWNER_PASSWORD' $PHP artisan migrate --force
+
+psql -h localhost -U kibondogreenfarm -d kibondogreenfarm_db -c "
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO kibondogreenfarm_admin;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO kibondogreenfarm_admin;
+"
+
+export PGPASSWORD='APP_USER_PASSWORD'
+psql -h localhost -U kibondogreenfarm_admin -d kibondogreenfarm_db -c "SELECT COUNT(*) FROM migrations;"
 ```
 
-**Option C — migrate as app user after grants (recommended for daily use):**
+#### After every deploy with new migrations
 
-```bash
-$PHP artisan migrate --force
+1. [Grant](#grant-app-user-terminal) (if needed)  
+2. [Migrate as owner](#migrate-as-owner-keep-env-on-_admin)  
+3. Re-grant tables/sequences (last two lines in block above)
+
+#### Create `kibondogreenfarm_admin` (if missing)
+
+cPanel → **PostgreSQL Databases** → create user → add to `kibondogreenfarm_db` with **ALL PRIVILEGES** → set `DB_USERNAME` / `DB_PASSWORD` in `.env`.
+
+#### REASSIGN / role membership (usually fails on cPanel)
+
+Do **not** rely on:
+
+```sql
+GRANT kibondogreenfarm_admin TO kibondogreenfarm;  -- must have admin option
+REASSIGN OWNED BY kibondogreenfarm TO kibondogreenfarm_admin;  -- permission denied
 ```
 
-After **Option A or B**, new tables are owned by **`kibondogreenfarm`**. Run [`grant-pgsql-cpanel.sql`](grant-pgsql-cpanel.sql) so the app user can use them, or keep using Option A/B for every migrate.
-
-#### 5. After every deploy that runs new migrations
-
-If migrate creates tables but the site still errors on `cache` / `sessions`, re-run the grant script (step 3) once — it is safe to run repeatedly.
-
-```bash
-psql -h localhost -U kibondogreenfarm -d kibondogreenfarm_db -f deploy/grant-pgsql-cpanel.sql
-```
+Use [owner migrate](#migrate-as-owner-keep-env-on-_admin) instead.
 
 #### phpPgAdmin (if Terminal `psql` is awkward)
 
 1. Log in to phpPgAdmin as **`kibondogreenfarm`** (owner), not `_admin`.
 2. Select database **`kibondogreenfarm_db`**.
 3. Open the **SQL** tab (plain query — not wrapped in `SELECT COUNT(*) FROM (...)` ).
-4. Paste the SQL from step 3 and execute.
+4. Paste the [GRANT SQL](#grant-app-user-terminal) and execute.
 
 If GRANT fails with “permission denied”, you are connected as **`kibondogreenfarm_admin`** — switch to **`kibondogreenfarm`**.
 
-#### Optional: make app user own all tables (destructive-ish)
-
-Only if grants are not enough and the host allows it — run as owner:
-
-```sql
-REASSIGN OWNED BY kibondogreenfarm TO kibondogreenfarm_admin;
-```
-
-Discuss with host support first; grants (step 3) are usually enough.
-
-#### Prevent the problem on future imports
-
-When importing SQL in phpPgAdmin, connect as **`kibondogreenfarm_admin`** (if cPanel allows import as that user) so new tables are owned by the app user. Otherwise always run [`grant-pgsql-cpanel.sql`](grant-pgsql-cpanel.sql) immediately after import.
+After SQL import, always [grant](#grant-app-user-terminal) then [migrate as owner](#migrate-as-owner-keep-env-on-_admin).
 
 ### Verify database
 
@@ -618,9 +614,11 @@ Do **not** use `migrate:fresh`, `migrate:refresh`, or `db:wipe` on a live store.
 | Composer “requires PHP >= 8.3” | Use `$PHP` = `ea-php83`, not default `php` |
 | 404 on `/sanctum/csrf-cookie` | `test -f "$WEB_ROOT/.htaccess"`; `php artisan route:list --path=sanctum` |
 | 500 after DB import | [PostgreSQL permissions](#postgresql-permissions-owner-vs-app-user); `tail -30 storage/logs/laravel.log` |
-| `permission denied` on migrate / cache / sessions | [Grant](#3-grant-permissions-terminal--recommended) as owner to `_admin` |
-| `must be owner of table users` | [Reassign tables](#3b-reassign-tables-to-app-user-one-time) or [migrate as owner](#4-run-migrate-as-owner-app-still-uses-kibondogreenfarm_admin) |
-| GRANT fails in phpPgAdmin | Connect as owner `kibondogreenfarm`, use SQL tab only |
+| `permission denied` on migrate / cache / sessions | [Grant app user](#grant-app-user-terminal) |
+| `must be owner of table users` | [Migrate as owner](#migrate-as-owner-keep-env-on-_admin) |
+| `pgsql_owner` not configured | `DB_USERNAME=kibondogreenfarm DB_PASSWORD=... php artisan migrate --force` |
+| `must be member of role` / `REASSIGN` fails | Expected on cPanel — use owner migrate, skip those SQL lines |
+| GRANT fails in phpPgAdmin | Connect as owner `kibondogreenfarm`, SQL tab only |
 | Admin missing after deploy | You reset DB or never seeded; use [Staff admin user](#staff-admin-user) — not caused by `migrate --force` |
 | Login / CSRF fails | `.env` `APP_URL`, `SANCTUM_STATEFUL_DOMAINS`, `SESSION_DOMAIN` |
 | Images 404 | `ls -la "$WEB_ROOT/storage"` → symlink to `storage/app/public` |
@@ -648,28 +646,17 @@ export PHP=/opt/cpanel/ea-php83/root/usr/bin/php
 cd "$APP_ROOT"
 ```
 
-| Step | Command | Purpose |
-|------|---------|---------|
-| 1 | `nano .env` | `DB_USERNAME=kibondogreenfarm_admin`, `DB_DATABASE=kibondogreenfarm_db`, `APP_URL`, mail, Sanctum |
-| 2 | `export PGPASSWORD='OWNER_PASSWORD'` | Owner = cPanel account postgres role |
-| 3 | `psql -h localhost -U kibondogreenfarm -d kibondogreenfarm_db -f deploy/grant-pgsql-cpanel.sql` | App user can read/write tables |
-| 4 | `psql -h localhost -U kibondogreenfarm -d kibondogreenfarm_db -f deploy/reassign-tables-cpanel.sql` | App user can **ALTER** tables (fixes `must be owner of table users`) |
-| 5 | `$PHP artisan config:clear` | Reload `.env` |
-| 6 | `$PHP artisan migrate --force` | Apply pending migrations (e.g. `2026_05_31_000001_add_sms_preferences`) |
-| 7 | `$PHP artisan migrate:status` | All migrations should show **Ran** |
-| 8 | `rsync -a --delete public/build/ "$WEB_ROOT/build/"` | Frontend assets (after local build or `build-cpanel.sh`) |
-| 9 | Staff user — [tinker one-liner](#staff-admin-user) | Dashboard login |
-| 10 | `crontab -e` | [Scheduler + queue](#cron-scheduler--queue) |
+| Step | What |
+|------|------|
+| 1 | `.env`: `DB_USERNAME=kibondogreenfarm_admin`, `DB_DATABASE=kibondogreenfarm_db` |
+| 2 | [Grant app user](#grant-app-user-terminal) as `kibondogreenfarm` |
+| 3 | [Migrate as owner](#migrate-as-owner-keep-env-on-_admin) (`DB_USERNAME=kibondogreenfarm` on command line only) |
+| 4 | Re-grant tables/sequences (end of [standard deploy block](#standard-deploy-with-migrations-copy-paste)) |
+| 5 | `$PHP artisan migrate:status` — all **Ran** |
+| 6 | `rsync` `public/build/` → `$WEB_ROOT/build/` |
+| 7 | [Staff admin](#staff-admin-user) + [cron](#cron-scheduler--queue) |
 
-**If step 6 still fails** without step 4, use owner migrate once:
-
-```bash
-DB_OWNER_USERNAME=kibondogreenfarm \
-DB_OWNER_PASSWORD='OWNER_PASSWORD' \
-$PHP artisan migrate --database=pgsql_owner --force
-```
-
-Then run step 3 (grants) again.
+Full copy-paste: [Standard deploy with migrations](#standard-deploy-with-migrations-copy-paste).
 
 **Verify:**
 
