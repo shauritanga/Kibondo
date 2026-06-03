@@ -398,7 +398,7 @@ export const usersApi = {
     const { data } = await http.get<{ data: User[] }>('/drivers');
     return data.data;
   },
-  create: async (payload: { name: string; email: string; password: string; role: string }) => {
+  create: async (payload: { name: string; email: string; phone: string; password: string; role: string }) => {
     const { data } = await http.post<{ data: User }>('/users', payload);
     return data.data;
   },

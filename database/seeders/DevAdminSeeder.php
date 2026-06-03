@@ -14,11 +14,13 @@ class DevAdminSeeder extends Seeder
     public function run(): void
     {
         $email = env('DEV_ADMIN_EMAIL', 'admin@kibondo.local');
+        $phone = env('DEV_ADMIN_PHONE', '+255700000000');
 
         User::updateOrCreate(
             ['email' => $email],
             [
                 'name'      => env('DEV_ADMIN_NAME', 'Admin'),
+                'phone'     => $phone,
                 'password'  => env('DEV_ADMIN_PASSWORD', 'password'),
                 'role'      => 'admin',
                 'is_active' => true,

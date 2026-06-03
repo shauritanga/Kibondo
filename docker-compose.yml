@@ -30,6 +30,7 @@ services:
       SEED_DEV_ADMIN: ${SEED_DEV_ADMIN:-true}
       REQUIRE_2FA_FOR_ADMINS: ${REQUIRE_2FA_FOR_ADMINS:-0}
       DEV_ADMIN_EMAIL: ${DEV_ADMIN_EMAIL:-admin@kibondo.local}
+      DEV_ADMIN_PHONE: ${DEV_ADMIN_PHONE:-+255700000000}
       DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-password}
       DEV_ADMIN_NAME: ${DEV_ADMIN_NAME:-Admin}
     depends_on:

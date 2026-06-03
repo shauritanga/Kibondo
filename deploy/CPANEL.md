@@ -189,6 +189,7 @@ php artisan tinker --execute="
     ['email' => 'admin@kibondogreenfarm.co.tz'],
     [
         'name' => 'System Admin',
+        'phone' => '+255700000000',
         'password' => 'your-secure-password',
         'role' => 'admin',
         'is_active' => true,

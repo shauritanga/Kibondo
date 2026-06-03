@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -139,7 +140,12 @@ class AuthController extends Controller
         $data = $request->validate([
             'name'  => 'required|string|max:200',
             'email' => 'required|email|max:180|unique:users,email,' . $request->user()->id,
-            'phone' => 'nullable|string|max:40',
+            'phone' => [
+                'required',
+                'string',
+                'max:40',
+                Rule::unique('users', 'phone')->ignore($request->user()->id)->whereNull('deleted_at'),
+            ],
         ]);
 
         $request->user()->update($data);
