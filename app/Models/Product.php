@@ -17,13 +17,14 @@ class Product extends Model
     protected $fillable = [
         'category_id', 'name', 'description', 'key_benefits', 'ingredients',
         'nutrition_info', 'packaging_details', 'storage_instructions',
-        'image_url', 'unit', 'price', 'cost_price', 'stock_qty', 'min_stock',
+        'image_url', 'unit', 'price', 'sale_price', 'cost_price', 'stock_qty', 'min_stock',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'price' => 'integer',
+        'sale_price' => 'integer',
         'cost_price' => 'integer',
         'stock_qty' => 'integer',
         'min_stock' => 'integer',
@@ -57,5 +58,17 @@ class Product extends Model
     public function isLowStock(): bool
     {
         return $this->stock_qty <= $this->min_stock;
+    }
+
+    public function activePrice(): int
+    {
+        return $this->sale_price !== null && $this->sale_price < $this->price
+            ? $this->sale_price
+            : $this->price;
+    }
+
+    public function hasActiveSalePrice(): bool
+    {
+        return $this->sale_price !== null && $this->sale_price < $this->price;
     }
 }

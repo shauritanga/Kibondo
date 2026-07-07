@@ -5,14 +5,11 @@ namespace App\Notifications;
 use App\Models\Sale;
 use App\Notifications\Concerns\ResolvesBuyerChannels;
 use App\Support\Sms\SmsMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class OrderDeliveredNotification extends Notification implements ShouldQueue
+class OrderDeliveredNotification extends Notification
 {
-    use Queueable;
     use ResolvesBuyerChannels;
 
     public function __construct(private Sale $sale) {}

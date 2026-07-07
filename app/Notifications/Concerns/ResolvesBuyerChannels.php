@@ -15,7 +15,7 @@ trait ResolvesBuyerChannels
             return match ($notifiable->order_notification_channel ?? 'email') {
                 'sms' => [...$channels, 'sms'],
                 'both' => [...$channels, 'mail', 'sms'],
-                default => [...$channels, 'mail'],
+                default => [...$channels, 'mail', 'sms'],
             };
         }
 

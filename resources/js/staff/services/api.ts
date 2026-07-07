@@ -100,7 +100,9 @@ export const productsApi = {
     const { image, ...rest } = payload;
     if (image) {
       const fd = new FormData();
-      Object.entries(rest).forEach(([k, v]) => v != null && fd.append(k, String(v)));
+      Object.entries(rest).forEach(([k, v]) => {
+        if (v !== undefined) fd.append(k, v === null ? '' : String(v));
+      });
       fd.append('image', image);
       const { data } = await http.post<{ data: Product }>('/products', fd);
       return data.data;
@@ -112,7 +114,9 @@ export const productsApi = {
     const { image, ...rest } = payload;
     if (image) {
       const fd = new FormData();
-      Object.entries(rest).forEach(([k, v]) => v != null && fd.append(k, String(v)));
+      Object.entries(rest).forEach(([k, v]) => {
+        if (v !== undefined) fd.append(k, v === null ? '' : String(v));
+      });
       fd.append('image', image);
       fd.append('_method', 'PUT');
       const { data } = await http.post<{ data: Product }>(`/products/${id}`, fd);

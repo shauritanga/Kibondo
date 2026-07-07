@@ -14,6 +14,7 @@ use App\Services\SaleService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 
 class SaleController extends Controller
@@ -202,7 +203,16 @@ class SaleController extends Controller
 
             $this->notifyBuyer($sale, new OrderAssignedNotification($sale, 'customer'));
 
-            $deliveryUser->notify(new OrderAssignedNotification($sale, 'delivery'));
+            try {
+                $deliveryUser->notify(new OrderAssignedNotification($sale, 'delivery'));
+            } catch (\Throwable $e) {
+                Log::warning('Delivery assignment notification failed.', [
+                    'sale_id'     => $sale->id,
+                    'sale_number' => $sale->sale_number,
+                    'user_id'     => $deliveryUser->id,
+                    'error'       => $e->getMessage(),
+                ]);
+            }
 
             $sale->load('assignedTo:id,name');
 
@@ -321,23 +331,32 @@ class SaleController extends Controller
 
     private function notifyBuyer(Sale $sale, \Illuminate\Notifications\Notification $notification): void
     {
-        if ($sale->customer_id) {
-            $sale->customer->notify($notification);
-            return;
-        }
+        try {
+            if ($sale->customer_id) {
+                $sale->customer->notify($notification);
+                return;
+            }
 
-        $route = Notification::route('mail', []);
+            $route = Notification::route('mail', []);
 
-        if ($sale->guest_email) {
-            $route = Notification::route('mail', [$sale->guest_email => $sale->guest_name ?? 'Customer']);
-        }
+            if ($sale->guest_email) {
+                $route = Notification::route('mail', [$sale->guest_email => $sale->guest_name ?? 'Customer']);
+            }
 
-        if ($sale->guest_phone) {
-            $route->route('sms', $sale->guest_phone);
-        }
+            if ($sale->guest_phone) {
+                $route->route('sms', $sale->guest_phone);
+            }
 
-        if ($sale->guest_email || $sale->guest_phone) {
-            $route->notify($notification);
+            if ($sale->guest_email || $sale->guest_phone) {
+                $route->notify($notification);
+            }
+        } catch (\Throwable $e) {
+            Log::warning('Buyer order notification failed.', [
+                'sale_id'      => $sale->id,
+                'sale_number'  => $sale->sale_number,
+                'notification' => $notification::class,
+                'error'        => $e->getMessage(),
+            ]);
         }
     }
 

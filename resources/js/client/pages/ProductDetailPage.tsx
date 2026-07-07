@@ -76,6 +76,8 @@ export function ProductDetailPage() {
   const cartItem = product ? cart.find(i => i.product.id === product.id) : null;
   const outOfStock = product ? product.stock_qty === 0 : false;
   const lowStock = product ? product.stock_qty > 0 && product.stock_qty <= Math.max(product.min_stock ?? 0, 3) : false;
+  const hasSalePrice = product ? product.sale_price != null && product.sale_price < product.price : false;
+  const activePrice = product ? (hasSalePrice ? product.sale_price! : product.active_price ?? product.price) : 0;
 
   function handleAddToCart() {
     if (!product || outOfStock) return;
@@ -124,20 +126,15 @@ export function ProductDetailPage() {
                 {product.name}
               </h1>
 
-              {product.promo_price ? (
+              {hasSalePrice ? (
                 <div className="space-y-1">
                   <div className="flex items-baseline gap-3">
-                    <span className="text-2xl font-bold text-green-700">{formatMoney(product.promo_price)}</span>
+                    <span className="text-2xl font-bold text-green-700">{formatMoney(activePrice)}</span>
                     <span className="text-base text-gray-400 line-through">{formatMoney(product.price)}</span>
                   </div>
-                  {product.promo_percent && (
-                    <span className="inline-block bg-red-50 text-red-600 text-xs font-bold px-2.5 py-1 rounded-full">
-                      {product.promo_percent}% OFF
-                    </span>
-                  )}
                 </div>
               ) : (
-                <p className="text-2xl font-bold text-green-700">{formatMoney(product.price)}</p>
+                <p className="text-2xl font-bold text-green-700">{formatMoney(activePrice)}</p>
               )}
 
               <p className="text-sm text-gray-400">per {product.unit}</p>

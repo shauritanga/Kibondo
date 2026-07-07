@@ -35,6 +35,7 @@ export interface Product {
   image_url?: string | null;
   unit: string;
   price: number;
+  sale_price?: number | null;
   cost_price: number;
   stock_qty: number;
   min_stock: number;

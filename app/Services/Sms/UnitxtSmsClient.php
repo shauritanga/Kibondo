@@ -32,8 +32,9 @@ class UnitxtSmsClient implements SmsClient
 
         $json = $response->json();
         $raw = is_array($json) ? $json : ['body' => $response->body()];
+        $providerStatus = strtolower((string) data_get($raw, 'status', 'sent'));
 
-        if ($response->successful()) {
+        if ($response->successful() && ! in_array($providerStatus, ['error', 'failed', 'rejected'], true)) {
             return new SmsResult(
                 successful: true,
                 providerMessageId: (string) data_get($raw, 'message_id', data_get($raw, 'id')),
@@ -44,7 +45,7 @@ class UnitxtSmsClient implements SmsClient
 
         return new SmsResult(
             successful: false,
-            status: (string) $response->status(),
+            status: (string) data_get($raw, 'status', $response->status()),
             error: (string) data_get($raw, 'message', data_get($raw, 'error', 'SMS provider request failed.')),
             raw: $raw,
         );

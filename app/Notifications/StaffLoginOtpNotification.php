@@ -2,15 +2,12 @@
 
 namespace App\Notifications;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use App\Support\Sms\SmsMessage;
 
-class StaffLoginOtpNotification extends Notification implements ShouldQueue
+class StaffLoginOtpNotification extends Notification
 {
-    use Queueable;
     public function __construct(private string $otp, private string $channel = 'email') {}
 
     public function via(object $notifiable): array

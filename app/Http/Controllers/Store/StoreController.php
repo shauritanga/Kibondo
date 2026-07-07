@@ -9,6 +9,7 @@ use App\Http\Resources\Store\StoreProductResource;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 /**
  * @group Store – Catalog
@@ -33,8 +34,8 @@ class StoreController extends Controller
 
         $sort = $request->input('sort', 'name_asc');
         match ($sort) {
-            'price_asc'  => $query->orderBy('price'),
-            'price_desc' => $query->orderByDesc('price'),
+            'price_asc'  => $query->orderBy(DB::raw('CASE WHEN sale_price IS NOT NULL AND sale_price < price THEN sale_price ELSE price END')),
+            'price_desc' => $query->orderByDesc(DB::raw('CASE WHEN sale_price IS NOT NULL AND sale_price < price THEN sale_price ELSE price END')),
             'newest'     => $query->orderByDesc('created_at'),
             default      => $query->orderBy('name'),
         };

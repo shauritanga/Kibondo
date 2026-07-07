@@ -58,6 +58,8 @@ export interface StoreProduct {
   storage_instructions?: string | null;
   unit: string;
   price: number;
+  sale_price?: number | null;
+  active_price: number;
   promo_price?: number | null;
   promo_percent?: number | null;
   stock_qty: number;

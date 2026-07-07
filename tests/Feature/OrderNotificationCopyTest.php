@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Sale;
 use App\Models\User;
+use App\Notifications\CustomerOrderReceivedNotification;
 use App\Notifications\OrderAssignedNotification;
 use App\Notifications\OrderCancelledNotification;
 use App\Notifications\OrderConfirmedNotification;
@@ -42,6 +43,28 @@ class OrderNotificationCopyTest extends TestCase
             'Dear customer, your order ORD-00009 has been cancelled.',
             (new OrderCancelledNotification($sale))->toSms($customer)->content,
         );
+    }
+
+    public function test_customer_order_received_sms_copy_includes_order_number_and_step_updates(): void
+    {
+        $customer = Customer::factory()->create();
+        $sale = $this->sale(['customer_id' => $customer->id, 'sale_number' => '080626-001']);
+
+        $this->assertSame(
+            'Dear customer, tumepokea order yako 080626-001. Tutakutaarifu kila hatua ya order yako.',
+            (new CustomerOrderReceivedNotification($sale))->toSms($customer)->content,
+        );
+    }
+
+    public function test_customer_email_notification_preference_still_receives_lifecycle_sms(): void
+    {
+        $customer = Customer::factory()->create(['order_notification_channel' => 'email']);
+        $sale = $this->sale(['customer_id' => $customer->id, 'sale_number' => '080626-002']);
+
+        $channels = (new OrderConfirmedNotification($sale))->via($customer);
+
+        $this->assertContains('mail', $channels);
+        $this->assertContains('sms', $channels);
     }
 
     public function test_guest_delivered_sms_does_not_ask_for_account_confirmation(): void

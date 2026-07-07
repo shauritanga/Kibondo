@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { StoreLayout } from '../components/StoreLayout';
-import { storeCatalogApi, storeSettingsApi, type StoreCategory, type StoreProduct, formatMoney } from '../services/api';
+import { storeCatalogApi, type StoreCategory, type StoreProduct, formatMoney } from '../services/api';
 import { useCart } from '../contexts/CartContext';
 
 function ProductSkeleton() {
@@ -142,7 +142,7 @@ export function StorePage() {
   const [lastPage, setLastPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [promoPercent, setPromoPercent] = useState(0);
+  const promoPercent = 0;
   const gridRef = useRef<HTMLDivElement>(null);
 
   const fetchProducts = useCallback(() => {
@@ -163,10 +163,6 @@ export function StorePage() {
   }, [selectedCategory, search, sort, page]);
 
   useEffect(() => {
-    storeSettingsApi.getPromo()
-      .then(({ promo_percentage }) => setPromoPercent(clampPromoPercent(promo_percentage)))
-      .catch(() => setPromoPercent(0));
-
     storeCatalogApi.categories()
       .then(setCategories)
       .catch(() => {});
@@ -363,6 +359,8 @@ export function StorePage() {
               {products.map(p => {
                 const inCart = cart.find(i => i.product.id === p.id);
                 const outOfStock = p.stock_qty === 0;
+                const hasSalePrice = p.sale_price != null && p.sale_price < p.price;
+                const activePrice = hasSalePrice ? p.sale_price! : p.active_price ?? p.price;
                 return (
                   <div key={p.id} className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden hover:shadow-md transition-shadow">
                     {/* Image area */}
@@ -384,13 +382,13 @@ export function StorePage() {
                       <span className="text-[10px] bg-green-50 text-green-700 font-medium px-2 py-0.5 rounded-full self-start leading-tight">{p.category_name}</span>
                       <Link to={`/store/products/${p.id}`} className="font-semibold text-gray-900 text-sm leading-tight line-clamp-2 hover:text-green-700 transition-colors">{p.name}</Link>
                       <p className="text-xs text-gray-400">{p.unit}</p>
-                      {p.promo_price ? (
+                      {hasSalePrice ? (
                         <div className="flex items-baseline gap-1.5 mt-auto flex-wrap">
-                          <span className="text-green-700 font-bold text-sm">{formatMoney(p.promo_price)}</span>
+                          <span className="text-green-700 font-bold text-sm">{formatMoney(activePrice)}</span>
                           <span className="text-xs text-gray-400 line-through">{formatMoney(p.price)}</span>
                         </div>
                       ) : (
-                        <p className="text-green-700 font-bold text-sm mt-auto">{formatMoney(p.price)}</p>
+                        <p className="text-green-700 font-bold text-sm mt-auto">{formatMoney(activePrice)}</p>
                       )}
 
                       {outOfStock ? (
