@@ -209,7 +209,7 @@ export function PosPage() {
   const isDelivery = user?.role === 'delivery';
   const isSales    = user?.role === 'sales';
 
-  if (loading) return <TablePageSkeleton cols={6} />;
+  if (loading) return <TablePageSkeleton cols={7} />;
   if (error && !products.length) return <PageError message={error} onRetry={() => window.location.reload()} />;
 
   return (
@@ -518,10 +518,10 @@ export function PosPage() {
       {/* Sales table */}
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px]">
+          <table className="w-full min-w-[760px]">
             <thead className="border-b border-slate-100 bg-slate-50/70 dark:border-slate-700/50 dark:bg-slate-800/50">
               <tr>
-                {['Order', 'Customer', 'Date', 'Amount', 'Status', 'Payment'].map(h => (
+                {['Order', 'Customer', 'Date', 'Time', 'Amount', 'Status', 'Payment'].map(h => (
                   <th key={h} className="table-header px-4 py-3 text-left">{h}</th>
                 ))}
               </tr>
@@ -540,6 +540,7 @@ export function PosPage() {
                   <td className="px-4 py-3 font-bold text-slate-950 dark:text-white">{sale.sale_number}</td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{sale.customer?.name ?? <span className="text-slate-400">Walk-in</span>}</td>
                   <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{new Date(sale.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{new Date(sale.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
                   <td className="px-4 py-3 font-bold text-slate-950 dark:text-slate-200">{formatMoney(sale.total_amount)}</td>
                   <td className="px-4 py-3">
                     <StatusBadge tone={STATUS_TONE[sale.status] ?? 'slate'}>
