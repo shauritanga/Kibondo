@@ -84,6 +84,15 @@ export const categoriesApi = {
     const { data } = await http.get<{ data: Category[] }>('/categories');
     return data.data;
   },
+  create: async (payload: { name: string }) => {
+    const { data } = await http.post<{ data: Category }>('/categories', payload);
+    return data.data;
+  },
+  update: async (id: string, payload: { name: string }) => {
+    const { data } = await http.put<{ data: Category }>(`/categories/${id}`, payload);
+    return data.data;
+  },
+  delete: async (id: string) => http.delete(`/categories/${id}`),
 };
 
 // ─── Products ────────────────────────────────────────────────────────────────
