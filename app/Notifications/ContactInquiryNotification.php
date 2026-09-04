@@ -29,7 +29,7 @@ class ContactInquiryNotification extends Notification implements ShouldQueue
         $fullName = trim($this->firstName.' '.$this->lastName);
 
         return (new MailMessage)
-            ->subject('Website inquiry from '.$fullName)
+            ->subject('New consultation inquiry from '.$fullName)
             ->replyTo($this->email, $fullName)
             ->view('emails.notifications.contact-inquiry', [
                 'firstName'      => $this->firstName,
@@ -38,6 +38,7 @@ class ContactInquiryNotification extends Notification implements ShouldQueue
                 'phone'          => $this->phone,
                 'email'          => $this->email,
                 'inquiryMessage' => $this->message,
+                'receivedAt'     => now()->timezone(config('app.timezone'))->format('d M Y · H:i'),
             ]);
     }
 }
