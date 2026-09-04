@@ -22,6 +22,15 @@ return [
         'key' => env('RESEND_API_KEY'),
     ],
 
+    /*
+    | Marketing-site contact form (kibondo-web).
+    | The Next.js /api/contact route sends Authorization: Bearer {secret}.
+    */
+    'contact' => [
+        'secret' => env('CONTACT_FORM_SECRET'),
+        'to'     => env('MAIL_CONTACT_TO', 'info@kibondogreenfarm.co.tz'),
+    ],
+
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),

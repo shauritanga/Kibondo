@@ -158,7 +158,7 @@ make dev-up
 make dev-test          # PHPUnit
 make dev-seed          # Re-run seeders
 make dev-logs
-make dev-vite          # Vite HMR on :5173 (optional --profile vite)
+make dev-vite          # Vite HMR on :5173 (also started by make dev-up)
 make dev-down
 ```
 

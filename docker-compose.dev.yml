@@ -1,4 +1,4 @@
-# Development — artisan serve, debug on, optional Vite HMR
+# Development — PHP app, queue, Postgres, and Vite HMR
 # Usage: docker compose -f docker-compose.dev.yml up --build -d
 
 name: kibondo-dev
@@ -20,9 +20,19 @@ x-app-env: &app-env
   SESSION_DRIVER: database
   QUEUE_CONNECTION: database
   CACHE_STORE: database
-  MAIL_MAILER: log
-  CORS_ALLOWED_ORIGINS: http://localhost:${APP_PORT:-8000},http://127.0.0.1:${APP_PORT:-8000}
-  SANCTUM_STATEFUL_DOMAINS: localhost:${APP_PORT:-8000},127.0.0.1:${APP_PORT:-8000}
+  MAIL_MAILER: ${MAIL_MAILER:-log}
+  MAIL_SCHEME: ${MAIL_SCHEME:-}
+  MAIL_HOST: ${MAIL_HOST:-}
+  MAIL_PORT: ${MAIL_PORT:-2525}
+  MAIL_USERNAME: ${MAIL_USERNAME:-}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-hello@example.com}
+  MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Kibondo Green Farm}
+  MAIL_CONTACT_TO: ${MAIL_CONTACT_TO:-info@kibondogreenfarm.co.tz}
+  CONTACT_FORM_SECRET: ${CONTACT_FORM_SECRET:-}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  CORS_ALLOWED_ORIGINS: http://localhost:${APP_PORT:-8000},http://127.0.0.1:${APP_PORT:-8000},http://localhost:3000,http://127.0.0.1:3000,http://localhost:${VITE_PORT:-5173},http://127.0.0.1:${VITE_PORT:-5173}
+  SANCTUM_STATEFUL_DOMAINS: localhost:${APP_PORT:-8000},127.0.0.1:${APP_PORT:-8000},localhost:3000,127.0.0.1:3000,localhost:${VITE_PORT:-5173},127.0.0.1:${VITE_PORT:-5173}
   RUN_SEED: ${RUN_SEED:-true}
   SEED_DEV_ADMIN: ${SEED_DEV_ADMIN:-true}
   REQUIRE_2FA_FOR_ADMINS: ${REQUIRE_2FA_FOR_ADMINS:-0}
@@ -30,6 +40,7 @@ x-app-env: &app-env
   DEV_ADMIN_PHONE: ${DEV_ADMIN_PHONE:-+255700000000}
   DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-password}
   DEV_ADMIN_NAME: ${DEV_ADMIN_NAME:-Admin}
+
 
 services:
   app:
@@ -44,8 +55,13 @@ services:
       db:
         condition: service_healthy
     volumes:
+      - .:/var/www/html
+      - /var/www/html/vendor
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
+    # artisan serve forwards $_ENV from the bind-mounted host .env (DB_HOST=localhost),
+    # which breaks Postgres on the Docker network. php -S keeps Compose's DB_HOST=db.
+    command: sh -c "cd /var/www/html/public && exec php -S 0.0.0.0:8000 /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
     restart: unless-stopped
 
   queue:
@@ -60,6 +76,8 @@ services:
       app:
         condition: service_started
     volumes:
+      - .:/var/www/html
+      - /var/www/html/vendor
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
     command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
@@ -83,19 +101,27 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # Hot reload: docker compose -f docker-compose.dev.yml --profile vite up
+  # Vite HMR — always on in dev so staff/storefront assets reload
   vite:
-    profiles: [vite]
     image: node:22-alpine
     working_dir: /var/www/html
     ports:
       - "${VITE_PORT:-5173}:5173"
     environment:
+      VITE_PORT: ${VITE_PORT:-5173}
+      VITE_HMR_HOST: localhost
       VITE_DEV_SERVER_URL: http://localhost:${VITE_PORT:-5173}
+      VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-}
+      VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-}
+      VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:-}
+      VITE_FIREBASE_STORAGE_BUCKET: ${VITE_FIREBASE_STORAGE_BUCKET:-}
+      VITE_FIREBASE_MESSAGING_SENDER_ID: ${VITE_FIREBASE_MESSAGING_SENDER_ID:-}
+      VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-}
+      VITE_FIREBASE_VAPID_KEY: ${VITE_FIREBASE_VAPID_KEY:-}
     volumes:
       - .:/var/www/html
       - vite_node_modules:/var/www/html/node_modules
-    command: sh -c "npm install --ignore-scripts && npm run dev -- --host 0.0.0.0 --port 5173"
+    command: sh -c "npm install --ignore-scripts && npm run dev -- --host 0.0.0.0 --port $${VITE_PORT:-5173}"
     restart: unless-stopped
 
   test:
@@ -111,10 +137,14 @@ services:
       QUEUE_CONNECTION: sync
       CACHE_STORE: array
       SESSION_DRIVER: array
+      CONTACT_FORM_SECRET: testing-contact-secret
+      MAIL_CONTACT_TO: info@kibondogreenfarm.co.tz
     depends_on:
       db:
         condition: service_healthy
     volumes:
+      - .:/var/www/html
+      - /var/www/html/vendor
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
     command: php artisan test
