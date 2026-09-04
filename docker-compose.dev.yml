@@ -58,6 +58,9 @@ services:
       - /var/www/html/vendor
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
+    # artisan serve forwards $_ENV from the bind-mounted host .env (DB_HOST=localhost),
+    # which breaks Postgres on the Docker network. php -S keeps Compose's DB_HOST=db.
+    command: sh -c "cd /var/www/html/public && exec php -S 0.0.0.0:8000 /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php"
     restart: unless-stopped
 
   queue:
