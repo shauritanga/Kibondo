@@ -11,7 +11,7 @@ dev-down:
 	$(COMPOSE_DEV) down
 
 dev-logs:
-	$(COMPOSE_DEV) logs -f app
+	$(COMPOSE_DEV) logs -f app queue vite
 
 dev-test:
 	$(COMPOSE_DEV) --profile test run --rm test
@@ -20,7 +20,7 @@ dev-seed:
 	$(COMPOSE_DEV) exec app php artisan db:seed --force
 
 dev-vite:
-	$(COMPOSE_DEV) --profile vite up -d vite
+	$(COMPOSE_DEV) up -d vite
 
 # ─── Production ────────────────────────────────────────────────────────────────
 prod-build:

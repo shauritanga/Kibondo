@@ -17,10 +17,13 @@ export default defineConfig({
     ],
     server: {
         host: '0.0.0.0',
-        port: 5173,
+        port: Number(process.env.VITE_PORT ?? 5173),
         strictPort: true,
+        origin: process.env.VITE_DEV_SERVER_URL,
         hmr: {
-            host: 'localhost',
+            host: process.env.VITE_HMR_HOST ?? 'localhost',
+            port: Number(process.env.VITE_PORT ?? 5173),
+            clientPort: Number(process.env.VITE_PORT ?? 5173),
         },
         watch: {
             ignored: ['**/storage/framework/views/**'],
