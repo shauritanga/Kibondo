@@ -26,7 +26,7 @@ class ContactInquiryTest extends TestCase
     {
         Notification::fake();
 
-        $this->withToken('testing-contact-secret')
+        $this->withHeaders(['X-Contact-Secret' => 'testing-contact-secret'])
             ->postJson('/api/v1/contact', $this->payload())
             ->assertOk()
             ->assertJsonPath('message', 'Thank you for your inquiry. We will contact you shortly.');
@@ -55,7 +55,7 @@ class ContactInquiryTest extends TestCase
     {
         Notification::fake();
 
-        $this->withToken('wrong-secret')
+        $this->withHeaders(['X-Contact-Secret' => 'wrong-secret'])
             ->postJson('/api/v1/contact', $this->payload())
             ->assertUnauthorized();
 
@@ -64,7 +64,7 @@ class ContactInquiryTest extends TestCase
 
     public function test_validation_requires_core_fields(): void
     {
-        $this->withToken('testing-contact-secret')
+        $this->withHeaders(['X-Contact-Secret' => 'testing-contact-secret'])
             ->postJson('/api/v1/contact', [])
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['first_name', 'last_name', 'phone', 'email']);
@@ -74,7 +74,7 @@ class ContactInquiryTest extends TestCase
     {
         Notification::fake();
 
-        $this->withToken('testing-contact-secret')
+        $this->withHeaders(['X-Contact-Secret' => 'testing-contact-secret'])
             ->postJson('/api/v1/contact', $this->payload(['website' => 'http://spam.test']))
             ->assertOk();
 

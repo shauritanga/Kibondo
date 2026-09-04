@@ -7,6 +7,7 @@ use App\Notifications\ContactInquiryNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 
 class ContactInquiryController extends Controller
 {
@@ -18,12 +19,22 @@ class ContactInquiryController extends Controller
             return response()->json($success);
         }
 
+        $limiterKey = 'contact:'.($request->header('X-Client-IP') ?: $request->ip());
+        $maxAttempts = app()->isLocal() ? 30 : 5;
+        $decaySeconds = app()->isLocal() ? 60 : 3600;
+
+        if (RateLimiter::tooManyAttempts($limiterKey, $maxAttempts)) {
+            return response()->json(['message' => 'Too many inquiries. Please try again later.'], 429);
+        }
+
         $to = (string) config('services.contact.to');
         if ($to === '') {
             Log::error('MAIL_CONTACT_TO is not configured; contact inquiry dropped.');
 
             return response()->json(['message' => 'Unable to send your inquiry right now. Please try again later.'], 503);
         }
+
+        RateLimiter::hit($limiterKey, $decaySeconds);
 
         Notification::route('mail', [$to => 'Kibondo Green Farm'])
             ->notify(new ContactInquiryNotification(

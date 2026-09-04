@@ -20,15 +20,26 @@ x-app-env: &app-env
   SESSION_DRIVER: database
   QUEUE_CONNECTION: database
   CACHE_STORE: database
-  MAIL_MAILER: log
-  CORS_ALLOWED_ORIGINS: http://localhost:${APP_PORT:-8000},http://127.0.0.1:${APP_PORT:-8000}
-  SANCTUM_STATEFUL_DOMAINS: localhost:${APP_PORT:-8000},127.0.0.1:${APP_PORT:-8000}
+  MAIL_MAILER: ${MAIL_MAILER:-log}
+  MAIL_SCHEME: ${MAIL_SCHEME:-}
+  MAIL_HOST: ${MAIL_HOST:-}
+  MAIL_PORT: ${MAIL_PORT:-2525}
+  MAIL_USERNAME: ${MAIL_USERNAME:-}
+  MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+  MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-hello@example.com}
+  MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Kibondo Green Farm}
+  MAIL_CONTACT_TO: ${MAIL_CONTACT_TO:-info@kibondogreenfarm.co.tz}
+  CONTACT_FORM_SECRET: ${CONTACT_FORM_SECRET:-}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  CORS_ALLOWED_ORIGINS: http://localhost:${APP_PORT:-8000},http://127.0.0.1:${APP_PORT:-8000},http://localhost:3000,http://127.0.0.1:3000
+  SANCTUM_STATEFUL_DOMAINS: localhost:${APP_PORT:-8000},127.0.0.1:${APP_PORT:-8000},localhost:3000,127.0.0.1:3000
   RUN_SEED: ${RUN_SEED:-true}
   SEED_DEV_ADMIN: ${SEED_DEV_ADMIN:-true}
   REQUIRE_2FA_FOR_ADMINS: ${REQUIRE_2FA_FOR_ADMINS:-0}
   DEV_ADMIN_EMAIL: ${DEV_ADMIN_EMAIL:-admin@kibondo.local}
   DEV_ADMIN_PASSWORD: ${DEV_ADMIN_PASSWORD:-password}
   DEV_ADMIN_NAME: ${DEV_ADMIN_NAME:-Admin}
+
 
 services:
   app:
@@ -43,6 +54,8 @@ services:
       db:
         condition: service_healthy
     volumes:
+      - .:/var/www/html
+      - /var/www/html/vendor
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
     restart: unless-stopped
@@ -59,6 +72,8 @@ services:
       app:
         condition: service_started
     volumes:
+      - .:/var/www/html
+      - /var/www/html/vendor
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
     command: php artisan queue:work --sleep=3 --tries=3 --max-time=3600
@@ -110,10 +125,14 @@ services:
       QUEUE_CONNECTION: sync
       CACHE_STORE: array
       SESSION_DRIVER: array
+      CONTACT_FORM_SECRET: testing-contact-secret
+      MAIL_CONTACT_TO: info@kibondogreenfarm.co.tz
     depends_on:
       db:
         condition: service_healthy
     volumes:
+      - .:/var/www/html
+      - /var/www/html/vendor
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
     command: php artisan test

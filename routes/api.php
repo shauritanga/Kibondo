@@ -35,7 +35,7 @@ Route::post('/auth/otp/verify', [AuthController::class, 'verifyOtp'])->middlewar
 
 // ─── Marketing site contact form (kibondo-web / Vercel) ───────────────────────
 Route::post('/contact', [ContactInquiryController::class, 'store'])
-    ->middleware(['contact.secret', 'throttle:contact']);
+    ->middleware('contact.secret');
 
 // ─── Storefront – public ──────────────────────────────────────────────────────
 Route::prefix('store')->middleware('throttle:store-api')->group(function () {

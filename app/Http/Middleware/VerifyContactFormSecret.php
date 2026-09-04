@@ -10,8 +10,12 @@ class VerifyContactFormSecret
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $secret   = (string) config('services.contact.secret');
-        $provided = (string) ($request->bearerToken() ?: $request->header('X-Contact-Secret', ''));
+        $secret = (string) (config('services.contact.secret') ?: env('CONTACT_FORM_SECRET', ''));
+        $provided = (string) (
+            $request->header('X-Contact-Secret')
+            ?: $request->bearerToken()
+            ?: ''
+        );
 
         if ($secret === '' || $provided === '' || ! hash_equals($secret, $provided)) {
             return response()->json(['message' => 'Unauthorized.'], 401);
