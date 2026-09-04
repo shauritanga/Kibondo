@@ -4,6 +4,7 @@ use App\Http\Controllers\AuditController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CampaignController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ContactInquiryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\CustomerNoteController;
 use App\Http\Controllers\CustomerTaskController;
@@ -31,6 +32,10 @@ use Illuminate\Support\Facades\Route;
 // ─── Staff Auth ───────────────────────────────────────────────────────────────
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('/auth/otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:auth');
+
+// ─── Marketing site contact form (kibondo-web / Vercel) ───────────────────────
+Route::post('/contact', [ContactInquiryController::class, 'store'])
+    ->middleware(['contact.secret', 'throttle:contact']);
 
 // ─── Storefront – public ──────────────────────────────────────────────────────
 Route::prefix('store')->middleware('throttle:store-api')->group(function () {

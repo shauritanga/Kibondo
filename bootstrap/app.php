@@ -19,8 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'role'          => RoleMiddleware::class,
-            'auth.customer' => \App\Http\Middleware\AuthenticateCustomer::class,
+            'role'           => RoleMiddleware::class,
+            'auth.customer'  => \App\Http\Middleware\AuthenticateCustomer::class,
+            'contact.secret' => \App\Http\Middleware\VerifyContactFormSecret::class,
         ]);
 
         $middleware->api(append: [

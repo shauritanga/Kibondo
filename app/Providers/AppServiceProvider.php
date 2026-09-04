@@ -47,5 +47,12 @@ class AppServiceProvider extends ServiceProvider
                 optional($request->user())->id ?? $request->ip()
             );
         });
+
+        // Marketing contact form: 5 per hour per visitor (X-Client-IP is set by Vercel BFF)
+        RateLimiter::for('contact', function (Request $request) {
+            $clientIp = $request->header('X-Client-IP') ?: $request->ip();
+
+            return Limit::perHour(5)->by($clientIp);
+        });
     }
 }
