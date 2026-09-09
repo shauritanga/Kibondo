@@ -21,7 +21,7 @@ class CustomerAuthTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonStructure(['token', 'customer' => ['id', 'name', 'email', 'phone']]);
+            ->assertJsonStructure(['customer' => ['id', 'name', 'email', 'phone'], 'message']);
 
         $this->assertDatabaseHas('customers', ['email' => 'jane@example.com']);
     }
@@ -62,7 +62,7 @@ class CustomerAuthTest extends TestCase
             'email'    => 'jane@example.com',
             'password' => 'password',
         ])->assertOk()
-          ->assertJsonStructure(['token', 'customer' => ['id', 'name', 'email', 'phone']]);
+          ->assertJsonStructure(['customer' => ['id', 'name', 'email', 'phone']]);
     }
 
     public function test_login_fails_with_wrong_password(): void
@@ -94,9 +94,8 @@ class CustomerAuthTest extends TestCase
     public function test_customer_can_logout(): void
     {
         $customer = Customer::factory()->create();
-        $token    = $customer->createToken('store')->plainTextToken;
 
-        $this->withToken($token)
+        $this->actingAs($customer, 'customer')
             ->postJson('/api/v1/store/auth/logout')
             ->assertOk();
     }

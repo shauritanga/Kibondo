@@ -38,7 +38,7 @@ class PlaceOrderTest extends TestCase
         $this->postJson('/api/v1/store/orders', [
             'delivery_address' => '123 Main St',
             'items'            => [['product_id' => $product->id, 'quantity' => 1]],
-        ])->assertUnauthorized();
+        ])->assertStatus(422);
     }
 
     public function test_order_uses_server_side_price(): void

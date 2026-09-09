@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Sale;
+use App\Notifications\Concerns\DeterminesSmsChannels;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,15 +11,13 @@ use Illuminate\Notifications\Notification;
 
 class OrderConfirmedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use DeterminesSmsChannels, Queueable;
 
     public function __construct(private Sale $sale) {}
 
     public function via(object $notifiable): array
     {
-        return $notifiable instanceof \App\Models\Customer
-            ? ['database', 'mail', 'fcm']
-            : ['mail'];
+        return $this->guestOrRoutedChannels($notifiable);
     }
 
     public function toFcm(object $notifiable): array
@@ -50,5 +49,10 @@ class OrderConfirmedNotification extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject("Your order {$this->sale->sale_number} is confirmed")
             ->view('emails.notifications.order-confirmed', ['sale' => $this->sale, 'customer_name' => $notifiable instanceof \App\Models\Customer ? $notifiable->name : ($this->sale->guest_name ?? 'Customer')]);
+    }
+
+    public function toSms(object $notifiable): string
+    {
+        return "Kibondo: Order {$this->sale->sale_number} confirmed. Tunashukuru!";
     }
 }

@@ -4,20 +4,23 @@ namespace App\Http\Controllers;
 
 use App\Models\Setting;
 use App\Models\User;
+use App\Notifications\SmsOtpNotification;
 use App\Notifications\StaffLoginOtpNotification;
 use App\Services\AuditService;
+use App\Services\OtpService;
+use App\Support\PhoneNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
 class AuthController extends Controller
 {
+    public function __construct(private OtpService $otp) {}
+
     public function login(Request $request): JsonResponse
     {
         $request->validate([
@@ -56,7 +59,6 @@ class AuthController extends Controller
             ]);
         }
 
-        // Email OTP required for admins when the setting is on
         if (Setting::get('require_2fa_for_admins', '1') === '1') {
             return $this->sendOtp($user);
         }
@@ -71,37 +73,67 @@ class AuthController extends Controller
             'code'            => 'required|string|size:6',
         ]);
 
-        $cacheKey = "otp:{$request->challenge_token}";
-        $payload  = Cache::get($cacheKey);
+        $result = $this->otp->verify('staff_login', $request->challenge_token, $request->code, $request->ip());
 
-        if (! $payload) {
-            return response()->json(['message' => 'Code expired. Please log in again.'], 422);
+        if (! $result['ok']) {
+            return response()->json(['message' => $result['message']], 422);
         }
 
-        if ($payload['ip'] !== $request->ip()) {
-            Cache::forget($cacheKey);
-            return response()->json(['message' => 'Session mismatch. Please log in again.'], 422);
+        $user = User::findOrFail($result['payload']['user_id']);
+
+        return $this->startSession($request, $user, 'User logged in with OTP');
+    }
+
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'phone' => 'required|string|max:30',
+        ]);
+
+        $phone = PhoneNumber::normalize($request->phone);
+        if (! $phone) {
+            return response()->json(['message' => 'If an account exists for that phone, a reset code was sent.']);
         }
 
-        $attemptsKey = "otp_attempts:{$request->challenge_token}";
-        $attempts    = (int) Cache::get($attemptsKey, 0);
+        $user = User::whereNotNull('phone')->get(['id', 'phone', 'name'])
+            ->first(fn (User $u) => PhoneNumber::normalize($u->phone) === $phone);
 
-        if ($attempts >= 5) {
-            Cache::forget($cacheKey);
-            return response()->json(['message' => 'Too many attempts. Please log in again.'], 422);
+        // Always return success to avoid account enumeration
+        if (! $user) {
+            return response()->json(['message' => 'If an account exists for that phone, a reset code was sent.']);
         }
 
-        if (! hash_equals($payload['otp_hash'], hash('sha256', $request->code))) {
-            Cache::put($attemptsKey, $attempts + 1, now()->addMinutes(10));
-            return response()->json(['message' => 'Invalid code. Please try again.'], 422);
+        $issued = $this->otp->issueForKey('staff_password_reset', $phone, [
+            'user_id' => $user->id,
+        ]);
+
+        $user->notify(new SmsOtpNotification($issued['code'], 'password reset'));
+
+        return response()->json(['message' => 'If an account exists for that phone, a reset code was sent.']);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'phone'                 => 'required|string|max:30',
+            'code'                  => 'required|string|size:6',
+            'password'              => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::min(8)->letters()->numbers()],
+        ]);
+
+        $phone = PhoneNumber::normalize($request->phone);
+        if (! $phone) {
+            return response()->json(['message' => 'Invalid phone number.'], 422);
+        }
+        $result = $this->otp->verifyForKey('staff_password_reset', $phone, $request->code);
+
+        if (! $result['ok']) {
+            return response()->json(['message' => $result['message']], 422);
         }
 
-        Cache::forget($cacheKey);
-        Cache::forget($attemptsKey);
+        $user = User::findOrFail($result['payload']['user_id']);
+        $user->update(['password' => $request->password]);
 
-        $user = User::findOrFail($payload['user_id']);
-
-        return $this->startSession($request, $user, 'User logged in with email OTP');
+        return response()->json(['message' => 'Password updated. You can log in now.']);
     }
 
     public function logout(Request $request): JsonResponse
@@ -112,7 +144,6 @@ class AuthController extends Controller
             'description' => 'User logged out',
         ]);
 
-        // Revoke Sanctum token if request was token-authenticated
         $token = $request->user()->currentAccessToken();
         if ($token instanceof PersonalAccessToken) {
             $token->delete();
@@ -138,7 +169,16 @@ class AuthController extends Controller
         $data = $request->validate([
             'name'  => 'required|string|max:200',
             'email' => 'required|email|max:180|unique:users,email,' . $request->user()->id,
+            'phone' => ['nullable', 'string', 'max:30', \Illuminate\Validation\Rule::unique('users', 'phone')->ignore($request->user()->id)],
         ]);
+
+        if (! empty($data['phone'])) {
+            $normalized = PhoneNumber::normalize($data['phone']);
+            if (! $normalized) {
+                throw ValidationException::withMessages(['phone' => ['Invalid phone number.']]);
+            }
+            $data['phone'] = $normalized;
+        }
 
         $request->user()->update($data);
 
@@ -170,15 +210,12 @@ class AuthController extends Controller
 
         $request->user()->update(['password' => $request->password]);
 
-        // Regenerate session after password change (prevents session fixation)
         if ($request->hasSession()) {
             $request->session()->regenerate();
         }
 
         return response()->json(['message' => 'Password updated.']);
     }
-
-    // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private function startSession(Request $request, User $user, string $description): JsonResponse
     {
@@ -200,21 +237,22 @@ class AuthController extends Controller
 
     private function sendOtp(User $user): JsonResponse
     {
-        $otp            = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-        $challengeToken = Str::uuid()->toString();
+        $issued = $this->otp->issue('staff_login', [
+            'user_id' => $user->id,
+            'ip'      => request()->ip(),
+        ]);
 
-        Cache::put("otp:{$challengeToken}", [
-            'user_id'  => $user->id,
-            'otp_hash' => hash('sha256', $otp),
-            'ip'       => request()->ip(),
-        ], now()->addMinutes(10));
+        $user->notify(new StaffLoginOtpNotification($issued['code']));
 
-        $user->notify(new StaffLoginOtpNotification($otp));
+        $via = $user->phone ? 'phone' : 'email';
+        $dest = $user->phone
+            ? substr($user->phone, 0, 5) . '***' . substr($user->phone, -2)
+            : $user->email;
 
         return response()->json([
             'otp_required'    => true,
-            'challenge_token' => $challengeToken,
-            'message'         => "A login code has been sent to {$user->email}",
+            'challenge_token' => $issued['challenge_token'],
+            'message'         => "A login code has been sent to your {$via} ({$dest})",
         ]);
     }
 
@@ -224,6 +262,7 @@ class AuthController extends Controller
             'id'         => $user->id,
             'name'       => $user->name,
             'email'      => $user->email,
+            'phone'      => $user->phone,
             'role'       => $user->role,
             'avatar_url' => $user->avatar_url,
         ];

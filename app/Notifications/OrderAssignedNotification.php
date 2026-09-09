@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Sale;
+use App\Notifications\Concerns\DeterminesSmsChannels;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -10,13 +11,17 @@ use Illuminate\Notifications\Notification;
 
 class OrderAssignedNotification extends Notification implements ShouldQueue
 {
-    use Queueable;
+    use DeterminesSmsChannels, Queueable;
 
     public function __construct(private Sale $sale, private string $recipientType) {}
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail', 'fcm'];
+        if ($this->recipientType === 'delivery') {
+            return $this->staffChannels($notifiable);
+        }
+
+        return $this->guestOrRoutedChannels($notifiable);
     }
 
     public function toFcm(object $notifiable): array
@@ -76,5 +81,14 @@ class OrderAssignedNotification extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject("Your order {$this->sale->sale_number} is on its way")
             ->view('emails.notifications.order-assigned-customer', ['sale' => $this->sale, 'customer' => $notifiable]);
+    }
+
+    public function toSms(object $notifiable): string
+    {
+        if ($this->recipientType === 'delivery') {
+            return "Kibondo: Delivery assigned — {$this->sale->sale_number}. Check the app.";
+        }
+
+        return "Kibondo: Order {$this->sale->sale_number} is out for delivery.";
     }
 }

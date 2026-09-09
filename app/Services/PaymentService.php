@@ -4,14 +4,17 @@ namespace App\Services;
 
 use App\Models\Payment;
 use App\Models\Sale;
+use App\Notifications\PaymentReceivedNotification;
+use App\Support\BuyerNotifier;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class PaymentService
 {
     public function recordPayment(array $data, string $userId): Payment
     {
-        return DB::transaction(function () use ($data, $userId) {
+        $payment = DB::transaction(function () use ($data, $userId) {
             $sale = Sale::lockForUpdate()->findOrFail($data['sale_id']);
 
             if ($sale->payment_status === 'paid') {
@@ -49,5 +52,17 @@ class PaymentService
 
             return $payment->load('sale');
         });
+
+        try {
+            $sale = $payment->sale->fresh();
+            BuyerNotifier::notify($sale, new PaymentReceivedNotification($payment, $sale));
+        } catch (\Throwable $e) {
+            Log::warning('Payment received notification failed.', [
+                'payment_id' => $payment->id,
+                'error'      => $e->getMessage(),
+            ]);
+        }
+
+        return $payment;
     }
 }

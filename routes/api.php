@@ -32,6 +32,8 @@ use Illuminate\Support\Facades\Route;
 // ─── Staff Auth ───────────────────────────────────────────────────────────────
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:auth');
 Route::post('/auth/otp/verify', [AuthController::class, 'verifyOtp'])->middleware('throttle:auth');
+Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:auth');
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:auth');
 
 // ─── Marketing site contact form (kibondo-web / Vercel) ───────────────────────
 Route::post('/contact', [ContactInquiryController::class, 'store'])
@@ -47,6 +49,8 @@ Route::prefix('store')->middleware('throttle:store-api')->group(function () {
     Route::get('/settings/promo', [SettingController::class, 'getPromo']);
     Route::post('/auth/register', [CustomerAuthController::class, 'register'])->middleware('throttle:auth');
     Route::post('/auth/login', [CustomerAuthController::class, 'login'])->middleware('throttle:auth');
+    Route::post('/auth/forgot-password', [CustomerAuthController::class, 'forgotPassword'])->middleware('throttle:auth');
+    Route::post('/auth/reset-password', [CustomerAuthController::class, 'resetPassword'])->middleware('throttle:auth');
     Route::get('/auth/verify/{id}/{hash}', [CustomerAuthController::class, 'verifyEmail'])->name('store.verification.verify');
     Route::post('/orders', [OrderController::class, 'store'])->middleware('throttle:orders');
 });
@@ -57,6 +61,8 @@ Route::prefix('store')->middleware(['auth.customer', 'throttle:store-api'])->gro
     Route::get('/auth/me', [CustomerAuthController::class, 'me']);
     Route::put('/auth/me', [CustomerAuthController::class, 'updateProfile']);
     Route::post('/auth/email/resend', [CustomerAuthController::class, 'resendVerification']);
+    Route::post('/auth/phone/verify', [CustomerAuthController::class, 'verifyPhone'])->middleware('throttle:auth');
+    Route::post('/auth/phone/resend', [CustomerAuthController::class, 'resendPhoneVerification'])->middleware('throttle:auth');
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/{sale}', [OrderController::class, 'show']);
     Route::post('/orders/{sale}/confirm', [OrderController::class, 'confirm']);
@@ -94,6 +100,9 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
         Route::put('/settings/promo', [SettingController::class, 'updatePromo']);
         Route::get('/settings/security', [SettingController::class, 'getSecurity']);
         Route::put('/settings/security', [SettingController::class, 'updateSecurity']);
+        Route::get('/settings/sms', [SettingController::class, 'getSms']);
+        Route::put('/settings/sms', [SettingController::class, 'updateSms']);
+        Route::post('/settings/sms/test', [SettingController::class, 'testSms']);
     });
 
     // Categories

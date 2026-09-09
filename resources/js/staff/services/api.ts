@@ -349,6 +349,7 @@ export const campaignsApi = {
     name: string;
     subject: string;
     body: string;
+    channel?: 'email' | 'sms' | 'both';
     recipient_filter: { all?: boolean; type?: string[] };
   }) => {
     const { data } = await http.post<{ data: Campaign }>('/campaigns', payload);
@@ -359,7 +360,7 @@ export const campaignsApi = {
     return data.data;
   },
   delete: async (id: string) => http.delete(`/campaigns/${id}`),
-  recipientPreview: async (filter: { all?: boolean; type?: string[] }) => {
+  recipientPreview: async (filter: { all?: boolean; type?: string[]; channel?: string }) => {
     const { data } = await http.get<{ count: number }>('/campaigns/recipient-preview', { params: filter });
     return data.count;
   },
@@ -393,7 +394,7 @@ export const usersApi = {
     const { data } = await http.get<{ data: User[] }>('/drivers');
     return data.data;
   },
-  create: async (payload: { name: string; email: string; password: string; role: string }) => {
+  create: async (payload: { name: string; email: string; phone?: string; password: string; role: string }) => {
     const { data } = await http.post<{ data: User }>('/users', payload);
     return data.data;
   },
@@ -506,6 +507,18 @@ export const settingsApi = {
   },
   updateSecurity: async (payload: { require_2fa_for_admins: boolean }) => {
     const { data } = await http.put('/settings/security', payload);
+    return data;
+  },
+  getSms: async () => {
+    const { data } = await http.get<{ enabled: boolean; driver: string; from: string }>('/settings/sms');
+    return data;
+  },
+  updateSms: async (payload: { enabled: boolean }) => {
+    const { data } = await http.put('/settings/sms', payload);
+    return data;
+  },
+  testSms: async (phone: string) => {
+    const { data } = await http.post<{ message: string; provider_message_id?: string }>('/settings/sms/test', { phone });
     return data;
   },
 };

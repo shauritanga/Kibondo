@@ -3,19 +3,20 @@
 namespace App\Notifications;
 
 use App\Models\Sale;
+use App\Notifications\Concerns\DeterminesSmsChannels;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class OrderPlacedNotification extends Notification
 {
-    use Queueable;
+    use DeterminesSmsChannels, Queueable;
 
     public function __construct(private Sale $sale) {}
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail', 'fcm'];
+        return $this->staffChannels($notifiable);
     }
 
     public function toFcm(object $notifiable): array
@@ -47,5 +48,10 @@ class OrderPlacedNotification extends Notification
         return (new MailMessage)
             ->subject("New order: {$this->sale->sale_number}")
             ->view('emails.notifications.order-placed', ['sale' => $this->sale]);
+    }
+
+    public function toSms(object $notifiable): string
+    {
+        return "Kibondo: New order {$this->sale->sale_number} placed. Open POS to review.";
     }
 }

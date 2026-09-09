@@ -20,6 +20,7 @@ class Customer extends Authenticatable implements MustVerifyEmail
         'location', 'payment_terms', 'crm_stage', 'crm_score', 'next_follow_up',
         'outstanding_balance', 'credit_limit', 'total_spend',
         'fcm_token', 'fcm_token_updated_at',
+        'phone_verified_at', 'sms_marketing_opt_in',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -31,8 +32,15 @@ class Customer extends Authenticatable implements MustVerifyEmail
         'total_spend'          => 'integer',
         'next_follow_up'       => 'date',
         'email_verified_at'    => 'datetime',
+        'phone_verified_at'    => 'datetime',
+        'sms_marketing_opt_in' => 'boolean',
         'fcm_token_updated_at' => 'datetime',
     ];
+
+    public function routeNotificationForSms(): ?string
+    {
+        return \App\Support\PhoneNumber::normalize($this->phone);
+    }
 
     public function sales(): HasMany
     {

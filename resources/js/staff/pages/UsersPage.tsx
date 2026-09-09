@@ -40,7 +40,7 @@ const ROLES = Object.keys(ROLE_LABELS) as User['role'][];
 interface Toast { id: number; message: string; tone: 'green' | 'slate' }
 
 function emptyForm() {
-  return { name: '', email: '', password: '', role: 'sales' as User['role'] };
+  return { name: '', email: '', phone: '', password: '', role: 'sales' as User['role'] };
 }
 
 export function UsersPage() {
@@ -111,7 +111,7 @@ export function UsersPage() {
 
   function openEdit(user: User) {
     setEditTarget(user);
-    setForm({ name: user.name, email: user.email, password: '', role: user.role });
+    setForm({ name: user.name, email: user.email, phone: user.phone ?? '', password: '', role: user.role });
     setModalError('');
     setModal('edit');
   }
@@ -126,7 +126,13 @@ export function UsersPage() {
     e.preventDefault();
     setSaving(true); setModalError('');
     try {
-      const created = await usersApi.create({ name: form.name, email: form.email, password: form.password, role: form.role });
+      const created = await usersApi.create({
+        name: form.name,
+        email: form.email,
+        phone: form.phone || undefined,
+        password: form.password,
+        role: form.role,
+      });
       setUsers((prev) => [...prev, created]);
       addToast(`${created.name} has been added.`);
       closeModal();
@@ -144,6 +150,7 @@ export function UsersPage() {
     const payload: Partial<User> & { password?: string } = {
       name: form.name,
       email: form.email,
+      phone: form.phone || null,
       role: form.role,
     };
     if (form.password) payload.password = form.password;
@@ -409,6 +416,14 @@ export function UsersPage() {
                   placeholder="jane@example.com"
                 />
               </div>
+
+              <FormInput
+                type="tel"
+                label="Phone (for SMS OTP / alerts)"
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                placeholder="+255 7XX XXX XXX"
+              />
 
               <FormInput
                 type="password"

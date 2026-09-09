@@ -148,7 +148,14 @@ export const storeCatalogApi = {
 };
 
 export const storeAuthApi = {
-  register: async (payload: { name: string; phone: string; email: string; password: string; password_confirmation: string }) => {
+  register: async (payload: {
+    name: string;
+    phone: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+    sms_marketing_opt_in?: boolean;
+  }) => {
     await getCsrfCookie();
     const { data } = await http.post<{ customer: StoreCustomer; message: string }>('/auth/register', payload);
     return data;

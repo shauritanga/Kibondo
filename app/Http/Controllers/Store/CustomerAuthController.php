@@ -7,11 +7,15 @@ use App\Http\Requests\Store\LoginRequest;
 use App\Http\Requests\Store\RegisterRequest;
 use App\Http\Resources\Store\CustomerResource;
 use App\Models\Customer;
+use App\Notifications\SmsOtpNotification;
+use App\Services\OtpService;
+use App\Support\PhoneNumber;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -21,24 +25,34 @@ use Illuminate\Validation\ValidationException;
  */
 class CustomerAuthController extends Controller
 {
+    public function __construct(private OtpService $otp) {}
+
     public function register(RegisterRequest $request): JsonResponse
     {
+        $phone = PhoneNumber::normalize($request->phone) ?? $request->phone;
+
         $customer = Customer::create([
-            'name'     => $request->name,
-            'phone'    => $request->phone,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-            'type'     => 'retail',
+            'name'                 => $request->name,
+            'phone'                => $phone,
+            'email'                => $request->email,
+            'password'             => Hash::make($request->password),
+            'type'                 => 'retail',
+            'sms_marketing_opt_in' => (bool) $request->boolean('sms_marketing_opt_in'),
         ]);
 
         event(new Registered($customer));
 
         Auth::guard('customer')->login($customer);
-        $request->session()->regenerate();
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
+
+        $this->sendPhoneVerificationOtp($customer);
 
         return response()->json([
             'customer' => new CustomerResource($customer),
-            'message'  => 'Registration successful. Please check your email to verify your account.',
+            'message'  => 'Registration successful. Please verify your phone and check your email.',
+            'phone_verification_required' => true,
         ], 201);
     }
 
@@ -53,7 +67,9 @@ class CustomerAuthController extends Controller
         }
 
         Auth::guard('customer')->login($customer);
-        $request->session()->regenerate();
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
 
         return response()->json([
             'customer' => new CustomerResource($customer),
@@ -112,16 +128,157 @@ class CustomerAuthController extends Controller
         return response()->json(['message' => 'Verification email sent.']);
     }
 
+    public function verifyPhone(Request $request): JsonResponse
+    {
+        $request->validate(['code' => 'required|string|size:6']);
+
+        $customer = $request->user('customer');
+        $phone = PhoneNumber::normalize($customer->phone);
+
+        if (! $phone) {
+            return response()->json(['message' => 'No valid phone on account.'], 422);
+        }
+
+        if ($customer->phone_verified_at) {
+            return response()->json(['message' => 'Phone already verified.']);
+        }
+
+        $result = $this->otp->verifyForKey('customer_phone_verify', $phone, $request->code);
+
+        if (! $result['ok']) {
+            return response()->json(['message' => $result['message']], 422);
+        }
+
+        $customer->update(['phone_verified_at' => now()]);
+
+        return response()->json([
+            'message'  => 'Phone verified successfully.',
+            'customer' => new CustomerResource($customer->fresh()),
+        ]);
+    }
+
+    public function resendPhoneVerification(Request $request): JsonResponse
+    {
+        $customer = $request->user('customer');
+
+        if ($customer->phone_verified_at) {
+            return response()->json(['message' => 'Phone already verified.'], 422);
+        }
+
+        $this->sendPhoneVerificationOtp($customer);
+
+        return response()->json(['message' => 'Verification code sent to your phone.']);
+    }
+
+    public function forgotPassword(Request $request): JsonResponse
+    {
+        $request->validate(['phone' => 'required|string|max:30']);
+
+        $phone = PhoneNumber::normalize($request->phone);
+        if (! $phone) {
+            return response()->json(['message' => 'If an account exists for that phone, a reset code was sent.']);
+        }
+
+        $customer = Customer::query()
+            ->get(['id', 'phone', 'name'])
+            ->first(fn (Customer $c) => PhoneNumber::normalize($c->phone) === $phone);
+
+        if ($customer) {
+            $issued = $this->otp->issueForKey('customer_password_reset', $phone, [
+                'customer_id' => $customer->id,
+            ]);
+            $customer->notify(new SmsOtpNotification($issued['code'], 'password reset'));
+        }
+
+        return response()->json(['message' => 'If an account exists for that phone, a reset code was sent.']);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'phone'    => 'required|string|max:30',
+            'code'     => 'required|string|size:6',
+            'password' => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::min(8)->letters()->numbers()],
+        ]);
+
+        $phone = PhoneNumber::normalize($request->phone);
+        if (! $phone) {
+            return response()->json(['message' => 'Invalid phone number.'], 422);
+        }
+        $result = $this->otp->verifyForKey('customer_password_reset', $phone, $request->code);
+
+        if (! $result['ok']) {
+            return response()->json(['message' => $result['message']], 422);
+        }
+
+        $customer = Customer::findOrFail($result['payload']['customer_id']);
+        $customer->update(['password' => Hash::make($request->password)]);
+
+        return response()->json(['message' => 'Password updated. You can log in now.']);
+    }
+
     public function updateProfile(Request $request): JsonResponse
     {
         $customer = $request->user('customer');
         $data = $request->validate([
-            'name'     => 'sometimes|string|max:200',
-            'phone'    => ['sometimes', 'string', 'max:30', \Illuminate\Validation\Rule::unique('customers', 'phone')->ignore($customer->id)->whereNull('deleted_at')],
-            'email'    => ['sometimes', 'email', 'max:180', \Illuminate\Validation\Rule::unique('customers', 'email')->ignore($customer->id)->whereNull('deleted_at')],
-            'location' => 'nullable|string|max:200',
+            'name'                 => 'sometimes|string|max:200',
+            'phone'                => ['sometimes', 'string', 'max:30', \Illuminate\Validation\Rule::unique('customers', 'phone')->ignore($customer->id)->whereNull('deleted_at')],
+            'email'                => ['sometimes', 'email', 'max:180', \Illuminate\Validation\Rule::unique('customers', 'email')->ignore($customer->id)->whereNull('deleted_at')],
+            'location'             => 'nullable|string|max:200',
+            'sms_marketing_opt_in' => 'sometimes|boolean',
         ]);
+
+        // Phone change requires OTP confirmation to the new number
+        if (isset($data['phone'])) {
+            $newPhone = PhoneNumber::normalize($data['phone']);
+            if (! $newPhone) {
+                throw ValidationException::withMessages(['phone' => ['Invalid phone number.']]);
+            }
+
+            $current = PhoneNumber::normalize($customer->phone);
+            if ($newPhone !== $current) {
+                if (! $request->filled('phone_code')) {
+                    $issued = $this->otp->issueForKey('customer_change_phone', $newPhone, [
+                        'customer_id' => $customer->id,
+                        'new_phone'   => $newPhone,
+                    ]);
+                    Notification::route('sms', $newPhone)
+                        ->notify(new SmsOtpNotification($issued['code'], 'phone change'));
+
+                    return response()->json([
+                        'phone_change_pending' => true,
+                        'message'              => 'A verification code was sent to the new phone number.',
+                    ]);
+                }
+
+                $result = $this->otp->verifyForKey('customer_change_phone', $newPhone, $request->string('phone_code')->toString());
+                if (! $result['ok']) {
+                    return response()->json(['message' => $result['message']], 422);
+                }
+
+                $data['phone'] = $newPhone;
+                $data['phone_verified_at'] = now();
+            } else {
+                unset($data['phone']);
+            }
+        }
+
         $customer->update($data);
-        return response()->json(['data' => new CustomerResource($customer)]);
+
+        return response()->json(['data' => new CustomerResource($customer->fresh())]);
+    }
+
+    private function sendPhoneVerificationOtp(Customer $customer): void
+    {
+        $phone = PhoneNumber::normalize($customer->phone);
+        if (! $phone) {
+            return;
+        }
+
+        $issued = $this->otp->issueForKey('customer_phone_verify', $phone, [
+            'customer_id' => $customer->id,
+        ]);
+
+        $customer->notify(new SmsOtpNotification($issued['code'], 'phone verification'));
     }
 }

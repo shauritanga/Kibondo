@@ -92,6 +92,7 @@ services:
     ports:
       - "${VITE_PORT:-5173}:5173"
     environment:
+      APP_URL: http://localhost:${APP_PORT:-8000}
       VITE_PORT: ${VITE_PORT:-5173}
       VITE_HMR_HOST: localhost
       VITE_DEV_SERVER_URL: http://localhost:${VITE_PORT:-5173}

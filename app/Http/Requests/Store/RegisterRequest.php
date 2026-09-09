@@ -14,6 +14,7 @@ class RegisterRequest extends FormRequest
             'phone'    => 'required|string|max:30|unique:customers,phone',
             'email'    => 'required|email|max:180|unique:customers,email',
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
+            'sms_marketing_opt_in' => 'sometimes|boolean',
         ];
     }
 

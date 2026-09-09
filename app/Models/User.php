@@ -16,6 +16,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'avatar_url',
         'password',
         'role',
@@ -35,6 +36,11 @@ class User extends Authenticatable
             'is_active'            => 'boolean',
             'fcm_token_updated_at' => 'datetime',
         ];
+    }
+
+    public function routeNotificationForSms(): ?string
+    {
+        return \App\Support\PhoneNumber::normalize($this->phone);
     }
 
     public function hasRole(string ...$roles): bool

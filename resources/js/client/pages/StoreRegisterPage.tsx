@@ -9,11 +9,12 @@ export function StoreRegisterPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     name: '', phone: '', email: '', password: '', password_confirmation: '',
+    sms_marketing_opt_in: false,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
-  function field(key: keyof typeof form) {
+  function field(key: 'name' | 'phone' | 'email' | 'password' | 'password_confirmation') {
     return {
       value: form[key],
       onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -104,6 +105,16 @@ export function StoreRegisterPage() {
             <input type="password" required className={inputClass('password_confirmation')} placeholder="Repeat password" {...field('password_confirmation')} />
             {errors.password_confirmation && <p className="text-red-500 text-xs mt-1">{errors.password_confirmation}</p>}
           </div>
+
+          <label className="flex items-start gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded accent-green-600"
+              checked={form.sms_marketing_opt_in}
+              onChange={(e) => setForm(f => ({ ...f, sms_marketing_opt_in: e.target.checked }))}
+            />
+            <span>Send me SMS offers and product announcements (optional)</span>
+          </label>
 
           <button
             type="submit"

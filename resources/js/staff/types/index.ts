@@ -2,6 +2,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  phone?: string | null;
   role: 'admin' | 'sales' | 'stock_manager' | 'accountant' | 'delivery';
   avatar_url?: string | null;
   is_active?: boolean;
@@ -268,6 +269,7 @@ export interface Campaign {
   name: string;
   subject: string;
   body: string;
+  channel: 'email' | 'sms' | 'both';
   recipient_filter: { all?: boolean; type?: string[] };
   status: 'draft' | 'sending' | 'sent' | 'failed';
   scheduled_at: string | null;

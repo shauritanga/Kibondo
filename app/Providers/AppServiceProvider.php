@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Channels\FcmChannel;
+use App\Channels\SmsChannel;
+use App\Sms\SmsManager;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\ChannelManager;
@@ -11,7 +13,12 @@ use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
-    public function register(): void {}
+    public function register(): void
+    {
+        $this->app->singleton(SmsManager::class, function ($app) {
+            return new SmsManager($app);
+        });
+    }
 
     public function boot(): void
     {
@@ -19,6 +26,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->resolving(ChannelManager::class, function (ChannelManager $manager) {
             $manager->extend('fcm', fn ($app) => $app->make(FcmChannel::class));
+            $manager->extend('sms', fn ($app) => $app->make(SmsChannel::class));
         });
     }
 

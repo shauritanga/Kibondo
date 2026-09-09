@@ -13,7 +13,7 @@ class Campaign extends Model
     use HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'name', 'subject', 'body', 'recipient_filter',
+        'name', 'subject', 'body', 'channel', 'recipient_filter',
         'status', 'scheduled_at', 'sent_at',
         'total_recipients', 'sent_count', 'failed_count', 'created_by',
     ];

@@ -58,4 +58,43 @@ class SettingController extends Controller
         Setting::set('require_2fa_for_admins', $request->boolean('require_2fa_for_admins') ? '1' : '0');
         return response()->json(['message' => 'Security settings saved.']);
     }
+
+    public function getSms(): JsonResponse
+    {
+        return response()->json([
+            'enabled' => Setting::get('sms_enabled', '1') !== '0',
+            'driver'  => config('sms.default'),
+            'from'    => config('sms.from'),
+        ]);
+    }
+
+    public function updateSms(Request $request): JsonResponse
+    {
+        $request->validate(['enabled' => 'required|boolean']);
+        Setting::set('sms_enabled', $request->boolean('enabled') ? '1' : '0');
+
+        return response()->json(['message' => 'SMS settings saved.']);
+    }
+
+    public function testSms(Request $request): JsonResponse
+    {
+        $request->validate(['phone' => 'required|string|max:30']);
+
+        $result = app(\App\Services\SmsService::class)->send(
+            $request->phone,
+            'Kibondo test SMS — your SMS integration is working.',
+            ['type' => 'settings_test', 'user_id' => $request->user()->id]
+        );
+
+        if (! $result->success) {
+            return response()->json([
+                'message' => 'SMS send failed: ' . ($result->error ?? 'unknown error'),
+            ], 422);
+        }
+
+        return response()->json([
+            'message'              => 'Test SMS sent.',
+            'provider_message_id'  => $result->providerMessageId,
+        ]);
+    }
 }

@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $seeders[] = CategorySeeder::class;
+        $seeders[] = ProductSeeder::class;
         $seeders[] = SettingsSeeder::class;
 
         $this->call($seeders);

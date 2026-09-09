@@ -4,17 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\Sale;
 use App\Models\User;
-use App\Notifications\DeliveryConfirmedNotification;
 use App\Notifications\OrderAssignedNotification;
 use App\Notifications\OrderCancelledNotification;
+use App\Notifications\OrderCompletedNotification;
 use App\Notifications\OrderConfirmedNotification;
 use App\Notifications\OrderDeliveredNotification;
+use App\Notifications\OrderReceivedNotification;
 use App\Services\AuditService;
 use App\Services\SaleService;
+use App\Support\BuyerNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 
 class SaleController extends Controller
 {
@@ -103,6 +104,8 @@ class SaleController extends Controller
             'new_values'  => ['sale_number' => $sale->sale_number, 'total_amount' => $sale->total_amount, 'status' => $sale->status],
         ]);
 
+        BuyerNotifier::notify($sale->refresh(), new OrderReceivedNotification($sale));
+
         return response()->json(['data' => $sale], 201);
     }
 
@@ -153,7 +156,7 @@ class SaleController extends Controller
             'table_name'  => 'sales',
         ]);
 
-        $this->notifyBuyer($sale->refresh(), new OrderConfirmedNotification($sale));
+        BuyerNotifier::notify($sale->refresh(), new OrderConfirmedNotification($sale));
 
         return response()->json(['data' => $sale->refresh()]);
     }
@@ -189,9 +192,7 @@ class SaleController extends Controller
             'metadata'    => ['delivery_user_id' => $deliveryUser->id, 'delivery_user_name' => $deliveryUser->name],
         ]);
 
-        if ($sale->customer_id) {
-            $sale->customer->notify(new OrderAssignedNotification($sale, 'customer'));
-        }
+        BuyerNotifier::notify($sale->refresh(), new OrderAssignedNotification($sale, 'customer'));
 
         $deliveryUser->notify(new OrderAssignedNotification($sale, 'delivery'));
 
@@ -222,7 +223,7 @@ class SaleController extends Controller
             'table_name'  => 'sales',
         ]);
 
-        $this->notifyBuyer($sale, new OrderDeliveredNotification($sale));
+        BuyerNotifier::notify($sale, new OrderDeliveredNotification($sale));
 
         return response()->json(['data' => $sale]);
     }
@@ -250,6 +251,8 @@ class SaleController extends Controller
                 'table_name'  => 'sales',
             ]);
 
+            BuyerNotifier::notify($sale->refresh(), new OrderCompletedNotification($sale));
+
             $sale->load('items.product', 'customer', 'assignedTo:id,name', 'payments', 'deliveryZone');
             return response()->json(['data' => $sale]);
         }
@@ -276,19 +279,9 @@ class SaleController extends Controller
             'table_name'  => 'sales',
         ]);
 
-        $this->notifyBuyer($sale, new OrderCancelledNotification($sale));
+        BuyerNotifier::notify($sale, new OrderCancelledNotification($sale));
 
         return response()->json(['data' => $sale]);
-    }
-
-    private function notifyBuyer(Sale $sale, \Illuminate\Notifications\Notification $notification): void
-    {
-        if ($sale->customer_id) {
-            $sale->customer->notify($notification);
-        } elseif ($sale->guest_email) {
-            Notification::route('mail', [$sale->guest_email => $sale->guest_name ?? 'Customer'])
-                ->notify($notification);
-        }
     }
 
     public function destroy(Sale $sale): JsonResponse

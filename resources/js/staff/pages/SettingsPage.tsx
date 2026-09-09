@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { AlertTriangle, Bell, Building2, DatabaseBackup, Globe, Percent, ShieldAlert, ShieldCheck, Zap } from 'lucide-react';
+import { AlertTriangle, Bell, Building2, DatabaseBackup, Globe, MessageSquare, Percent, ShieldAlert, ShieldCheck, Zap } from 'lucide-react';
 import { PageHeader } from '../components/PageHeader';
 import { FormInput } from '../components/FormInput';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -86,10 +86,25 @@ export function SettingsPage() {
   const [securitySuccess, setSecuritySuccess] = useState('');
   const [securityError, setSecurityError]     = useState('');
 
+  // SMS
+  const [smsEnabled, setSmsEnabled] = useState(true);
+  const [smsDriver, setSmsDriver] = useState('log');
+  const [smsFrom, setSmsFrom] = useState('');
+  const [smsTestPhone, setSmsTestPhone] = useState('');
+  const [smsSaving, setSmsSaving] = useState(false);
+  const [smsTesting, setSmsTesting] = useState(false);
+  const [smsSuccess, setSmsSuccess] = useState('');
+  const [smsError, setSmsError] = useState('');
+
   useEffect(() => {
     http.get('/settings').then(res => setSocialLinks(res.data.social_links ?? [])).catch(() => {});
     settingsApi.getPromo().then(d => setPromoPercent(String(d.promo_percentage))).catch(() => {});
     settingsApi.getSecurity().then(d => setRequire2fa(d.require_2fa_for_admins)).catch(() => {});
+    settingsApi.getSms().then(d => {
+      setSmsEnabled(d.enabled);
+      setSmsDriver(d.driver);
+      setSmsFrom(d.from);
+    }).catch(() => {});
   }, []);
 
   async function saveSecurity() {
@@ -101,6 +116,34 @@ export function SettingsPage() {
       setSecurityError('Failed to save. Please try again.');
     } finally {
       setSecuritySaving(false);
+    }
+  }
+
+  async function saveSms() {
+    setSmsSaving(true); setSmsSuccess(''); setSmsError('');
+    try {
+      await settingsApi.updateSms({ enabled: smsEnabled });
+      setSmsSuccess('SMS settings saved.');
+    } catch {
+      setSmsError('Failed to save SMS settings.');
+    } finally {
+      setSmsSaving(false);
+    }
+  }
+
+  async function sendTestSms() {
+    if (!smsTestPhone.trim()) {
+      setSmsError('Enter a phone number to test.');
+      return;
+    }
+    setSmsTesting(true); setSmsSuccess(''); setSmsError('');
+    try {
+      const res = await settingsApi.testSms(smsTestPhone.trim());
+      setSmsSuccess(res.message);
+    } catch (err: any) {
+      setSmsError(err?.response?.data?.message ?? 'Test SMS failed.');
+    } finally {
+      setSmsTesting(false);
     }
   }
 
@@ -338,6 +381,57 @@ export function SettingsPage() {
               {promoSaving ? 'Saving…' : parseInt(promoPercent) > 0 ? 'Apply discount' : 'Save (disable)'}
             </button>
           </form>
+        </div>
+
+        {/* SMS */}
+        <div className="card px-5 py-4 lg:col-span-2">
+          <SectionTitle icon={MessageSquare} title="SMS" />
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-4 -mt-2">
+            Master switch for transactional SMS, OTP, and marketing. Provider credentials are configured in the server environment.
+          </p>
+          {smsError && <ErrorBanner message={smsError} />}
+          {smsSuccess && (
+            <div className="mb-4 rounded-lg bg-green-50 px-4 py-2.5 text-xs font-semibold text-green-700 dark:bg-green-900/20 dark:text-green-400">
+              {smsSuccess}
+            </div>
+          )}
+          <Row label="SMS enabled" description="Disable to stop all outbound SMS immediately.">
+            <Toggle checked={smsEnabled} onChange={() => setSmsEnabled((v) => !v)} />
+          </Row>
+          <Row label="Driver" description="Configured via SMS_DRIVER environment variable.">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{smsDriver}</span>
+          </Row>
+          <Row label="Sender ID" description="Default from / sender name." last>
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{smsFrom || '—'}</span>
+          </Row>
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <div className="min-w-[180px] flex-1">
+              <label className="mb-1 block text-xs font-semibold text-slate-600 dark:text-slate-300">Test phone</label>
+              <input
+                type="tel"
+                value={smsTestPhone}
+                onChange={(e) => setSmsTestPhone(e.target.value)}
+                placeholder="+255 7XX XXX XXX"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={sendTestSms}
+              disabled={smsTesting || !smsEnabled}
+              className="h-9 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
+            >
+              {smsTesting ? 'Sending…' : 'Send test SMS'}
+            </button>
+            <button
+              type="button"
+              onClick={saveSms}
+              disabled={smsSaving}
+              className="h-9 rounded-lg bg-brand-green px-5 text-xs font-bold text-white hover:opacity-90 disabled:opacity-60"
+            >
+              {smsSaving ? 'Saving…' : 'Save SMS settings'}
+            </button>
+          </div>
         </div>
 
         {/* Notifications */}
