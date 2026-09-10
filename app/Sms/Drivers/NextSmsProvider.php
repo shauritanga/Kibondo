@@ -3,6 +3,8 @@
 namespace App\Sms\Drivers;
 
 use App\Contracts\Sms\SmsProvider;
+use App\Sms\SmsBulkMessage;
+use App\Sms\SmsBulkResult;
 use App\Sms\SmsMessage;
 use App\Sms\SmsResult;
 use Illuminate\Support\Facades\Http;
@@ -11,6 +13,9 @@ use Illuminate\Support\Str;
 
 class NextSmsProvider implements SmsProvider
 {
+    /** Status groupIds that mean the message was rejected/failed at submit time. */
+    private const FAIL_GROUPS = [19, 22]; // REJECTED, FAILED
+
     public function __construct(
         private readonly string $baseUrl,
         private readonly string $senderId,
@@ -23,15 +28,41 @@ class NextSmsProvider implements SmsProvider
 
     public function send(SmsMessage $message): SmsResult
     {
+        $bulk = $this->sendMany(new SmsBulkMessage(
+            to: [$message->to],
+            body: $message->body,
+            from: $message->from,
+            meta: $message->meta,
+        ));
+
+        $per = $bulk->byRecipient[$message->to] ?? null;
+
+        if ($per) {
+            return $per;
+        }
+
+        return $bulk->success
+            ? SmsResult::ok(null, $bulk->raw)
+            : SmsResult::fail($bulk->error ?? 'SMS send failed', $bulk->raw);
+    }
+
+    public function sendMany(SmsBulkMessage $message): SmsBulkResult
+    {
+        if ($message->to === []) {
+            return SmsBulkResult::fail('No recipients');
+        }
+
         $from = $message->from ?: $this->senderId;
         $path = $this->sandbox
             ? '/api/sms/v2/test/text/single'
             : '/api/sms/v2/text/single';
         $url = rtrim($this->baseUrl, '/') . $path;
 
+        $to = count($message->to) === 1 ? $message->to[0] : array_values($message->to);
+
         $payload = [
             'from' => $from,
-            'to'   => $message->to,
+            'to'   => $to,
             'text' => $message->body,
         ];
 
@@ -40,53 +71,114 @@ class NextSmsProvider implements SmsProvider
         }
 
         try {
-            $request = Http::acceptJson()
+            $response = Http::acceptJson()
                 ->asJson()
-                ->timeout(30)
-                ->withHeaders($this->authHeaders());
+                ->timeout(60)
+                ->withHeaders($this->authHeaders())
+                ->post($url, $payload);
 
-            $response = $request->post($url, $payload);
             $json = $response->json();
 
-            if ($response->successful()) {
-                $messageId = data_get($json, 'messages.0.messageId')
-                    ?? data_get($json, 'messageId')
-                    ?? data_get($json, 'messages.0.message_id');
+            if (! $response->successful()) {
+                $error = data_get($json, 'message')
+                    ?? data_get($json, 'error')
+                    ?? ('HTTP ' . $response->status());
 
-                return SmsResult::ok(
-                    $messageId !== null ? (string) $messageId : null,
+                Log::warning('NextSMS bulk send failed', [
+                    'status' => $response->status(),
+                    'url'    => $url,
+                    'count'  => count($message->to),
+                    'body'   => $json ?? $response->body(),
+                ]);
+
+                return SmsBulkResult::fail(
+                    (string) $error,
+                    $this->failAll($message->to, (string) $error, $json),
                     $json
                 );
             }
 
-            $error = data_get($json, 'message')
-                ?? data_get($json, 'error')
-                ?? data_get($json, 'messages.0.status.description')
-                ?? ('HTTP ' . $response->status());
-
-            Log::warning('NextSMS send failed', [
-                'status' => $response->status(),
-                'url'    => $url,
-                'body'   => $json ?? $response->body(),
-                'to'     => $message->to,
-            ]);
-
-            return SmsResult::fail((string) $error, $json);
+            return SmsBulkResult::ok(
+                $this->mapRecipientResults($message->to, is_array($json) ? $json : []),
+                $json
+            );
         } catch (\Throwable $e) {
-            Log::error('NextSMS exception', [
+            Log::error('NextSMS bulk exception', [
                 'error' => $e->getMessage(),
                 'url'   => $url,
-                'to'    => $message->to,
+                'count' => count($message->to),
             ]);
 
-            return SmsResult::fail($e->getMessage());
+            return SmsBulkResult::fail(
+                $e->getMessage(),
+                $this->failAll($message->to, $e->getMessage()),
+            );
         }
     }
 
     /**
-     * Prefer Bearer token (Messaging Service API V2 recommended).
-     * Fall back to Basic with pre-encoded key, then username:password.
-     *
+     * @param  list<string>  $phones
+     * @return array<string, SmsResult>
+     */
+    private function mapRecipientResults(array $phones, array $json): array
+    {
+        $messages = data_get($json, 'messages', []);
+        $byPhone = [];
+
+        if (is_array($messages)) {
+            foreach ($messages as $index => $row) {
+                if (! is_array($row)) {
+                    continue;
+                }
+
+                $to = isset($row['to']) ? (string) $row['to'] : ($phones[$index] ?? null);
+                if (! $to && count($phones) === 1 && count($messages) === 1) {
+                    $to = $phones[0];
+                }
+                if (! $to) {
+                    continue;
+                }
+
+                $groupId = (int) data_get($row, 'status.groupId', 0);
+                $messageId = data_get($row, 'messageId');
+                $desc = data_get($row, 'status.description')
+                    ?? data_get($row, 'status.name');
+
+                if (in_array($groupId, self::FAIL_GROUPS, true)) {
+                    $byPhone[$to] = SmsResult::fail((string) ($desc ?: 'Rejected'), $row);
+                } else {
+                    $byPhone[$to] = SmsResult::ok(
+                        $messageId !== null ? (string) $messageId : null,
+                        $row
+                    );
+                }
+            }
+        }
+
+        foreach ($phones as $phone) {
+            if (! isset($byPhone[$phone])) {
+                $byPhone[$phone] = SmsResult::ok(null, ['assumed' => true]);
+            }
+        }
+
+        return $byPhone;
+    }
+
+    /**
+     * @param  list<string>  $phones
+     * @return array<string, SmsResult>
+     */
+    private function failAll(array $phones, string $error, mixed $raw = null): array
+    {
+        $out = [];
+        foreach ($phones as $phone) {
+            $out[$phone] = SmsResult::fail($error, $raw);
+        }
+
+        return $out;
+    }
+
+    /**
      * @return array<string, string>
      */
     private function authHeaders(): array
@@ -100,7 +192,6 @@ class NextSmsProvider implements SmsProvider
         if ($this->apiKey) {
             $key = $this->stripScheme($this->apiKey, 'Basic');
 
-            // Accept either raw base64 or already "username:password"
             if (str_contains($key, ':') && ! $this->looksLikeBase64($key)) {
                 $key = base64_encode($key);
             }

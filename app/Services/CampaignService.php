@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Jobs\SendCampaignEmailJob;
-use App\Jobs\SendCampaignSmsJob;
+use App\Jobs\SendCampaignSmsBatchJob;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Customer;
@@ -66,15 +66,25 @@ class CampaignService
             SendCampaignEmailJob::dispatch($campaign, $customer, $recipient->id);
         }
 
-        foreach ($smsRecipients as $customer) {
-            $recipient = CampaignRecipient::firstOrCreate(
-                [
-                    'campaign_id' => $campaign->id,
-                    'customer_id' => $customer->id,
-                ],
-                ['status' => 'pending']
-            );
-            SendCampaignSmsJob::dispatch($campaign, $customer, $recipient->id);
+        if ($smsRecipients->isNotEmpty()) {
+            $smsRecipientIds = [];
+
+            foreach ($smsRecipients as $customer) {
+                $recipient = CampaignRecipient::firstOrCreate(
+                    [
+                        'campaign_id' => $campaign->id,
+                        'customer_id' => $customer->id,
+                    ],
+                    ['status' => 'pending']
+                );
+                $smsRecipientIds[] = $recipient->id;
+            }
+
+            $chunkSize = max(1, (int) config('sms.bulk_chunk_size', 100));
+
+            foreach (array_chunk($smsRecipientIds, $chunkSize) as $chunk) {
+                SendCampaignSmsBatchJob::dispatch($campaign, $chunk);
+            }
         }
     }
 

@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Sms\Drivers\LogSmsProvider;
 use App\Sms\Drivers\NextSmsProvider;
+use App\Sms\SmsBulkMessage;
 use App\Sms\SmsMessage;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -108,5 +109,61 @@ class SmsProvidersTest extends TestCase
 
         $this->assertFalse($result->success);
         $this->assertStringContainsString('Insufficient balance', (string) $result->error);
+    }
+
+    public function test_nextsms_bulk_posts_to_as_array(): void
+    {
+        Http::fake([
+            'messaging-service.co.tz/*' => Http::response([
+                'messages' => [
+                    [
+                        'to' => '255711111111',
+                        'messageId' => 'b1',
+                        'status' => ['groupId' => 18, 'name' => 'ENROUTE (SENT)'],
+                    ],
+                    [
+                        'to' => '255722222222',
+                        'messageId' => 'b2',
+                        'status' => ['groupId' => 18, 'name' => 'ENROUTE (SENT)'],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $provider = new NextSmsProvider(
+            baseUrl: 'https://messaging-service.co.tz',
+            senderId: 'KIBONDO',
+            bearerToken: 'token',
+        );
+
+        $result = $provider->sendMany(new SmsBulkMessage(
+            to: ['255711111111', '255722222222'],
+            body: 'Promo',
+            from: 'KIBONDO',
+        ));
+
+        $this->assertTrue($result->success);
+        $this->assertSame(2, $result->sentCount());
+        $this->assertTrue($result->byRecipient['255711111111']->success);
+        $this->assertSame('b1', $result->byRecipient['255711111111']->providerMessageId);
+
+        Http::assertSent(function ($request) {
+            return $request->url() === 'https://messaging-service.co.tz/api/sms/v2/text/single'
+                && is_array($request['to'])
+                && $request['to'] === ['255711111111', '255722222222']
+                && $request['text'] === 'Promo';
+        });
+    }
+
+    public function test_log_provider_send_many(): void
+    {
+        $provider = new LogSmsProvider;
+        $result = $provider->sendMany(new SmsBulkMessage(
+            to: ['255711111111', '255722222222'],
+            body: 'Hello all',
+        ));
+
+        $this->assertTrue($result->success);
+        $this->assertSame(2, $result->sentCount());
     }
 }
