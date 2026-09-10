@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Customer;
 use App\Models\Sale;
 use App\Models\User;
+use App\Notifications\CustomerOrderReceivedNotification;
 use App\Notifications\OrderAssignedNotification;
 use App\Notifications\OrderCancelledNotification;
 use App\Notifications\OrderConfirmedNotification;
@@ -25,33 +26,38 @@ class OrderNotificationCopyTest extends TestCase
         $sale = $this->sale(['customer_id' => $customer->id, 'sale_number' => 'ORD-00009']);
 
         $this->assertSame(
-            'Kibondo: Order ORD-00009 confirmed. Tunashukuru!',
+            'Dear customer, your order ORD-00009 has been confirmed. We will notify you when it is out for delivery.',
             (new OrderConfirmedNotification($sale))->toSms($customer),
         );
 
         $this->assertSame(
-            'Kibondo: Order ORD-00009 is out for delivery.',
+            'Dear customer, your order ORD-00009 is out for delivery. Please keep your phone nearby.',
             (new OrderAssignedNotification($sale, 'customer'))->toSms($customer),
         );
 
         $this->assertSame(
-            'Kibondo: Order ORD-00009 delivered. Please confirm receipt in the app.',
+            'Dear customer, your order ORD-00009 has been delivered. Please confirm receipt in your account. Thank you.',
             (new OrderDeliveredNotification($sale))->toSms($customer),
         );
 
         $this->assertSame(
-            'Kibondo: Order ORD-00009 has been cancelled.',
+            'Dear customer, your order ORD-00009 has been cancelled.',
             (new OrderCancelledNotification($sale))->toSms($customer),
         );
     }
 
-    public function test_customer_order_received_sms_copy_includes_order_number(): void
+    public function test_customer_order_received_sms_copy_includes_order_number_and_step_updates(): void
     {
         $customer = Customer::factory()->create();
         $sale = $this->sale(['customer_id' => $customer->id, 'sale_number' => '080626-001']);
 
         $this->assertSame(
-            'Kibondo: Order 080626-001 received. We will confirm delivery soon.',
+            'Dear customer, tumepokea order yako 080626-001. Tutakutaarifu kila hatua ya order yako.',
+            (new CustomerOrderReceivedNotification($sale))->toSms($customer),
+        );
+
+        $this->assertSame(
+            'Dear customer, we received your order 080626-001. We will confirm delivery soon.',
             (new OrderReceivedNotification($sale))->toSms($customer),
         );
     }
@@ -77,7 +83,7 @@ class OrderNotificationCopyTest extends TestCase
         ]);
 
         $this->assertSame(
-            'Kibondo: Order ORD-00010 delivered. Asante!',
+            'Dear customer, your order ORD-00010 has been delivered. Thank you for shopping with us.',
             (new OrderDeliveredNotification($sale))->toSms((object) []),
         );
     }
@@ -107,7 +113,7 @@ class OrderNotificationCopyTest extends TestCase
 
         $this->assertContains('sms', $notification->via($admin));
         $this->assertSame(
-            'Kibondo: New order ORD-00012 placed. Open POS to review.',
+            'New order ORD-00012 has been placed. Please review it in the admin dashboard.',
             $notification->toSms($admin),
         );
     }
@@ -120,7 +126,7 @@ class OrderNotificationCopyTest extends TestCase
 
         $this->assertContains('sms', $notification->via($driver));
         $this->assertSame(
-            'Kibondo: Delivery assigned — ORD-00013. Check the app.',
+            'New delivery assignment ORD-00013.',
             $notification->toSms($driver),
         );
     }

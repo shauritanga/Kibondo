@@ -62,7 +62,9 @@ class AuthController extends Controller
         }
 
         if (Setting::get('require_2fa_for_admins', '1') === '1') {
-            return $this->sendOtp($user, $request->input('otp_channel', 'email'));
+            $defaultChannel = filled($user->phone) ? 'sms' : 'email';
+
+            return $this->sendOtp($user, $request->input('otp_channel', $defaultChannel));
         }
 
         return $this->startSession($request, $user, 'User logged in');

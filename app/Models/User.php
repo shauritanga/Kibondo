@@ -47,9 +47,4 @@ class User extends Authenticatable
     {
         return in_array($this->role, $roles);
     }
-
-    public function routeNotificationForSms(): ?string
-    {
-        return $this->phone;
-    }
 }

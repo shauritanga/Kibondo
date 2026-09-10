@@ -66,9 +66,4 @@ class Customer extends Authenticatable implements MustVerifyEmail
     {
         $this->notify(new \App\Notifications\CustomerEmailVerificationNotification);
     }
-
-    public function routeNotificationForSms(): ?string
-    {
-        return $this->phone;
-    }
 }

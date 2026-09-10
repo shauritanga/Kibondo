@@ -58,6 +58,6 @@ class OrderReceivedNotification extends Notification implements ShouldQueue
 
     public function toSms(object $notifiable): string
     {
-        return "Kibondo: Order {$this->sale->sale_number} received. We will confirm delivery soon.";
+        return "Dear customer, we received your order {$this->sale->sale_number}. We will confirm delivery soon.";
     }
 }
