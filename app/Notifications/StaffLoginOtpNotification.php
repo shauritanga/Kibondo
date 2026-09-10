@@ -11,21 +11,15 @@ class StaffLoginOtpNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(private string $otp) {}
+    public function __construct(private string $otp, private string $channel = 'email') {}
 
     public function via(object $notifiable): array
     {
-        $channels = [];
-
-        if (! empty($notifiable->phone)) {
-            $channels[] = 'sms';
+        if ($this->channel === 'sms') {
+            return ['sms'];
         }
 
-        if (! empty($notifiable->email)) {
-            $channels[] = 'mail';
-        }
-
-        return $channels ?: ['mail'];
+        return ['mail'];
     }
 
     public function toMail(object $notifiable): MailMessage

@@ -53,6 +53,6 @@ class OrderCancelledNotification extends Notification implements ShouldQueue
 
     public function toSms(object $notifiable): string
     {
-        return "Kibondo: Order {$this->sale->sale_number} has been cancelled.";
+        return "Dear customer, your order {$this->sale->sale_number} has been cancelled.";
     }
 }

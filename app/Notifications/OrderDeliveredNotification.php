@@ -54,9 +54,9 @@ class OrderDeliveredNotification extends Notification implements ShouldQueue
     public function toSms(object $notifiable): string
     {
         if ($this->sale->customer_id) {
-            return "Kibondo: Order {$this->sale->sale_number} delivered. Please confirm receipt in the app.";
+            return "Dear customer, your order {$this->sale->sale_number} has been delivered. Please confirm receipt in your account. Thank you.";
         }
 
-        return "Kibondo: Order {$this->sale->sale_number} delivered. Asante!";
+        return "Dear customer, your order {$this->sale->sale_number} has been delivered. Thank you for shopping with us.";
     }
 }

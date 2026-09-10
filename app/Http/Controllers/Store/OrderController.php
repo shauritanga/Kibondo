@@ -14,8 +14,7 @@ use App\Models\Customer;
 use App\Models\User;
 use App\Notifications\DeliveryConfirmedNotification;
 use App\Notifications\OrderPlacedNotification;
-use App\Notifications\OrderReceivedNotification;
-use App\Models\Setting;
+use App\Notifications\CustomerOrderReceivedNotification;
 use App\Services\SaleService;
 use App\Support\BuyerNotifier;
 use Illuminate\Http\JsonResponse;
@@ -42,9 +41,7 @@ class OrderController extends Controller
             $customer = null;
         }
 
-        $promoPercent = (int) Setting::get('promo_percentage', '0');
-
-        $items = collect($request->items)->map(function ($item) use ($customer, $promoPercent) {
+        $items = collect($request->items)->map(function ($item) {
             $product = Product::where('id', $item['product_id'])
                 ->where('is_active', true)
                 ->firstOrFail();
@@ -61,14 +58,10 @@ class OrderController extends Controller
                 ]);
             }
 
-            $unitPrice = $promoPercent > 0
-                ? (int) round($product->price * (1 - $promoPercent / 100))
-                : $product->price;
-
             return [
                 'product_id' => $product->id,
                 'quantity'   => $item['quantity'],
-                'unit_price' => $unitPrice,
+                'unit_price' => $product->activePrice(),
             ];
         })->toArray();
 
@@ -109,7 +102,7 @@ class OrderController extends Controller
         }
 
         try {
-            BuyerNotifier::notify($sale, new OrderReceivedNotification($sale));
+            BuyerNotifier::notify($sale, new CustomerOrderReceivedNotification($sale));
         } catch (\Throwable $e) {
             Log::warning('Order received notification failed.', [
                 'sale_id'     => $sale->id,
@@ -178,4 +171,5 @@ class OrderController extends Controller
 
         return response()->json(['message' => 'Thank you for confirming your delivery!']);
     }
+
 }

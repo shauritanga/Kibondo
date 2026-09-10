@@ -43,11 +43,11 @@ export function formatMoney(value: number) {
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export const authApi = {
-  login: async (email: string, password: string) => {
+  login: async (email: string, password: string, otpChannel: 'email' | 'sms' = 'email') => {
     const { data } = await http.post<
       | { user: User }
       | { otp_required: true; challenge_token: string; message: string }
-    >('/auth/login', { email, password });
+    >('/auth/login', { email, password, otp_channel: otpChannel });
     return data;
   },
   verifyOtp: async (challengeToken: string, code: string) => {
@@ -62,7 +62,7 @@ export const authApi = {
     const { data } = await http.get<User>('/auth/me', { _skipAuthRedirect: true } as any);
     return data;
   },
-  updateProfile: async (payload: { name: string; email: string }) => {
+  updateProfile: async (payload: { name: string; email: string; phone?: string | null }) => {
     const { data } = await http.put<User>('/auth/me', payload);
     return data;
   },
@@ -84,6 +84,15 @@ export const categoriesApi = {
     const { data } = await http.get<{ data: Category[] }>('/categories');
     return data.data;
   },
+  create: async (payload: { name: string }) => {
+    const { data } = await http.post<{ data: Category }>('/categories', payload);
+    return data.data;
+  },
+  update: async (id: string, payload: { name: string }) => {
+    const { data } = await http.put<{ data: Category }>(`/categories/${id}`, payload);
+    return data.data;
+  },
+  delete: async (id: string) => http.delete(`/categories/${id}`),
 };
 
 // ─── Products ────────────────────────────────────────────────────────────────
@@ -100,7 +109,9 @@ export const productsApi = {
     const { image, ...rest } = payload;
     if (image) {
       const fd = new FormData();
-      Object.entries(rest).forEach(([k, v]) => v != null && fd.append(k, String(v)));
+      Object.entries(rest).forEach(([k, v]) => {
+        if (v !== undefined) fd.append(k, v === null ? '' : String(v));
+      });
       fd.append('image', image);
       const { data } = await http.post<{ data: Product }>('/products', fd);
       return data.data;
@@ -112,7 +123,9 @@ export const productsApi = {
     const { image, ...rest } = payload;
     if (image) {
       const fd = new FormData();
-      Object.entries(rest).forEach(([k, v]) => v != null && fd.append(k, String(v)));
+      Object.entries(rest).forEach(([k, v]) => {
+        if (v !== undefined) fd.append(k, v === null ? '' : String(v));
+      });
       fd.append('image', image);
       fd.append('_method', 'PUT');
       const { data } = await http.post<{ data: Product }>(`/products/${id}`, fd);
@@ -227,8 +240,12 @@ export const salesApi = {
     const { data } = await http.post<{ data: Sale }>(`/sales/${id}/confirm`, payload);
     return data.data;
   },
-  assign: async (id: string, userId: string) => {
-    const { data } = await http.post<{ data: Sale }>(`/sales/${id}/assign`, { user_id: userId });
+  assign: async (id: string, payload: { user_id: string } | {
+    external_delivery_name: string;
+    external_delivery_phone: string;
+    external_delivery_vehicle_plate: string;
+  }) => {
+    const { data } = await http.post<{ data: Sale }>(`/sales/${id}/assign`, payload);
     return data.data;
   },
   deliver: async (id: string) => {
@@ -347,7 +364,8 @@ export const campaignsApi = {
   },
   create: async (payload: {
     name: string;
-    subject: string;
+    channel: 'email' | 'sms';
+    subject?: string;
     body: string;
     channel?: 'email' | 'sms' | 'both';
     recipient_filter: { all?: boolean; type?: string[] };
@@ -394,7 +412,7 @@ export const usersApi = {
     const { data } = await http.get<{ data: User[] }>('/drivers');
     return data.data;
   },
-  create: async (payload: { name: string; email: string; phone?: string; password: string; role: string }) => {
+  create: async (payload: { name: string; email: string; phone: string; password: string; role: string }) => {
     const { data } = await http.post<{ data: User }>('/users', payload);
     return data.data;
   },
@@ -493,6 +511,34 @@ export const expensesApi = {
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 export const settingsApi = {
+  getAll: async () => {
+    const { data } = await http.get<{
+      social_links: { label: string; url: string }[];
+      company: {
+        name: string;
+        phone: string;
+        email: string;
+        address: string;
+        city: string;
+        country: string;
+      };
+    }>('/settings');
+    return data;
+  },
+  updateCompany: async (payload: {
+    name: string;
+    phone: string;
+    email: string;
+    address: string;
+    city: string;
+    country: string;
+  }) => {
+    const { data } = await http.put<{
+      message: string;
+      company: typeof payload;
+    }>('/settings/company', payload);
+    return data;
+  },
   getPromo: async () => {
     const { data } = await http.get<{ promo_percentage: number }>('/store/settings/promo');
     return data;
@@ -543,4 +589,3 @@ export const auditApi = {
     URL.revokeObjectURL(url);
   },
 };
-

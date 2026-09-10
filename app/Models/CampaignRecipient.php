@@ -11,7 +11,7 @@ class CampaignRecipient extends Model
     use HasUuids;
 
     protected $fillable = [
-        'campaign_id', 'customer_id', 'status', 'sent_at', 'error',
+        'campaign_id', 'customer_id', 'channel', 'destination', 'status', 'sent_at', 'error',
     ];
 
     protected $casts = [

@@ -43,7 +43,10 @@ export interface StoreCustomer {
   name: string;
   email: string;
   phone: string;
+  order_notification_channel?: 'email' | 'sms' | 'both';
   location?: string | null;
+  phone_verified?: boolean;
+  sms_marketing_opt_in?: boolean;
 }
 
 export interface StoreProduct {
@@ -57,6 +60,8 @@ export interface StoreProduct {
   storage_instructions?: string | null;
   unit: string;
   price: number;
+  sale_price?: number | null;
+  active_price: number;
   promo_price?: number | null;
   promo_percent?: number | null;
   stock_qty: number;
@@ -100,6 +105,8 @@ export interface StoreOrderDetail extends StoreOrderSummary {
   billing_address: string | null;
   payment_method: string | null;
   assigned_to_name: string | null;
+  external_delivery_phone?: string | null;
+  external_delivery_vehicle_plate?: string | null;
   customer_feedback: string | null;
   customer_payment_type?: 'paid_full' | 'paid_partial' | 'not_paid' | null;
   customer_payment_amount?: number | null;
@@ -151,6 +158,7 @@ export const storeAuthApi = {
   register: async (payload: {
     name: string;
     phone: string;
+    location: string;
     email: string;
     password: string;
     password_confirmation: string;
@@ -170,7 +178,7 @@ export const storeAuthApi = {
     const { data } = await http.get<StoreCustomer>('/auth/me', { _skipAuthRedirect: true } as any);
     return data;
   },
-  updateProfile: async (payload: Partial<Pick<StoreCustomer, 'name' | 'phone' | 'email' | 'location'>>) => {
+  updateProfile: async (payload: Partial<Pick<StoreCustomer, 'name' | 'phone' | 'email' | 'location' | 'order_notification_channel'>>) => {
     const { data } = await http.put<{ data: StoreCustomer }>('/auth/me', payload);
     return data.data;
   },
@@ -196,6 +204,15 @@ export interface StoreSocialLink {
   url: string;
 }
 
+export interface StoreCompanySettings {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  city: string;
+  country: string;
+}
+
 export const storeSettingsApi = {
   getPromo: async (): Promise<{ promo_percentage: number }> => {
     const { data } = await http.get<{ promo_percentage: number }>('/settings/promo');
@@ -203,6 +220,10 @@ export const storeSettingsApi = {
   },
   socialLinks: async (): Promise<StoreSocialLink[]> => {
     const { data } = await http.get<StoreSocialLink[]>('/settings/social-links');
+    return data;
+  },
+  company: async (): Promise<StoreCompanySettings> => {
+    const { data } = await http.get<StoreCompanySettings>('/settings/company');
     return data;
   },
 };

@@ -4,6 +4,7 @@ namespace Tests\Feature\Store;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Setting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,7 +18,39 @@ class StoreCatalogTest extends TestCase
 
         $this->getJson('/api/v1/store/products')
             ->assertOk()
-            ->assertJsonStructure(['data' => [['id', 'name', 'unit', 'price', 'stock_qty', 'category_name']]]);
+            ->assertJsonStructure(['data' => [['id', 'name', 'unit', 'price', 'sale_price', 'active_price', 'stock_qty', 'category_name']]]);
+    }
+
+    public function test_catalog_returns_package_sale_price_as_active_price(): void
+    {
+        $product = Product::factory()->create([
+            'price' => 10000,
+            'sale_price' => 8000,
+            'stock_qty' => 10,
+        ]);
+
+        $this->getJson('/api/v1/store/products')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $product->id)
+            ->assertJsonPath('data.0.price', 10000)
+            ->assertJsonPath('data.0.sale_price', 8000)
+            ->assertJsonPath('data.0.active_price', 8000);
+    }
+
+    public function test_storewide_promo_setting_no_longer_changes_catalog_price(): void
+    {
+        Setting::set('promo_percentage', '50');
+        Product::factory()->create([
+            'price' => 10000,
+            'sale_price' => null,
+            'stock_qty' => 10,
+        ]);
+
+        $this->getJson('/api/v1/store/products')
+            ->assertOk()
+            ->assertJsonPath('data.0.price', 10000)
+            ->assertJsonPath('data.0.sale_price', null)
+            ->assertJsonPath('data.0.active_price', 10000);
     }
 
     public function test_out_of_stock_products_are_excluded(): void
@@ -64,5 +97,15 @@ class StoreCatalogTest extends TestCase
         $this->getJson('/api/v1/store/categories')
             ->assertOk()
             ->assertJsonStructure(['data' => [['id', 'name']]]);
+    }
+
+    public function test_product_unit_is_returned_from_database(): void
+    {
+        $product = Product::factory()->create(['unit' => 'g', 'stock_qty' => 10]);
+
+        $this->getJson('/api/v1/store/products')
+            ->assertOk()
+            ->assertJsonPath('data.0.unit', 'g')
+            ->assertJsonPath('data.0.id', $product->id);
     }
 }

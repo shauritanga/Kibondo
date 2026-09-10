@@ -55,6 +55,7 @@ class CustomerController extends Controller
             'phone'         => 'nullable|string|max:30',
             'alt_phone'     => 'nullable|string|max:30',
             'email'         => 'nullable|email|max:180',
+            'order_notification_channel' => 'sometimes|in:email,sms,both',
             'location'      => 'nullable|string|max:200',
             'payment_terms' => 'nullable|in:cod,net_7,net_14,net_30',
             'credit_limit'  => 'nullable|integer|min:0',
@@ -62,6 +63,8 @@ class CustomerController extends Controller
             'crm_score'     => 'nullable|integer|min:0|max:100',
             'next_follow_up'=> 'nullable|date',
         ]);
+
+        $this->validateSmsPreference($data);
 
         $customer = Customer::create($data);
 
@@ -84,6 +87,7 @@ class CustomerController extends Controller
             'phone'         => 'nullable|string|max:30',
             'alt_phone'     => 'nullable|string|max:30',
             'email'         => 'nullable|email|max:180',
+            'order_notification_channel' => 'sometimes|in:email,sms,both',
             'location'      => 'nullable|string|max:200',
             'payment_terms' => 'nullable|in:cod,net_7,net_14,net_30',
             'credit_limit'  => 'nullable|integer|min:0',
@@ -91,6 +95,8 @@ class CustomerController extends Controller
             'crm_score'     => 'nullable|integer|min:0|max:100',
             'next_follow_up'=> 'nullable|date',
         ]);
+
+        $this->validateSmsPreference($data, $customer);
 
         $customer->update($data);
 
@@ -102,5 +108,15 @@ class CustomerController extends Controller
         $customer->delete();
 
         return response()->json(['message' => 'Customer deleted.']);
+    }
+
+    private function validateSmsPreference(array $data, ?Customer $customer = null): void
+    {
+        $channel = $data['order_notification_channel'] ?? $customer?->order_notification_channel ?? 'email';
+        $phone = $data['phone'] ?? $customer?->phone;
+
+        if (in_array($channel, ['sms', 'both'], true) && blank($phone)) {
+            abort(422, 'A phone number is required when order alerts include SMS.');
+        }
     }
 }

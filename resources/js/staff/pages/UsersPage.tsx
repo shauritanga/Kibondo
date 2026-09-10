@@ -129,7 +129,7 @@ export function UsersPage() {
       const created = await usersApi.create({
         name: form.name,
         email: form.email,
-        phone: form.phone || undefined,
+        phone: form.phone,
         password: form.password,
         role: form.role,
       });
@@ -150,7 +150,7 @@ export function UsersPage() {
     const payload: Partial<User> & { password?: string } = {
       name: form.name,
       email: form.email,
-      phone: form.phone || null,
+      phone: form.phone,
       role: form.role,
     };
     if (form.password) payload.password = form.password;
@@ -278,6 +278,7 @@ export function UsersPage() {
                             {isSelf && <span className="ml-1.5 text-[10px] font-semibold text-slate-400">(you)</span>}
                           </p>
                           <p className="text-[11px] text-slate-500 dark:text-slate-400">{user.email}</p>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500">{user.phone}</p>
                         </div>
                       </div>
                     </td>
@@ -381,7 +382,7 @@ export function UsersPage() {
       {modal && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={closeModal}>
           <div
-            className="w-full max-w-md rounded-xl bg-white shadow-2xl dark:bg-slate-800"
+            className="w-full max-w-xl rounded-xl bg-white shadow-2xl dark:bg-slate-800"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
@@ -398,7 +399,7 @@ export function UsersPage() {
             <form onSubmit={modal === 'create' ? handleCreate : handleEdit} className="space-y-4 p-5">
               {modalError && <ErrorBanner message={modalError} />}
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <FormInput
                   autoFocus
                   required
@@ -415,25 +416,24 @@ export function UsersPage() {
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   placeholder="jane@example.com"
                 />
+                <FormInput
+                  required
+                  type="tel"
+                  label="Phone"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="+255 7XX XXX XXX"
+                />
+                <FormInput
+                  type="password"
+                  required={modal === 'create'}
+                  minLength={8}
+                  label={modal === 'create' ? 'Password' : 'New password'}
+                  value={form.password}
+                  onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                  placeholder={modal === 'create' ? 'Min 8 characters' : 'Leave blank to keep current'}
+                />
               </div>
-
-              <FormInput
-                type="tel"
-                label="Phone (for SMS OTP / alerts)"
-                value={form.phone}
-                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                placeholder="+255 7XX XXX XXX"
-              />
-
-              <FormInput
-                type="password"
-                required={modal === 'create'}
-                minLength={8}
-                label={modal === 'create' ? 'Password' : 'New password (leave blank to keep current)'}
-                value={form.password}
-                onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                placeholder={modal === 'create' ? 'Min 8 characters' : 'Leave blank to keep current'}
-              />
 
               <div>
                 <FormSelect

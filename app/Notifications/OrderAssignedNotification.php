@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\Customer;
 use App\Models\Sale;
 use App\Notifications\Concerns\DeterminesSmsChannels;
 use Illuminate\Bus\Queueable;
@@ -80,15 +81,19 @@ class OrderAssignedNotification extends Notification implements ShouldQueue
 
         return (new MailMessage)
             ->subject("Your order {$this->sale->sale_number} is on its way")
-            ->view('emails.notifications.order-assigned-customer', ['sale' => $this->sale, 'customer' => $notifiable]);
+            ->view('emails.notifications.order-assigned-customer', [
+                'sale'          => $this->sale,
+                'customer'      => $notifiable instanceof Customer ? $notifiable : null,
+                'customer_name' => $notifiable instanceof Customer ? $notifiable->name : ($this->sale->guest_name ?? 'Customer'),
+            ]);
     }
 
     public function toSms(object $notifiable): string
     {
         if ($this->recipientType === 'delivery') {
-            return "Kibondo: Delivery assigned — {$this->sale->sale_number}. Check the app.";
+            return "New delivery assignment {$this->sale->sale_number}.";
         }
 
-        return "Kibondo: Order {$this->sale->sale_number} is out for delivery.";
+        return "Dear customer, your order {$this->sale->sale_number} is out for delivery. Please keep your phone nearby.";
     }
 }

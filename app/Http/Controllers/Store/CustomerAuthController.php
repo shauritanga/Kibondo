@@ -13,6 +13,7 @@ use App\Support\PhoneNumber;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -34,6 +35,7 @@ class CustomerAuthController extends Controller
         $customer = Customer::create([
             'name'                 => $request->name,
             'phone'                => $phone,
+            'location'             => $request->location,
             'email'                => $request->email,
             'password'             => Hash::make($request->password),
             'type'                 => 'retail',
@@ -46,6 +48,7 @@ class CustomerAuthController extends Controller
         if ($request->hasSession()) {
             $request->session()->regenerate();
         }
+
 
         $this->sendPhoneVerificationOtp($customer);
 
@@ -93,13 +96,29 @@ class CustomerAuthController extends Controller
         return response()->json(new CustomerResource(Auth::guard('customer')->user()));
     }
 
-    public function verifyEmail(Request $request, string $id, string $hash): JsonResponse
+    public function verifyEmail(Request $request, string $id, string $hash): Response
     {
-        $customer = Customer::findOrFail($id);
+        $customer = Customer::find($id);
+
+        if (! $customer) {
+            return $this->verificationResult(
+                'Invalid verification link',
+                'We could not find the account for this verification link.',
+                'error',
+                404
+            );
+        }
 
         $expires = (int) $request->query('expires', 0);
 
-        abort_unless($expires > 0 && $expires >= now()->timestamp, 403, 'Verification link has expired.');
+        if ($expires <= 0 || $expires < now()->timestamp) {
+            return $this->verificationResult(
+                'Verification link expired',
+                'This verification link has expired. Please sign in and request a new verification email.',
+                'error',
+                403
+            );
+        }
 
         $expected = hash_hmac(
             'sha256',
@@ -107,12 +126,39 @@ class CustomerAuthController extends Controller
             config('app.key')
         );
 
-        abort_unless(hash_equals($expected, $hash), 403, 'Invalid verification link.');
-        abort_if($customer->hasVerifiedEmail(), 422, 'Email already verified.');
+        if (! hash_equals($expected, $hash)) {
+            return $this->verificationResult(
+                'Invalid verification link',
+                'This verification link is invalid or has been changed.',
+                'error',
+                403
+            );
+        }
+
+        if ($customer->hasVerifiedEmail()) {
+            return $this->verificationResult(
+                'Email already verified',
+                'Your email address has already been verified. You can continue shopping.',
+                'success'
+            );
+        }
 
         $customer->markEmailAsVerified();
 
-        return response()->json(['message' => 'Email verified successfully.']);
+        return $this->verificationResult(
+            'Email verified successfully',
+            'Your Kibondo account is ready. Continue to the store to browse products and place orders.',
+            'success'
+        );
+    }
+
+    private function verificationResult(string $title, string $message, string $tone, int $status = 200): Response
+    {
+        return response()->view('store.email-verification-result', [
+            'title'   => $title,
+            'message' => $message,
+            'tone'    => $tone,
+        ], $status);
     }
 
     public function resendVerification(Request $request): JsonResponse
@@ -224,9 +270,16 @@ class CustomerAuthController extends Controller
             'name'                 => 'sometimes|string|max:200',
             'phone'                => ['sometimes', 'string', 'max:30', \Illuminate\Validation\Rule::unique('customers', 'phone')->ignore($customer->id)->whereNull('deleted_at')],
             'email'                => ['sometimes', 'email', 'max:180', \Illuminate\Validation\Rule::unique('customers', 'email')->ignore($customer->id)->whereNull('deleted_at')],
+            'order_notification_channel' => 'sometimes|in:email,sms,both',
             'location'             => 'nullable|string|max:200',
             'sms_marketing_opt_in' => 'sometimes|boolean',
         ]);
+
+        $channel = $data['order_notification_channel'] ?? $customer->order_notification_channel ?? 'email';
+        $phoneForChannel = $data['phone'] ?? $customer->phone;
+        if (in_array($channel, ['sms', 'both'], true) && blank($phoneForChannel)) {
+            return response()->json(['message' => 'A phone number is required when order alerts include SMS.'], 422);
+        }
 
         // Phone change requires OTP confirmation to the new number
         if (isset($data['phone'])) {

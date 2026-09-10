@@ -12,6 +12,7 @@ class RegisterRequest extends FormRequest
         return [
             'name'     => 'required|string|max:200',
             'phone'    => 'required|string|max:30|unique:customers,phone',
+            'location' => 'required|string|max:200',
             'email'    => 'required|email|max:180|unique:customers,email',
             'password' => ['required', 'confirmed', Password::min(8)->letters()->numbers()],
             'sms_marketing_opt_in' => 'sometimes|boolean',
@@ -33,12 +34,12 @@ class RegisterRequest extends FormRequest
                 'description' => 'Email address. Must be unique across all customers.',
                 'example'     => 'amina@example.com',
             ],
+            'location' => [
+                'description' => 'Default delivery address.',
+                'example'     => 'Msasani, Dar es Salaam',
+            ],
             'password' => [
                 'description' => 'Password (minimum 8 characters).',
-                'example'     => 'secret1234',
-            ],
-            'password_confirmation' => [
-                'description' => 'Must match the password field.',
                 'example'     => 'secret1234',
             ],
         ];

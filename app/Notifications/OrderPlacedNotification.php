@@ -52,6 +52,6 @@ class OrderPlacedNotification extends Notification
 
     public function toSms(object $notifiable): string
     {
-        return "Kibondo: New order {$this->sale->sale_number} placed. Open POS to review.";
+        return "New order {$this->sale->sale_number} has been placed. Please review it in the admin dashboard.";
     }
 }

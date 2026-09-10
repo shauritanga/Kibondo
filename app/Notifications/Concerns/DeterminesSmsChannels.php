@@ -10,11 +10,18 @@ use Illuminate\Notifications\AnonymousNotifiable;
 trait DeterminesSmsChannels
 {
     /**
-     * Channels for a registered customer (with SMS).
+     * Channels for a registered customer, respecting order_notification_channel.
      */
-    protected function customerChannels(): array
+    protected function customerChannels(Customer $notifiable): array
     {
-        return ['database', 'mail', 'fcm', 'sms'];
+        $channels = ['database', 'fcm'];
+
+        return match ($notifiable->order_notification_channel ?? 'email') {
+            'sms' => [...$channels, 'sms'],
+            'both' => [...$channels, 'mail', 'sms'],
+            // Email preference still includes SMS for order lifecycle alerts.
+            default => [...$channels, 'mail', 'sms'],
+        };
     }
 
     /**
@@ -49,7 +56,7 @@ trait DeterminesSmsChannels
         }
 
         if ($notifiable instanceof Customer) {
-            return $this->customerChannels();
+            return $this->customerChannels($notifiable);
         }
 
         return ['mail'];

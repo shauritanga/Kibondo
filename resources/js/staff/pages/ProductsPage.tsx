@@ -8,21 +8,24 @@ import { TablePageSkeleton } from '../components/Skeleton';
 import { SearchInput } from '../components/SearchInput';
 import { StatCard } from '../components/StatCard';
 import { StatusBadge } from '../components/StatusBadge';
+import { useAuth } from '../contexts/AuthContext';
 import { categoriesApi, formatMoney, materialsApi, packagingRunsApi, productsApi, recipesApi, stockApi } from '../services/api';
 import type { Category, Material, Product } from '../types';
 
 type ProductForm = {
-  name: string; category_id: string; description: string;
+  name: string; category_id: string; unit: string; description: string;
   key_benefits: string; ingredients: string; nutrition_info: string;
   packaging_details: string; storage_instructions: string;
-  price: string; stock_qty: string; min_stock: string;
+  price: string; sale_price: string; stock_qty: string; min_stock: string;
 };
 
+const PRODUCT_UNIT_SUGGESTIONS = ['g', 'kg', 'crate', 'box', 'litre', 'piece', 'bunch', 'pack'] as const;
+
 const emptyForm: ProductForm = {
-  name: '', category_id: '', description: '',
+  name: '', category_id: '', unit: 'kg', description: '',
   key_benefits: '', ingredients: '', nutrition_info: '',
   packaging_details: '', storage_instructions: '',
-  price: '', stock_qty: '', min_stock: '',
+  price: '', sale_price: '', stock_qty: '', min_stock: '',
 };
 
 const detailFields: Array<{ field: keyof ProductForm; label: string; hint: string; rows: number }> = [
@@ -61,6 +64,8 @@ const detailFields: Array<{ field: keyof ProductForm; label: string; hint: strin
 type ImageMode = 'upload' | 'url';
 
 export function ProductsPage() {
+  const { user } = useAuth();
+  const canEditPricing = user?.role === 'admin';
   const [query, setQuery] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [catalog, setCatalog] = useState<Product[]>([]);
@@ -110,7 +115,9 @@ export function ProductsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const stockValue = catalog.reduce((sum, p) => sum + p.stock_qty * p.price, 0);
+  const activePrice = (product: Product) => product.sale_price != null && product.sale_price < product.price ? product.sale_price : product.price;
+  const hasSalePrice = (product: Product) => product.sale_price != null && product.sale_price < product.price;
+  const stockValue = catalog.reduce((sum, p) => sum + p.stock_qty * activePrice(p), 0);
   const lowStockProducts = catalog.filter((p) => p.stock_qty <= p.min_stock);
   const reorderUnits = lowStockProducts.reduce((sum, p) => sum + Math.max(p.min_stock - p.stock_qty, 0), 0);
 
@@ -157,6 +164,7 @@ export function ProductsPage() {
     setForm({
       name: product.name,
       category_id: product.category_id,
+      unit: product.unit,
       description: product.description ?? '',
       key_benefits: product.key_benefits ?? '',
       ingredients: product.ingredients ?? '',
@@ -164,11 +172,15 @@ export function ProductsPage() {
       packaging_details: product.packaging_details ?? '',
       storage_instructions: product.storage_instructions ?? '',
       price: String(product.price),
+      sale_price: product.sale_price != null ? String(product.sale_price) : '',
       stock_qty: String(product.stock_qty),
       min_stock: String(product.min_stock),
     });
-    setImageUrl(product.image_url ?? '');
-    setImageMode(product.image_url ? 'url' : 'upload');
+    setImageFile(null);
+    setImagePreview(product.image_url ?? '');
+    setImageUrl(product.image_url?.startsWith('http') ? product.image_url : '');
+    setImageMode(product.image_url?.startsWith('http') ? 'url' : 'upload');
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setRecipeForm({
       material_id: product.recipe?.material_id ?? '',
       quantity_per_unit: product.recipe?.quantity_per_unit ? String(product.recipe.quantity_per_unit) : '',
@@ -183,11 +195,13 @@ export function ProductsPage() {
     if (!editingProduct) return;
     setSaving(true); setError('');
     try {
-      const selectedMaterial = materials.find(m => m.id === recipeForm.material_id);
-      const unit = recipeForm.quantity_per_unit && selectedMaterial
-        ? `${recipeForm.quantity_per_unit}${selectedMaterial.unit}`
-        : editingProduct.unit;
-      await productsApi.update(editingProduct.id, {
+      const unit = form.unit.trim();
+      if (!unit) {
+        setError('Selling unit is required (e.g. kg, g, crate).');
+        setSaving(false);
+        return;
+      }
+      const payload: Partial<Product> & { image?: File | null } = {
         name: form.name.trim(), category_id: form.category_id,
         description: cleanText(form.description),
         key_benefits: cleanText(form.key_benefits),
@@ -196,12 +210,21 @@ export function ProductsPage() {
         packaging_details: cleanText(form.packaging_details),
         storage_instructions: cleanText(form.storage_instructions),
         unit,
-        price: Math.round(Number(form.price) || 0),
         stock_qty: Math.round(Number(form.stock_qty) || 0),
         min_stock: Math.round(Number(form.min_stock) || 0),
-        image: imageMode === 'upload' ? imageFile ?? null : null,
-        image_url: imageMode === 'url' && imageUrl.trim() ? imageUrl.trim() : undefined,
-      });
+        image: imageFile ?? undefined,
+        image_url:
+          imageMode === 'url' &&
+          imageUrl.trim() &&
+          imageUrl.trim() !== (editingProduct.image_url ?? '')
+            ? imageUrl.trim()
+            : undefined,
+      };
+      if (canEditPricing) {
+        payload.price = Math.round(Number(form.price) || 0);
+        payload.sale_price = form.sale_price.trim() ? Math.round(Number(form.sale_price) || 0) : null;
+      }
+      await productsApi.update(editingProduct.id, payload);
       if (recipeForm.material_id && recipeForm.quantity_per_unit) {
         await recipesApi.upsert(editingProduct.id, {
           material_id: recipeForm.material_id,
@@ -242,10 +265,12 @@ export function ProductsPage() {
     if (!form.name.trim()) return;
     setSaving(true); setError('');
     try {
-      const selectedMaterial = materials.find(m => m.id === recipeForm.material_id);
-      const unit = recipeForm.quantity_per_unit && selectedMaterial
-        ? `${recipeForm.quantity_per_unit}${selectedMaterial.unit}`
-        : 'unit';
+      const unit = form.unit.trim();
+      if (!unit) {
+        setError('Selling unit is required (e.g. kg, g, crate).');
+        setSaving(false);
+        return;
+      }
       const created = await productsApi.create({
         name: form.name.trim(), category_id: form.category_id,
         description: cleanText(form.description),
@@ -256,6 +281,7 @@ export function ProductsPage() {
         storage_instructions: cleanText(form.storage_instructions),
         unit,
         price: Math.round(Number(form.price) || 0),
+        sale_price: form.sale_price.trim() ? Math.round(Number(form.sale_price) || 0) : null,
         cost_price: 0,
         stock_qty: Math.round(Number(form.stock_qty) || 0),
         min_stock: Math.round(Number(form.min_stock) || 0),
@@ -327,12 +353,14 @@ export function ProductsPage() {
     <div className="space-y-5">
       <div className="flex items-start justify-between gap-4">
         <PageHeader title="Packages" subtitle="Finished packages available for sale. Stock is built via packaging runs from warehouse materials." />
-        <button
-          className="inline-flex shrink-0 h-9 items-center justify-center gap-2 rounded-lg bg-brand-green px-4 text-xs font-bold text-white"
-          onClick={() => setShowForm(true)}
-        >
-          <Plus size={15} /> Add package
-        </button>
+        {canEditPricing && (
+          <button
+            className="inline-flex shrink-0 h-9 items-center justify-center gap-2 rounded-lg bg-brand-green px-4 text-xs font-bold text-white"
+            onClick={() => setShowForm(true)}
+          >
+            <Plus size={15} /> Add package
+          </button>
+        )}
       </div>
 
       {/* KPI cards */}
@@ -363,8 +391,9 @@ export function ProductsPage() {
               <tbody>
                 {filteredProducts.map((product) => {
                   const gap  = Math.max(product.min_stock - product.stock_qty, 0);
-                  const val  = product.stock_qty * product.price;
+                  const val  = product.stock_qty * activePrice(product);
                   const low  = product.stock_qty <= product.min_stock;
+                  const sale = hasSalePrice(product);
                   return (
                     <tr key={product.id} className="border-b border-slate-100 text-xs font-semibold dark:border-slate-700/50">
                       {/* Product */}
@@ -391,7 +420,16 @@ export function ProductsPage() {
                         <p className="mt-0.5 text-slate-400 dark:text-slate-500">min {product.min_stock}{low && gap > 0 ? ` · ${gap} short` : ''}</p>
                       </td>
                       {/* Unit price */}
-                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{formatMoney(product.price)}</td>
+                      <td className="px-4 py-3 text-slate-700 dark:text-slate-300">
+                        {sale ? (
+                          <div className="space-y-0.5">
+                            <p className="font-bold text-brand-green">{formatMoney(activePrice(product))}</p>
+                            <p className="text-[11px] text-slate-400 line-through">{formatMoney(product.price)}</p>
+                          </div>
+                        ) : (
+                          formatMoney(product.price)
+                        )}
+                      </td>
                       {/* Stock value */}
                       <td className="px-4 py-3 font-bold text-slate-950 dark:text-slate-200">{formatMoney(val)}</td>
                       {/* Status */}
@@ -549,10 +587,6 @@ export function ProductsPage() {
                   />
                 </div>
 
-                <FormSelect label="Category" value={form.category_id} onChange={(e) => updateField('category_id', e.target.value)}>
-                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </FormSelect>
-
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-700 dark:bg-slate-800/40">
                   <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Customer-facing details</p>
                   <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
@@ -574,6 +608,25 @@ export function ProductsPage() {
                     ))}
                   </div>
                 </div>
+
+                <FormSelect label="Category" value={form.category_id} onChange={(e) => updateField('category_id', e.target.value)}>
+                  {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </FormSelect>
+
+                <FormInput
+                  label="Selling unit"
+                  value={form.unit}
+                  onChange={(e) => updateField('unit', e.target.value)}
+                  placeholder="e.g. kg, g, 500g pack, crate"
+                  list="product-unit-suggestions"
+                  required
+                />
+                <datalist id="product-unit-suggestions">
+                  {PRODUCT_UNIT_SUGGESTIONS.map((u) => <option key={u} value={u} />)}
+                </datalist>
+                <p className="-mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+                  Shown on the store (e.g. price per kg or per g). Recipe qty below is for warehouse stock only.
+                </p>
 
                 {/* Recipe section — defines what this product is made from */}
                 {materials.length > 0 && (
@@ -620,7 +673,30 @@ export function ProductsPage() {
                   </div>
                 )}
 
-                <FormInput label="Selling price (TZS)" type="number" min="0" required value={form.price} onChange={(e) => updateField('price', e.target.value)} placeholder="e.g. 26,000" />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormInput
+                    label="Regular price (TZS)"
+                    type="number"
+                    min="0"
+                    required
+                    disabled={!canEditPricing}
+                    value={form.price}
+                    onChange={(e) => updateField('price', e.target.value)}
+                    placeholder="e.g. 26,000"
+                  />
+                  <FormInput
+                    label="Sale price (TZS)"
+                    type="number"
+                    min="0"
+                    disabled={!canEditPricing}
+                    value={form.sale_price}
+                    onChange={(e) => updateField('sale_price', e.target.value)}
+                    placeholder="Leave empty for no sale"
+                  />
+                </div>
+                <p className="-mt-2 text-[11px] text-slate-400 dark:text-slate-500">
+                  Sale price must be lower than the regular price. Customers are billed the sale price when it is set.
+                </p>
 
                 <div className="grid grid-cols-2 gap-4">
                   <FormInput label="Opening stock (units)" type="number" min="0" required value={form.stock_qty} onChange={(e) => updateField('stock_qty', e.target.value)} placeholder="e.g. 40" />
@@ -630,7 +706,7 @@ export function ProductsPage() {
                 {/* Image picker */}
                 <div className="space-y-2.5">
                   <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Product image <span className="font-normal text-slate-400">(optional)</span>
+                    Product image <span className="font-normal text-slate-400">(optional{editingProduct ? ' — leave unchanged to keep current' : ''})</span>
                   </p>
                   <div className="flex items-center gap-1 w-fit rounded-lg border border-slate-200 bg-slate-50 p-1 dark:border-slate-700 dark:bg-slate-800">
                     <button type="button" onClick={() => { setImageMode('upload'); setImageUrl(''); }}
@@ -667,7 +743,7 @@ export function ProductsPage() {
                   ) : (
                     <div className="flex items-center gap-4">
                       <input
-                        type="url"
+                        type="text"
                         value={imageUrl}
                         onChange={e => setImageUrl(e.target.value)}
                         placeholder="https://example.com/product.jpg"

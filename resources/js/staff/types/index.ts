@@ -35,6 +35,7 @@ export interface Product {
   image_url?: string | null;
   unit: string;
   price: number;
+  sale_price?: number | null;
   cost_price: number;
   stock_qty: number;
   min_stock: number;
@@ -86,6 +87,7 @@ export interface Customer {
   phone?: string;
   alt_phone?: string;
   email?: string;
+  order_notification_channel?: 'email' | 'sms' | 'both';
   location?: string;
   payment_terms?: 'cod' | 'net_7' | 'net_14' | 'net_30';
   crm_stage?: string;
@@ -138,6 +140,9 @@ export interface Sale {
   delivery_address?: string | null;
   assigned_to?: string | null;
   assignedTo?: { id: string; name: string } | null;
+  external_delivery_name?: string | null;
+  external_delivery_phone?: string | null;
+  external_delivery_vehicle_plate?: string | null;
   customer_feedback?: string | null;
   customer_payment_type?: 'paid_full' | 'paid_partial' | 'not_paid' | null;
   customer_payment_amount?: number | null;
@@ -267,7 +272,8 @@ export interface AuditLog {
 export interface Campaign {
   id: string;
   name: string;
-  subject: string;
+  channel: 'email' | 'sms';
+  subject?: string | null;
   body: string;
   channel: 'email' | 'sms' | 'both';
   recipient_filter: { all?: boolean; type?: string[] };

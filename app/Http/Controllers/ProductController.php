@@ -7,6 +7,7 @@ use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 class ProductController extends Controller
 {
@@ -33,6 +34,8 @@ class ProductController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $this->abortIfNonAdminChangesPricing($request);
+
         $data = $request->validate([
             'category_id' => 'required|uuid|exists:categories,id',
             'name'        => 'required|string|max:200',
@@ -42,14 +45,17 @@ class ProductController extends Controller
             'nutrition_info' => 'nullable|string|max:2000',
             'packaging_details' => 'nullable|string|max:2000',
             'storage_instructions' => 'nullable|string|max:2000',
-            'unit'        => 'required|string|max:20',
+            'unit'        => 'required|string|min:1|max:30',
             'price'       => 'required|integer|min:0',
+            'sale_price'  => 'nullable|integer|min:0',
             'cost_price'  => 'sometimes|integer|min:0',
             'stock_qty'   => 'sometimes|integer|min:0',
             'min_stock'   => 'sometimes|integer|min:0',
             'image'       => 'sometimes|nullable|image|max:4096',
-            'image_url'   => 'sometimes|nullable|url|max:500',
+            'image_url'   => ['sometimes', 'nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
         ]);
+
+        $this->validateSalePrice($data['sale_price'] ?? null, $data['price']);
 
         if ($request->hasFile('image')) {
             $data['image_url'] = Storage::url(
@@ -66,7 +72,7 @@ class ProductController extends Controller
             'description' => "Created product: {$product->name}",
             'record_id'   => $product->id,
             'table_name'  => 'products',
-            'new_values'  => $product->only('name', 'unit', 'price', 'stock_qty'),
+            'new_values'  => $product->only('name', 'unit', 'price', 'sale_price', 'stock_qty'),
         ]);
 
         return response()->json(['data' => $product->load(['category', 'recipe.material'])], 201);
@@ -79,6 +85,8 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product): JsonResponse
     {
+        $this->abortIfNonAdminChangesPricing($request);
+
         $data = $request->validate([
             'category_id' => 'sometimes|uuid|exists:categories,id',
             'name'        => 'sometimes|string|max:200',
@@ -88,14 +96,21 @@ class ProductController extends Controller
             'nutrition_info' => 'nullable|string|max:2000',
             'packaging_details' => 'nullable|string|max:2000',
             'storage_instructions' => 'nullable|string|max:2000',
-            'unit'        => 'sometimes|string|max:20',
+            'unit'        => 'sometimes|string|min:1|max:30',
             'price'       => 'sometimes|integer|min:0',
+            'sale_price'  => 'nullable|integer|min:0',
             'cost_price'  => 'sometimes|integer|min:0',
             'min_stock'   => 'sometimes|integer|min:0',
             'is_active'   => 'sometimes|boolean',
             'image'       => 'sometimes|nullable|image|max:4096',
-            'image_url'   => 'sometimes|nullable|url|max:500',
+            'image_url'   => ['sometimes', 'nullable', 'string', 'max:500', 'regex:/^(https?:\/\/|\/)/'],
         ]);
+
+        if (array_key_exists('sale_price', $data) || array_key_exists('price', $data)) {
+            $salePrice = array_key_exists('sale_price', $data) ? $data['sale_price'] : $product->sale_price;
+            $price = array_key_exists('price', $data) ? $data['price'] : $product->price;
+            $this->validateSalePrice($salePrice, $price);
+        }
 
         if ($request->hasFile('image')) {
             if ($product->image_url && str_starts_with($product->image_url, '/storage/')) {
@@ -107,7 +122,7 @@ class ProductController extends Controller
         }
         unset($data['image']);
 
-        $before = $product->only('name', 'unit', 'price', 'stock_qty', 'is_active');
+        $before = $product->only('name', 'unit', 'price', 'sale_price', 'stock_qty', 'is_active');
 
         $product->update($data);
 
@@ -118,7 +133,7 @@ class ProductController extends Controller
             'record_id'   => $product->id,
             'table_name'  => 'products',
             'old_values'  => $before,
-            'new_values'  => $product->only('name', 'unit', 'price', 'stock_qty', 'is_active'),
+            'new_values'  => $product->only('name', 'unit', 'price', 'sale_price', 'stock_qty', 'is_active'),
         ]);
 
         return response()->json(['data' => $product->load(['category', 'recipe.material'])]);
@@ -132,7 +147,7 @@ class ProductController extends Controller
             'description' => "Deleted product: {$product->name}",
             'record_id'   => $product->id,
             'table_name'  => 'products',
-            'old_values'  => $product->only('name', 'unit', 'price', 'stock_qty'),
+            'old_values'  => $product->only('name', 'unit', 'price', 'sale_price', 'stock_qty'),
         ]);
 
         $product->update(['is_active' => false]);
@@ -149,5 +164,25 @@ class ProductController extends Controller
             ->paginate(20);
 
         return response()->json($movements);
+    }
+
+    private function abortIfNonAdminChangesPricing(Request $request): void
+    {
+        if ($request->user()?->role === 'admin') {
+            return;
+        }
+
+        if ($request->hasAny(['price', 'sale_price', 'cost_price'])) {
+            abort(403, 'Only admins can change package pricing.');
+        }
+    }
+
+    private function validateSalePrice(?int $salePrice, int $price): void
+    {
+        if ($salePrice !== null && $salePrice >= $price) {
+            throw ValidationException::withMessages([
+                'sale_price' => 'Sale price must be lower than the regular price.',
+            ]);
+        }
     }
 }

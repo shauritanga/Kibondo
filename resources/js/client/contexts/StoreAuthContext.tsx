@@ -8,6 +8,7 @@ interface StoreAuthState {
   register: (payload: {
     name: string;
     phone: string;
+    location: string;
     email: string;
     password: string;
     password_confirmation: string;

@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff, Mail, MessageSquare } from 'lucide-react';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationsApi } from '../services/api';
@@ -11,6 +12,8 @@ export function LoginPage() {
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [otpChannel, setOtpChannel] = useState<'email' | 'sms'>('email');
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
@@ -25,7 +28,7 @@ export function LoginPage() {
     setLoading(true);
     const permissionPromise = requestNotificationPermission();
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, otpChannel);
       if (result?.otpRequired) {
         setChallengeToken(result.challengeToken);
         setOtpMessage(result.message);
@@ -36,7 +39,12 @@ export function LoginPage() {
         navigate('/', { replace: true });
       }
     } catch (err: any) {
-      setError(err.response?.data?.errors?.email?.[0] ?? err.response?.data?.message ?? 'Login failed. Please try again.');
+      setError(
+        err.response?.data?.errors?.email?.[0]
+        ?? err.response?.data?.errors?.otp_channel?.[0]
+        ?? err.response?.data?.message
+        ?? 'Login failed. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -70,7 +78,7 @@ export function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold text-slate-950 dark:text-white">Kibondo Green Farm</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {challengeToken ? 'Check your email for a login code' : 'Sign in to your account'}
+            {challengeToken ? 'Check for your login code' : 'Sign in to your account'}
           </p>
         </div>
 
@@ -86,14 +94,51 @@ export function LoginPage() {
                 placeholder="admin@kibondo.co.tz"
               />
             </label>
+            <div>
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Login code delivery</span>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {[
+                  { value: 'email' as const, label: 'Email', icon: Mail },
+                  { value: 'sms' as const, label: 'SMS', icon: MessageSquare },
+                ].map((option) => {
+                  const Icon = option.icon;
+                  const active = otpChannel === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setOtpChannel(option.value)}
+                      className={`flex h-10 items-center justify-center gap-2 rounded-lg border text-xs font-bold transition ${
+                        active
+                          ? 'border-brand-green bg-green-50 text-brand-green dark:bg-green-900/30 dark:text-green-300'
+                          : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      <Icon size={14} /> {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <label className="block">
               <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Password</span>
-              <input
-                type="password" required
-                value={password} onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
-                placeholder="••••••••"
-              />
+              <span className="relative mt-1 block">
+                <input
+                  type={passwordVisible ? 'text' : 'password'} required
+                  value={password} onChange={(e) => setPassword(e.target.value)}
+                  className="block h-10 w-full rounded-lg border border-slate-200 bg-white px-3 pr-10 text-sm outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setPasswordVisible((v) => !v)}
+                  className="absolute right-2 top-1/2 z-10 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-300 dark:hover:bg-slate-600 dark:hover:text-slate-100"
+                  aria-label={passwordVisible ? 'Hide password' : 'Show password'}
+                  title={passwordVisible ? 'Hide password' : 'Show password'}
+                >
+                  {passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </span>
             </label>
             <button type="submit" disabled={loading} className="h-10 w-full rounded-lg bg-brand-green text-sm font-bold text-white disabled:opacity-60">
               {loading ? 'Signing in…' : 'Sign in'}

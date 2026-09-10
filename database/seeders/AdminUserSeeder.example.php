@@ -16,6 +16,7 @@ class AdminUserSeeder extends Seeder
             ['email' => 'admin@example.com'],
             [
                 'name'      => 'Admin',
+                'phone'     => '+255700000000',
                 'password'  => 'change-me',
                 'role'      => 'admin',
                 'is_active' => true,

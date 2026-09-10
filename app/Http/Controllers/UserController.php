@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -38,7 +39,12 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => 'required|string|max:120',
             'email' => 'required|email|unique:users,email',
-            'phone' => 'nullable|string|max:30|unique:users,phone',
+            'phone' => [
+                'required',
+                'string',
+                'max:40',
+                Rule::unique('users', 'phone')->whereNull('deleted_at'),
+            ],
             'password' => 'required|string|min:8',
             'role' => 'required|in:admin,sales,stock_manager,accountant,delivery',
         ]);
@@ -75,7 +81,13 @@ class UserController extends Controller
         $data = $request->validate([
             'name' => 'sometimes|string|max:120',
             'email' => 'sometimes|email|unique:users,email,' . $user->id,
-            'phone' => 'sometimes|nullable|string|max:30|unique:users,phone,' . $user->id,
+            'phone' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:40',
+                Rule::unique('users', 'phone')->ignore($user->id)->whereNull('deleted_at'),
+            ],
             'role' => 'sometimes|in:admin,sales,stock_manager,accountant,delivery',
             'is_active' => 'sometimes|boolean',
             'password' => 'sometimes|string|min:8',

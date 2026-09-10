@@ -7,19 +7,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class StoreProductResource extends JsonResource
 {
-    private static function promoPercentage(): int
-    {
-        static $pct = null;
-        if ($pct === null) {
-            $pct = (int) \App\Models\Setting::get('promo_percentage', '0');
-        }
-        return $pct;
-    }
-
     public function toArray(Request $request): array
     {
-        $pct = self::promoPercentage();
-        $promoPrice = $pct > 0 ? (int) round($this->price * (1 - $pct / 100)) : null;
+        $salePrice = $this->hasActiveSalePrice() ? $this->sale_price : null;
 
         return [
             'id'            => $this->id,
@@ -32,8 +22,10 @@ class StoreProductResource extends JsonResource
             'storage_instructions' => $this->storage_instructions,
             'unit'          => $this->unit,
             'price'         => $this->price,
-            'promo_price'   => $promoPrice,
-            'promo_percent' => $pct > 0 ? $pct : null,
+            'sale_price'    => $salePrice,
+            'active_price'  => $this->activePrice(),
+            'promo_price'   => $salePrice,
+            'promo_percent' => null,
             'stock_qty'     => $this->stock_qty,
             'min_stock'     => $this->min_stock,
             'category_id'   => $this->category_id,

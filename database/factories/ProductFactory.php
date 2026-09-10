@@ -12,7 +12,7 @@ class ProductFactory extends Factory
         return [
             'category_id' => Category::factory(),
             'name'        => $this->faker->unique()->words(2, true),
-            'unit'        => $this->faker->randomElement(['crate', 'kg', 'box', 'litre', 'piece']),
+            'unit'        => $this->faker->randomElement(['g', 'kg', 'crate', 'box', 'litre', 'piece', 'pack']),
             'price'       => $this->faker->numberBetween(1000, 50000),
             'cost_price'  => $this->faker->numberBetween(500, 10000),
             'stock_qty'   => 100,

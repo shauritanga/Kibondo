@@ -6,6 +6,8 @@ export interface CartSnapshot {
   name: string;
   unit: string;
   price: number;
+  sale_price?: number | null;
+  active_price?: number | null;
   promo_price?: number | null;
   image_url?: string | null;
 }
@@ -16,11 +18,26 @@ export interface CartItem {
 }
 
 export function toCartSnapshot(p: StoreProduct): CartSnapshot {
-  return { id: p.id, name: p.name, unit: p.unit, price: p.price, promo_price: p.promo_price, image_url: p.image_url };
+  return {
+    id: p.id,
+    name: p.name,
+    unit: p.unit,
+    price: p.price,
+    sale_price: p.sale_price,
+    active_price: p.active_price,
+    promo_price: p.promo_price,
+    image_url: p.image_url,
+  };
 }
 
 export function cartUnitPrice(item: CartItem): number {
-  return item.product.promo_price ?? item.product.price;
+  if (item.product.sale_price != null && item.product.sale_price < item.product.price) {
+    return item.product.sale_price;
+  }
+  if (item.product.promo_price != null && item.product.promo_price < item.product.price) {
+    return item.product.promo_price;
+  }
+  return item.product.active_price ?? item.product.price;
 }
 
 export function cartLineTotal(item: CartItem): number {
@@ -28,7 +45,7 @@ export function cartLineTotal(item: CartItem): number {
 }
 
 export function hasCartLineDiscount(item: CartItem): boolean {
-  return item.product.promo_price != null && item.product.promo_price < item.product.price;
+  return cartUnitPrice(item) < item.product.price;
 }
 
 interface CartState {

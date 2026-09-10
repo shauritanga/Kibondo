@@ -163,9 +163,26 @@ class SaleService
     {
         // Advisory lock prevents duplicate numbers under concurrent requests.
         // pg_advisory_xact_lock is automatically released when the transaction ends.
-        DB::statement('SELECT pg_advisory_xact_lock(7731234)');
-        $last = Sale::withTrashed()->max(DB::raw("CAST(SUBSTRING(sale_number FROM 5) AS INTEGER)"));
+        if (DB::connection()->getDriverName() === 'pgsql') {
+            DB::statement('SELECT pg_advisory_xact_lock(7731234)');
+        }
+
+        $prefix = now(config('app.timezone', 'Africa/Dar_es_Salaam'))->format('dmy');
+        $last = Sale::withTrashed()
+            ->where('sale_number', 'like', "{$prefix}-%")
+            ->pluck('sale_number')
+            ->map(function (string $saleNumber): ?int {
+                if (! preg_match('/^\d{6}-(\d+)$/', $saleNumber, $matches)) {
+                    return null;
+                }
+
+                return (int) $matches[1];
+            })
+            ->filter()
+            ->max();
+
         $next = $last ? ($last + 1) : 1;
-        return 'ORD-' . str_pad($next, 5, '0', STR_PAD_LEFT);
+
+        return $prefix . '-' . str_pad((string) $next, 3, '0', STR_PAD_LEFT);
     }
 }

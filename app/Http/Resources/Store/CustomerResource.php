@@ -10,13 +10,14 @@ class CustomerResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id'                   => $this->id,
-            'name'                 => $this->name,
-            'email'                => $this->email,
-            'phone'                => $this->phone,
-            'location'             => $this->location,
-            'phone_verified'       => $this->phone_verified_at !== null,
-            'sms_marketing_opt_in' => (bool) $this->sms_marketing_opt_in,
+            'id'                          => $this->id,
+            'name'                        => $this->name,
+            'email'                       => $this->email,
+            'phone'                       => $this->phone,
+            'location'                    => $this->location,
+            'phone_verified'              => $this->phone_verified_at !== null,
+            'sms_marketing_opt_in'        => (bool) $this->sms_marketing_opt_in,
+            'order_notification_channel'  => $this->order_notification_channel,
         ];
     }
 }

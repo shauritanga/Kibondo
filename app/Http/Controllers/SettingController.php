@@ -8,16 +8,42 @@ use Illuminate\Http\Request;
 
 class SettingController extends Controller
 {
+    private const COMPANY_DEFAULTS = [
+        'name'    => 'Kibondo Green Farm',
+        'phone'   => '+255 655 591 660',
+        'email'   => 'sales@kibondo.co.tz',
+        'address' => '',
+        'city'    => 'Dar es Salaam',
+        'country' => 'Tanzania',
+    ];
+
+    private function companySettings(): array
+    {
+        return collect(self::COMPANY_DEFAULTS)
+            ->mapWithKeys(fn (string $default, string $field) => [
+                $field => Setting::get("company_{$field}", $default),
+            ])
+            ->all();
+    }
+
     public function socialLinks(): JsonResponse
     {
         $links = json_decode(Setting::get('social_links', '[]'), true) ?? [];
         return response()->json($links);
     }
 
+    public function company(): JsonResponse
+    {
+        return response()->json($this->companySettings());
+    }
+
     public function index(): JsonResponse
     {
         $links = json_decode(Setting::get('social_links', '[]'), true) ?? [];
-        return response()->json(['social_links' => $links]);
+        return response()->json([
+            'social_links' => $links,
+            'company'      => $this->companySettings(),
+        ]);
     }
 
     public function updateSocialLinks(Request $request): JsonResponse
@@ -31,6 +57,27 @@ class SettingController extends Controller
         Setting::set('social_links', json_encode($request->links));
 
         return response()->json(['message' => 'Social links saved.']);
+    }
+
+    public function updateCompany(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name'    => 'required|string|max:120',
+            'phone'   => 'nullable|string|max:40',
+            'email'   => 'nullable|email|max:180',
+            'address' => 'nullable|string|max:255',
+            'city'    => 'nullable|string|max:120',
+            'country' => 'nullable|string|max:120',
+        ]);
+
+        foreach (array_keys(self::COMPANY_DEFAULTS) as $field) {
+            Setting::set("company_{$field}", (string) ($validated[$field] ?? ''));
+        }
+
+        return response()->json([
+            'message' => 'Company information saved.',
+            'company' => $this->companySettings(),
+        ]);
     }
 
     public function getPromo(): JsonResponse

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Laravel\Sanctum\PersonalAccessToken;
 
@@ -26,6 +27,7 @@ class AuthController extends Controller
         $request->validate([
             'email'    => 'required|email',
             'password' => 'required|string',
+            'otp_channel' => 'sometimes|in:email,sms',
         ]);
 
         $user = User::where('email', $request->email)->first();
@@ -60,7 +62,7 @@ class AuthController extends Controller
         }
 
         if (Setting::get('require_2fa_for_admins', '1') === '1') {
-            return $this->sendOtp($user);
+            return $this->sendOtp($user, $request->input('otp_channel', 'email'));
         }
 
         return $this->startSession($request, $user, 'User logged in');
@@ -169,7 +171,12 @@ class AuthController extends Controller
         $data = $request->validate([
             'name'  => 'required|string|max:200',
             'email' => 'required|email|max:180|unique:users,email,' . $request->user()->id,
-            'phone' => ['nullable', 'string', 'max:30', \Illuminate\Validation\Rule::unique('users', 'phone')->ignore($request->user()->id)],
+            'phone' => [
+                'required',
+                'string',
+                'max:40',
+                Rule::unique('users', 'phone')->ignore($request->user()->id)->whereNull('deleted_at'),
+            ],
         ]);
 
         if (! empty($data['phone'])) {
@@ -235,24 +242,27 @@ class AuthController extends Controller
         return response()->json(['user' => $this->userPayload($user)]);
     }
 
-    private function sendOtp(User $user): JsonResponse
+    private function sendOtp(User $user, string $channel): JsonResponse
     {
+        if ($channel === 'sms' && blank($user->phone)) {
+            throw ValidationException::withMessages([
+                'otp_channel' => ['Your account does not have a phone number for SMS login codes.'],
+            ]);
+        }
+
         $issued = $this->otp->issue('staff_login', [
             'user_id' => $user->id,
             'ip'      => request()->ip(),
         ]);
 
-        $user->notify(new StaffLoginOtpNotification($issued['code']));
-
-        $via = $user->phone ? 'phone' : 'email';
-        $dest = $user->phone
-            ? substr($user->phone, 0, 5) . '***' . substr($user->phone, -2)
-            : $user->email;
+        $user->notify(new StaffLoginOtpNotification($issued['code'], $channel));
 
         return response()->json([
             'otp_required'    => true,
             'challenge_token' => $issued['challenge_token'],
-            'message'         => "A login code has been sent to your {$via} ({$dest})",
+            'message'         => $channel === 'sms'
+                ? 'A login code has been sent to your phone.'
+                : "A login code has been sent to {$user->email}",
         ]);
     }
 

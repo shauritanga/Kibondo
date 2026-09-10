@@ -11,6 +11,7 @@ export function AccountPage() {
     name:     customer?.name     ?? '',
     phone:    customer?.phone    ?? '',
     email:    customer?.email    ?? '',
+    order_notification_channel: customer?.order_notification_channel ?? 'email',
     location: customer?.location ?? '',
   });
   const [saving, setSaving] = useState(false);
@@ -112,6 +113,20 @@ export function AccountPage() {
                 placeholder="Street, area, city — be specific so we can find you"
               />
               {fieldErrors.location && <p className="text-red-500 text-xs mt-1">{fieldErrors.location}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Order alerts</label>
+              <select
+                value={form.order_notification_channel}
+                onChange={e => setForm(f => ({ ...f, order_notification_channel: e.target.value as 'email' | 'sms' | 'both' }))}
+                className={inputClass('order_notification_channel')}
+              >
+                <option value="email">Email</option>
+                <option value="sms">SMS</option>
+                <option value="both">Email and SMS</option>
+              </select>
+              {fieldErrors.order_notification_channel && <p className="text-red-500 text-xs mt-1">{fieldErrors.order_notification_channel}</p>}
             </div>
 
             <button

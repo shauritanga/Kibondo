@@ -210,34 +210,17 @@ export function CheckoutPage() {
               <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">{error}</div>
             )}
 
-            {/* ── SECTION: Contact (guests only) ── */}
-            {!customer && (
-              <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6">
-                <SectionTitle>Contact</SectionTitle>
-                <div className="space-y-4">
-                  <div className="text-xs text-gray-400 -mt-2 mb-2">
-                    Already have an account?{' '}
-                    <Link to="/store/login" className="text-green-600 hover:underline font-medium">Sign in</Link>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address <span className="text-gray-400 font-normal">(optional)</span></label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="you@example.com"
-                    />
-                    <p className="text-xs text-gray-400 mt-1">For order confirmation updates.</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* ── SECTION: Delivery details ── */}
             <div className="bg-white rounded-xl border border-gray-200 p-5 sm:p-6">
               <SectionTitle>Delivery details</SectionTitle>
               <div className="space-y-4">
+
+                {!customer && (
+                  <div className="text-xs text-gray-400 -mt-2">
+                    Already have an account?{' '}
+                    <Link to="/store/login" className="text-green-600 hover:underline font-medium">Sign in</Link>
+                  </div>
+                )}
 
                 {/* Guest name fields */}
                 {!customer && (
@@ -403,6 +386,21 @@ export function CheckoutPage() {
                       className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="+255 7XX XXX XXX"
                     />
+                  </div>
+                )}
+
+                {/* Email */}
+                {!customer && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address <span className="text-gray-400 font-normal">(optional)</span></label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="you@example.com"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">For email receipts and order updates.</p>
                   </div>
                 )}
 

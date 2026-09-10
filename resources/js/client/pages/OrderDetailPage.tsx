@@ -106,6 +106,32 @@ export function OrderDetailPage() {
           </div>
         )}
 
+        {(order.assigned_to_name || order.external_delivery_phone || order.external_delivery_vehicle_plate) && (
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <p className="text-xs text-gray-400 mb-3">Delivery person</p>
+            <div className="space-y-2 text-sm">
+              {order.assigned_to_name && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-500">Name</span>
+                  <span className="font-medium text-gray-900 text-right">{order.assigned_to_name}</span>
+                </div>
+              )}
+              {order.external_delivery_phone && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-500">Phone</span>
+                  <span className="font-medium text-gray-900 text-right">{order.external_delivery_phone}</span>
+                </div>
+              )}
+              {order.external_delivery_vehicle_plate && (
+                <div className="flex justify-between gap-4">
+                  <span className="text-gray-500">Vehicle plate</span>
+                  <span className="font-medium text-gray-900 text-right">{order.external_delivery_vehicle_plate}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Items */}
         <div className="bg-white rounded-xl border border-gray-200 divide-y">
           {order.items.map(item => (
