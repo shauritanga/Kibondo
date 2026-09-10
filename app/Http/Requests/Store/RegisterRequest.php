@@ -42,6 +42,14 @@ class RegisterRequest extends FormRequest
                 'description' => 'Password (minimum 8 characters).',
                 'example'     => 'secret1234',
             ],
+            'password_confirmation' => [
+                'description' => 'Must match the password field.',
+                'example'     => 'secret1234',
+            ],
+            'sms_marketing_opt_in' => [
+                'description' => 'Optional opt-in for marketing SMS.',
+                'example'     => true,
+            ],
         ];
     }
 }

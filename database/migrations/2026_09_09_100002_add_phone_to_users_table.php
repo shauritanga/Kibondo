@@ -1,24 +1,21 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
+/**
+ * Phone column itself is added in 2026_05_31_000001_add_sms_preferences.
+ * Kept as a no-op so environments that already recorded this migration stay consistent.
+ */
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('phone', 30)->nullable()->after('email');
-            $table->unique('phone');
-        });
+        //
     }
 
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropUnique(['phone']);
-            $table->dropColumn('phone');
-        });
+        //
     }
 };

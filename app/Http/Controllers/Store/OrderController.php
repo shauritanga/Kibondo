@@ -14,7 +14,7 @@ use App\Models\Customer;
 use App\Models\User;
 use App\Notifications\DeliveryConfirmedNotification;
 use App\Notifications\OrderPlacedNotification;
-use App\Notifications\CustomerOrderReceivedNotification;
+use App\Notifications\OrderReceivedNotification;
 use App\Services\SaleService;
 use App\Support\BuyerNotifier;
 use Illuminate\Http\JsonResponse;
@@ -102,7 +102,7 @@ class OrderController extends Controller
         }
 
         try {
-            BuyerNotifier::notify($sale, new CustomerOrderReceivedNotification($sale));
+            BuyerNotifier::notify($sale, new OrderReceivedNotification($sale));
         } catch (\Throwable $e) {
             Log::warning('Order received notification failed.', [
                 'sale_id'     => $sale->id,
