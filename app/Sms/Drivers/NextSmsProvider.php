@@ -72,7 +72,8 @@ class NextSmsProvider implements SmsProvider
 
             Log::warning('NextSMS send failed', [
                 'status' => $response->status(),
-                'body'   => $json,
+                'url'    => $url,
+                'body'   => $json ?? $response->body(),
                 'to'     => $message->to,
             ]);
 

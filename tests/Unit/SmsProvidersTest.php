@@ -22,13 +22,13 @@ class SmsProvidersTest extends TestCase
     public function test_nextsms_provider_posts_payload(): void
     {
         Http::fake([
-            'api.nextsms.co.tz/*' => Http::response([
+            'messaging-service.co.tz/*' => Http::response([
                 'messages' => [['messageId' => 'msg-1']],
             ], 200),
         ]);
 
         $provider = new NextSmsProvider(
-            baseUrl: 'https://api.nextsms.co.tz',
+            baseUrl: 'https://messaging-service.co.tz',
             senderId: 'KIBONDO',
             username: 'user',
             password: 'secret',
@@ -40,7 +40,7 @@ class SmsProvidersTest extends TestCase
         $this->assertSame('msg-1', $result->providerMessageId);
 
         Http::assertSent(function ($request) {
-            return $request->url() === 'https://api.nextsms.co.tz/api/sms/v2/text/single'
+            return $request->url() === 'https://messaging-service.co.tz/api/sms/v2/text/single'
                 && $request['to'] === '255712345678'
                 && $request['text'] === 'Test'
                 && $request['from'] === 'KIBONDO';

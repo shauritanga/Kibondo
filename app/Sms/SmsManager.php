@@ -105,7 +105,7 @@ class SmsManager extends Manager
         $config = $this->config->get('sms.drivers.nextsms', []);
 
         return new NextSmsProvider(
-            baseUrl: (string) ($config['base_url'] ?? 'https://api.nextsms.co.tz'),
+            baseUrl: (string) ($config['base_url'] ?? 'https://messaging-service.co.tz'),
             senderId: (string) ($config['sender_id'] ?? $this->config->get('sms.from', 'KIBONDO')),
             username: $config['username'] ?? null,
             password: $config['password'] ?? null,
