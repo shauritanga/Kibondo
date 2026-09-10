@@ -110,6 +110,7 @@ class SmsManager extends Manager
             username: $config['username'] ?? null,
             password: $config['password'] ?? null,
             apiKey: $config['api_key'] ?? null,
+            bearerToken: $config['bearer_token'] ?? null,
             sandbox: (bool) ($config['sandbox'] ?? false),
         );
     }
