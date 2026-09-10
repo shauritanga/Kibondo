@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, MessageSquare } from 'lucide-react';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { useAuth } from '../contexts/AuthContext';
@@ -121,7 +121,15 @@ export function LoginPage() {
               </div>
             </div>
             <label className="block">
-              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Password</span>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Password</span>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-medium text-brand-green hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <span className="relative mt-1 block">
                 <input
                   type={passwordVisible ? 'text' : 'password'} required

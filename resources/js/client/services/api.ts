@@ -182,6 +182,21 @@ export const storeAuthApi = {
     const { data } = await http.put<{ data: StoreCustomer }>('/auth/me', payload);
     return data.data;
   },
+  forgotPassword: async (phone: string) => {
+    await getCsrfCookie();
+    const { data } = await http.post<{ message: string }>('/auth/forgot-password', { phone });
+    return data;
+  },
+  resetPassword: async (payload: {
+    phone: string;
+    code: string;
+    password: string;
+    password_confirmation: string;
+  }) => {
+    await getCsrfCookie();
+    const { data } = await http.post<{ message: string }>('/auth/reset-password', payload);
+    return data;
+  },
 };
 
 export const storeNotificationsApi = {

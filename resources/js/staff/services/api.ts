@@ -57,6 +57,21 @@ export const authApi = {
     });
     return data;
   },
+  forgotPassword: async (phone: string) => {
+    await getCsrfCookie();
+    const { data } = await http.post<{ message: string }>('/auth/forgot-password', { phone });
+    return data;
+  },
+  resetPassword: async (payload: {
+    phone: string;
+    code: string;
+    password: string;
+    password_confirmation: string;
+  }) => {
+    await getCsrfCookie();
+    const { data } = await http.post<{ message: string }>('/auth/reset-password', payload);
+    return data;
+  },
   logout: () => http.post('/auth/logout'),
   me: async () => {
     const { data } = await http.get<User>('/auth/me', { _skipAuthRedirect: true } as any);
