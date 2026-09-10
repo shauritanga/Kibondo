@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { authApi } from '../services/api';
+import { formatResendLabel, useOtpResendTimer } from '../../shared/hooks/useOtpResendTimer';
 
 type Step = 'phone' | 'reset' | 'done';
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate();
+  const { secondsLeft, canResend, startCooldown, resetCooldown } = useOtpResendTimer(60);
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
@@ -17,17 +19,23 @@ export function ForgotPasswordPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const codeRef = useRef<HTMLInputElement>(null);
+
+  async function sendResetCode() {
+    const res = await authApi.forgotPassword(phone);
+    setMessage(res.message);
+    setStep('reset');
+    startCooldown();
+    setTimeout(() => codeRef.current?.focus(), 50);
+  }
 
   async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const res = await authApi.forgotPassword(phone);
-      setMessage(res.message);
-      setStep('reset');
-      setTimeout(() => codeRef.current?.focus(), 50);
+      await sendResetCode();
     } catch (err: any) {
       setError(
         err.response?.data?.errors?.phone?.[0]
@@ -36,6 +44,24 @@ export function ForgotPasswordPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResendCode() {
+    if (!canResend || resending) return;
+    setError('');
+    setResending(true);
+    try {
+      await sendResetCode();
+      setCode('');
+    } catch (err: any) {
+      setError(
+        err.response?.data?.errors?.phone?.[0]
+        ?? err.response?.data?.message
+        ?? 'Could not resend code. Please try again.'
+      );
+    } finally {
+      setResending(false);
     }
   }
 
@@ -179,7 +205,22 @@ export function ForgotPasswordPage() {
             </button>
             <button
               type="button"
-              onClick={() => { setStep('phone'); setCode(''); setPassword(''); setPasswordConfirmation(''); setError(''); }}
+              disabled={!canResend || resending}
+              onClick={handleResendCode}
+              className="w-full text-center text-xs font-medium text-brand-green disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-500"
+            >
+              {resending ? 'Sending…' : formatResendLabel(secondsLeft)}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setStep('phone');
+                setCode('');
+                setPassword('');
+                setPasswordConfirmation('');
+                setError('');
+                resetCooldown();
+              }}
               className="w-full text-center text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
             >
               Use a different phone

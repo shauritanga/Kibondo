@@ -2,11 +2,13 @@ import { useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { storeAuthApi } from '../services/api';
+import { formatResendLabel, useOtpResendTimer } from '../../shared/hooks/useOtpResendTimer';
 
 type Step = 'phone' | 'reset' | 'done';
 
 export function StoreForgotPasswordPage() {
   const navigate = useNavigate();
+  const { secondsLeft, canResend, startCooldown, resetCooldown } = useOtpResendTimer(60);
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
@@ -16,17 +18,23 @@ export function StoreForgotPasswordPage() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const codeRef = useRef<HTMLInputElement>(null);
+
+  async function sendResetCode() {
+    const res = await storeAuthApi.forgotPassword(phone);
+    setMessage(res.message);
+    setStep('reset');
+    startCooldown();
+    setTimeout(() => codeRef.current?.focus(), 50);
+  }
 
   async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const res = await storeAuthApi.forgotPassword(phone);
-      setMessage(res.message);
-      setStep('reset');
-      setTimeout(() => codeRef.current?.focus(), 50);
+      await sendResetCode();
     } catch (err: any) {
       setError(
         err.response?.data?.errors?.phone?.[0]
@@ -36,6 +44,25 @@ export function StoreForgotPasswordPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResendCode() {
+    if (!canResend || resending) return;
+    setError('');
+    setResending(true);
+    try {
+      await sendResetCode();
+      setCode('');
+    } catch (err: any) {
+      setError(
+        err.response?.data?.errors?.phone?.[0]
+        ?? err.response?.data?.message
+        ?? err.userMessage
+        ?? 'Could not resend code. Please try again.'
+      );
+    } finally {
+      setResending(false);
     }
   }
 
@@ -182,7 +209,22 @@ export function StoreForgotPasswordPage() {
               </button>
               <button
                 type="button"
-                onClick={() => { setStep('phone'); setCode(''); setPassword(''); setPasswordConfirmation(''); setError(''); }}
+                disabled={!canResend || resending}
+                onClick={handleResendCode}
+                className="w-full text-center text-sm font-medium text-green-600 disabled:cursor-not-allowed disabled:text-gray-400"
+              >
+                {resending ? 'Sending…' : formatResendLabel(secondsLeft)}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setStep('phone');
+                  setCode('');
+                  setPassword('');
+                  setPasswordConfirmation('');
+                  setError('');
+                  resetCooldown();
+                }}
                 className="w-full text-center text-sm text-gray-400 hover:text-gray-600"
               >
                 Use a different phone

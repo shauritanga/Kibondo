@@ -5,10 +5,12 @@ import { ErrorBanner } from '../components/ErrorBanner';
 import { useAuth } from '../contexts/AuthContext';
 import { notificationsApi } from '../services/api';
 import { requestNotificationPermission, saveCurrentFcmToken } from '../../shared/lib/fcm';
+import { formatResendLabel, useOtpResendTimer } from '../../shared/hooks/useOtpResendTimer';
 
 export function LoginPage() {
   const { login, verifyOtp } = useAuth();
   const navigate = useNavigate();
+  const { secondsLeft, canResend, startCooldown, resetCooldown } = useOtpResendTimer(60);
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -16,6 +18,7 @@ export function LoginPage() {
   const [otpChannel, setOtpChannel] = useState<'email' | 'sms'>('email');
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
+  const [resending, setResending] = useState(false);
 
   const [challengeToken, setChallengeToken] = useState('');
   const [otpMessage, setOtpMessage]         = useState('');
@@ -32,6 +35,7 @@ export function LoginPage() {
       if (result?.otpRequired) {
         setChallengeToken(result.challengeToken);
         setOtpMessage(result.message);
+        startCooldown();
         setTimeout(() => codeRef.current?.focus(), 50);
       } else {
         await permissionPromise;
@@ -47,6 +51,31 @@ export function LoginPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResendOtp() {
+    if (!canResend || resending) return;
+    setError('');
+    setResending(true);
+    try {
+      const result = await login(email, password, otpChannel);
+      if (result?.otpRequired) {
+        setChallengeToken(result.challengeToken);
+        setOtpMessage(result.message);
+        setCode('');
+        startCooldown();
+        setTimeout(() => codeRef.current?.focus(), 50);
+      }
+    } catch (err: any) {
+      setError(
+        err.response?.data?.errors?.email?.[0]
+        ?? err.response?.data?.errors?.otp_channel?.[0]
+        ?? err.response?.data?.message
+        ?? 'Could not resend code. Please try again.'
+      );
+    } finally {
+      setResending(false);
     }
   }
 
@@ -170,7 +199,15 @@ export function LoginPage() {
             <button type="submit" disabled={loading || code.length !== 6} className="h-10 w-full rounded-lg bg-brand-green text-sm font-bold text-white disabled:opacity-60">
               {loading ? 'Verifying…' : 'Verify code'}
             </button>
-            <button type="button" onClick={() => { setChallengeToken(''); setCode(''); setError(''); }}
+            <button
+              type="button"
+              disabled={!canResend || resending}
+              onClick={handleResendOtp}
+              className="w-full text-center text-xs font-medium text-brand-green disabled:cursor-not-allowed disabled:text-slate-400 dark:disabled:text-slate-500"
+            >
+              {resending ? 'Sending…' : formatResendLabel(secondsLeft)}
+            </button>
+            <button type="button" onClick={() => { setChallengeToken(''); setCode(''); setError(''); resetCooldown(); }}
               className="w-full text-center text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
               Back to login
             </button>
