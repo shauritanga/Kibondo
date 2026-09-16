@@ -1,0 +1,9 @@
+# Standalone host publish — used by `make prod-up`, not by Coolify.
+# Coolify's reverse proxy routes to container port 80 over the Docker network.
+# Binding 0.0.0.0:8080 there fails rolling deploys when the old web container
+# is still holding the port.
+
+services:
+  web:
+    ports:
+      - "${HTTP_PORT:-8080}:80"

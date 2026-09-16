@@ -1,5 +1,9 @@
 # Production — nginx + php-fpm, optimized image, no dev seeding
-# Usage: cp .env.docker.prod.example .env && docker compose -f docker-compose.prod.yml up --build -d
+# Usage: cp .env.docker.prod.example .env && make prod-up
+#
+# Coolify: this file does not bind a host port. Coolify's proxy reaches nginx
+# on container port 80. Set "Ports Exposes" to 80 (not 8080) in Coolify.
+# Standalone: `make prod-up` also loads docker-compose.prod.publish.yml.
 #
 # Set APP_KEY and DB_PASSWORD before first deploy.
 
@@ -47,8 +51,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: prod
-    ports:
-      - "${HTTP_PORT:-8080}:80"
+    expose:
+      - "80"
     environment: *app-env
     depends_on:
       db:
