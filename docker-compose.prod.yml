@@ -18,8 +18,11 @@ x-app-env: &app-env
   LOG_CHANNEL: stderr
   LOG_LEVEL: ${LOG_LEVEL:-error}
   DB_CONNECTION: pgsql
-  DB_HOST: ${DB_HOST:-db}
-  DB_PORT: ${DB_PORT:-5432}
+  # Hardcoded: Coolify/.env often sets DB_HOST=localhost from a host install.
+  # That points at the web container itself, so the entrypoint waits forever
+  # and the health check never passes. Postgres in this stack is `db`.
+  DB_HOST: db
+  DB_PORT: "5432"
   DB_DATABASE: ${DB_DATABASE:-kibondo_db}
   DB_USERNAME: ${DB_USERNAME:-kibondo}
   DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
@@ -61,11 +64,11 @@ services:
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/up || exit 1"]
-      interval: 15s
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1/healthz || exit 1"]
+      interval: 10s
       timeout: 5s
-      retries: 8
-      start_period: 120s
+      retries: 6
+      start_period: 90s
     restart: unless-stopped
 
   queue:
