@@ -49,6 +49,14 @@ class UserController extends Controller
             'role' => 'required|in:admin,sales,stock_manager,accountant,delivery',
         ]);
 
+        if (! empty($data['phone'])) {
+            $normalized = \App\Support\PhoneNumber::normalize($data['phone']);
+            if (! $normalized) {
+                return response()->json(['message' => 'Invalid phone number.', 'errors' => ['phone' => ['Invalid phone number.']]], 422);
+            }
+            $data['phone'] = $normalized;
+        }
+
         $user = User::create($data);
 
         AuditService::log([
@@ -84,6 +92,14 @@ class UserController extends Controller
             'is_active' => 'sometimes|boolean',
             'password' => 'sometimes|string|min:8',
         ]);
+
+        if (array_key_exists('phone', $data) && $data['phone']) {
+            $normalized = \App\Support\PhoneNumber::normalize($data['phone']);
+            if (! $normalized) {
+                return response()->json(['message' => 'Invalid phone number.', 'errors' => ['phone' => ['Invalid phone number.']]], 422);
+            }
+            $data['phone'] = $normalized;
+        }
 
         $before = $user->only('name', 'email', 'phone', 'role', 'is_active');
 

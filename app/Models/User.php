@@ -38,13 +38,13 @@ class User extends Authenticatable
         ];
     }
 
+    public function routeNotificationForSms(): ?string
+    {
+        return \App\Support\PhoneNumber::normalize($this->phone);
+    }
+
     public function hasRole(string ...$roles): bool
     {
         return in_array($this->role, $roles);
-    }
-
-    public function routeNotificationForSms(): ?string
-    {
-        return $this->phone;
     }
 }

@@ -57,6 +57,21 @@ export const authApi = {
     });
     return data;
   },
+  forgotPassword: async (phone: string) => {
+    await getCsrfCookie();
+    const { data } = await http.post<{ message: string }>('/auth/forgot-password', { phone });
+    return data;
+  },
+  resetPassword: async (payload: {
+    phone: string;
+    code: string;
+    password: string;
+    password_confirmation: string;
+  }) => {
+    await getCsrfCookie();
+    const { data } = await http.post<{ message: string }>('/auth/reset-password', payload);
+    return data;
+  },
   logout: () => http.post('/auth/logout'),
   me: async () => {
     const { data } = await http.get<User>('/auth/me', { _skipAuthRedirect: true } as any);
@@ -367,6 +382,7 @@ export const campaignsApi = {
     channel: 'email' | 'sms';
     subject?: string;
     body: string;
+    channel?: 'email' | 'sms' | 'both';
     recipient_filter: { all?: boolean; type?: string[] };
   }) => {
     const { data } = await http.post<{ data: Campaign }>('/campaigns', payload);
@@ -377,8 +393,8 @@ export const campaignsApi = {
     return data.data;
   },
   delete: async (id: string) => http.delete(`/campaigns/${id}`),
-  recipientPreview: async (filter: { all?: boolean; type?: string[] }, channel: 'email' | 'sms' = 'email') => {
-    const { data } = await http.get<{ count: number }>('/campaigns/recipient-preview', { params: { ...filter, channel } });
+  recipientPreview: async (filter: { all?: boolean; type?: string[]; channel?: string }) => {
+    const { data } = await http.get<{ count: number }>('/campaigns/recipient-preview', { params: filter });
     return data.count;
   },
 };
@@ -552,6 +568,18 @@ export const settingsApi = {
   },
   updateSecurity: async (payload: { require_2fa_for_admins: boolean }) => {
     const { data } = await http.put('/settings/security', payload);
+    return data;
+  },
+  getSms: async () => {
+    const { data } = await http.get<{ enabled: boolean; driver: string; from: string }>('/settings/sms');
+    return data;
+  },
+  updateSms: async (payload: { enabled: boolean }) => {
+    const { data } = await http.put('/settings/sms', payload);
+    return data;
+  },
+  testSms: async (phone: string) => {
+    const { data } = await http.post<{ message: string; provider_message_id?: string }>('/settings/sms/test', { phone });
     return data;
   },
 };

@@ -24,14 +24,19 @@ class CampaignController extends Controller
     {
         $data = $request->validate([
             'name' => 'required|string|max:255',
-            'channel' => 'sometimes|in:email,sms',
-            'subject' => 'nullable|required_unless:channel,sms|string|max:255',
-            'body' => 'required|string',
+            'channel' => 'sometimes|in:email,sms,both',
+            'subject' => 'required_unless:channel,sms|nullable|string|max:255',
+            'body' => 'required|string|max:1000',
             'recipient_filter' => 'required|array',
             'recipient_filter.all' => 'sometimes|boolean',
             'recipient_filter.type' => 'sometimes|array',
             'recipient_filter.type.*' => 'in:retail,wholesale,distributor,hotel,restaurant,repeat_buyer',
         ]);
+
+        $data['channel'] = $data['channel'] ?? 'email';
+        if ($data['channel'] === 'sms' && empty($data['subject'])) {
+            $data['subject'] = 'SMS';
+        }
 
         $campaign = $this->service->createCampaign($data, $request->user());
 
@@ -68,11 +73,11 @@ class CampaignController extends Controller
             'all' => 'sometimes|boolean',
             'type' => 'sometimes|array',
             'type.*' => 'in:retail,wholesale,distributor,hotel,restaurant,repeat_buyer',
+            'channel' => 'sometimes|in:email,sms,both',
         ]);
 
-        $channel = $request->validate([
-            'channel' => 'sometimes|in:email,sms',
-        ])['channel'] ?? 'email';
+        $channel = $filter['channel'] ?? 'email';
+        unset($filter['channel']);
 
         $count = $this->service->recipientCount($filter, $channel);
 

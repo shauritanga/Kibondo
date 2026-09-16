@@ -275,6 +275,7 @@ export interface Campaign {
   channel: 'email' | 'sms';
   subject?: string | null;
   body: string;
+  channel: 'email' | 'sms' | 'both';
   recipient_filter: { all?: boolean; type?: string[] };
   status: 'draft' | 'sending' | 'sent' | 'failed';
   scheduled_at: string | null;

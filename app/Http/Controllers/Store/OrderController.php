@@ -12,10 +12,11 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Customer;
 use App\Models\User;
-use App\Notifications\CustomerOrderReceivedNotification;
 use App\Notifications\DeliveryConfirmedNotification;
 use App\Notifications\OrderPlacedNotification;
+use App\Notifications\OrderReceivedNotification;
 use App\Services\SaleService;
+use App\Support\BuyerNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -100,7 +101,15 @@ class OrderController extends Controller
             }
         }
 
-        $this->notifyBuyerOrderReceived($sale);
+        try {
+            BuyerNotifier::notify($sale, new OrderReceivedNotification($sale));
+        } catch (\Throwable $e) {
+            Log::warning('Order received notification failed.', [
+                'sale_id'     => $sale->id,
+                'sale_number' => $sale->sale_number,
+                'error'       => $e->getMessage(),
+            ]);
+        }
 
         return response()->json([
             'sale_number'    => $sale->sale_number,
@@ -163,24 +172,4 @@ class OrderController extends Controller
         return response()->json(['message' => 'Thank you for confirming your delivery!']);
     }
 
-    private function notifyBuyerOrderReceived(Sale $sale): void
-    {
-        try {
-            if ($sale->customer_id && $sale->customer) {
-                $sale->customer->notify(new CustomerOrderReceivedNotification($sale));
-                return;
-            }
-
-            if ($sale->guest_phone) {
-                Notification::route('sms', $sale->guest_phone)
-                    ->notify(new CustomerOrderReceivedNotification($sale));
-            }
-        } catch (\Throwable $e) {
-            Log::warning('Customer order received SMS failed.', [
-                'sale_id'     => $sale->id,
-                'sale_number' => $sale->sale_number,
-                'error'       => $e->getMessage(),
-            ]);
-        }
-    }
 }

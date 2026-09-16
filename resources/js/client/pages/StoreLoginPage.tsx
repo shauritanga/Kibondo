@@ -72,7 +72,12 @@ export function StoreLoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700">Password</label>
+              <Link to="/store/forgot-password" className="text-sm text-green-600 font-medium hover:underline">
+                Forgot password?
+              </Link>
+            </div>
             <div className="relative">
               <input
                 type={passwordVisible ? 'text' : 'password'}

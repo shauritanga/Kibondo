@@ -6,6 +6,7 @@ import { StoreRequireAuth } from './components/StoreRequireAuth';
 import { StorePage } from './pages/StorePage';
 import { StoreLoginPage } from './pages/StoreLoginPage';
 import { StoreRegisterPage } from './pages/StoreRegisterPage';
+import { StoreForgotPasswordPage } from './pages/StoreForgotPasswordPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { ConfirmationPage } from './pages/ConfirmationPage';
 import { OrdersPage } from './pages/OrdersPage';
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/store/products/:id"  element={<ProductDetailPage />} />
             <Route path="/store/login"    element={<StoreLoginPage />} />
             <Route path="/store/register" element={<StoreRegisterPage />} />
+            <Route path="/store/forgot-password" element={<StoreForgotPasswordPage />} />
             <Route path="/store/cart"         element={<CartPage />} />
             <Route path="/store/checkout"     element={<CheckoutPage />} />
             <Route path="/store/confirmation" element={<ConfirmationPage />} />

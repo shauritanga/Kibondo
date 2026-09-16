@@ -11,6 +11,7 @@ use App\Notifications\OrderCancelledNotification;
 use App\Notifications\OrderConfirmedNotification;
 use App\Notifications\OrderDeliveredNotification;
 use App\Notifications\OrderPlacedNotification;
+use App\Notifications\OrderReceivedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -26,22 +27,22 @@ class OrderNotificationCopyTest extends TestCase
 
         $this->assertSame(
             'Dear customer, your order ORD-00009 has been confirmed. We will notify you when it is out for delivery.',
-            (new OrderConfirmedNotification($sale))->toSms($customer)->content,
+            (new OrderConfirmedNotification($sale))->toSms($customer),
         );
 
         $this->assertSame(
             'Dear customer, your order ORD-00009 is out for delivery. Please keep your phone nearby.',
-            (new OrderAssignedNotification($sale, 'customer'))->toSms($customer)->content,
+            (new OrderAssignedNotification($sale, 'customer'))->toSms($customer),
         );
 
         $this->assertSame(
             'Dear customer, your order ORD-00009 has been delivered. Please confirm receipt in your account. Thank you.',
-            (new OrderDeliveredNotification($sale))->toSms($customer)->content,
+            (new OrderDeliveredNotification($sale))->toSms($customer),
         );
 
         $this->assertSame(
             'Dear customer, your order ORD-00009 has been cancelled.',
-            (new OrderCancelledNotification($sale))->toSms($customer)->content,
+            (new OrderCancelledNotification($sale))->toSms($customer),
         );
     }
 
@@ -50,9 +51,16 @@ class OrderNotificationCopyTest extends TestCase
         $customer = Customer::factory()->create();
         $sale = $this->sale(['customer_id' => $customer->id, 'sale_number' => '080626-001']);
 
+        $expected = 'Dear Customer, Thank you for your order 080626-001. We have received it and it is now being processed. We will confirm your delivery date and tracking details shortly. Thank you for choosing us. Best regards';
+
         $this->assertSame(
-            'Dear customer, tumepokea order yako 080626-001. Tutakutaarifu kila hatua ya order yako.',
-            (new CustomerOrderReceivedNotification($sale))->toSms($customer)->content,
+            $expected,
+            (new CustomerOrderReceivedNotification($sale))->toSms($customer),
+        );
+
+        $this->assertSame(
+            $expected,
+            (new OrderReceivedNotification($sale))->toSms($customer),
         );
     }
 
@@ -78,7 +86,7 @@ class OrderNotificationCopyTest extends TestCase
 
         $this->assertSame(
             'Dear customer, your order ORD-00010 has been delivered. Thank you for shopping with us.',
-            (new OrderDeliveredNotification($sale))->toSms((object) [])->content,
+            (new OrderDeliveredNotification($sale))->toSms((object) []),
         );
     }
 
@@ -108,7 +116,7 @@ class OrderNotificationCopyTest extends TestCase
         $this->assertContains('sms', $notification->via($admin));
         $this->assertSame(
             'New order ORD-00012 has been placed. Please review it in the admin dashboard.',
-            $notification->toSms($admin)->content,
+            $notification->toSms($admin),
         );
     }
 
@@ -121,7 +129,7 @@ class OrderNotificationCopyTest extends TestCase
         $this->assertContains('sms', $notification->via($driver));
         $this->assertSame(
             'New delivery assignment ORD-00013.',
-            $notification->toSms($driver)->content,
+            $notification->toSms($driver),
         );
     }
 
@@ -130,6 +138,7 @@ class OrderNotificationCopyTest extends TestCase
         return User::create([
             'name' => ucfirst($role) . ' User',
             'email' => $role . '@example.com',
+            'phone' => '+2557000000' . (['admin' => '10', 'delivery' => '20', 'sales' => '30'][$role] ?? '99'),
             'password' => Hash::make('password'),
             'role' => $role,
             'is_active' => true,

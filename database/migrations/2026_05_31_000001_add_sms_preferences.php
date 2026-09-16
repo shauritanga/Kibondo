@@ -13,15 +13,15 @@ return new class extends Migration
         });
 
         Schema::table('customers', function (Blueprint $table) {
-            $table->enum('order_notification_channel', ['email', 'sms', 'both'])->default('email')->after('email');
+            $table->string('order_notification_channel', 20)->default('email')->after('email');
         });
 
         Schema::table('campaigns', function (Blueprint $table) {
-            $table->enum('channel', ['email', 'sms'])->default('email')->after('name');
+            $table->string('channel', 20)->default('email')->after('name');
         });
 
         Schema::table('campaign_recipients', function (Blueprint $table) {
-            $table->enum('channel', ['email', 'sms'])->default('email')->after('customer_id');
+            $table->string('channel', 20)->default('email')->after('customer_id');
             $table->string('destination')->nullable()->after('channel');
         });
     }

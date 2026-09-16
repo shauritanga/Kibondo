@@ -1,6 +1,6 @@
 import clsx from 'clsx';
 import {
-  AlertCircle, CheckCircle2, Clock, Mail, Megaphone, MessageSquare,
+  AlertCircle, CheckCircle2, Clock, Mail, Megaphone,
   Plus, Send, Trash2, Users, X,
 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -31,10 +31,10 @@ const STATUS_ICON: Record<Campaign['status'], typeof Clock> = {
 };
 
 type ComposerState = {
-  name: string; channel: 'email' | 'sms'; subject: string; body: string;
+  name: string; subject: string; body: string; channel: 'email' | 'sms' | 'both';
   allCustomers: boolean; selectedTypes: string[];
 };
-const EMPTY: ComposerState = { name: '', channel: 'email', subject: '', body: '', allCustomers: true, selectedTypes: [] };
+const EMPTY: ComposerState = { name: '', subject: '', body: '', channel: 'email', allCustomers: true, selectedTypes: [] };
 
 export function CampaignsPage() {
   const { user } = useAuth();
@@ -66,16 +66,19 @@ export function CampaignsPage() {
     }
   }
 
-  const fetchPreview = useCallback((filter: { all?: boolean; type?: string[] }, channel: 'email' | 'sms') => {
+  const fetchPreview = useCallback((filter: { all?: boolean; type?: string[]; channel?: string }) => {
     if (debounce.current) clearTimeout(debounce.current);
     debounce.current = setTimeout(async () => {
-      try { setPreviewCount(await campaignsApi.recipientPreview(filter, channel)); } catch { setPreviewCount(null); }
+      try { setPreviewCount(await campaignsApi.recipientPreview(filter)); } catch { setPreviewCount(null); }
     }, 400);
   }, []);
 
   useEffect(() => {
     if (!composing) return;
-    fetchPreview(form.allCustomers ? { all: true } : { type: form.selectedTypes }, form.channel);
+    fetchPreview({
+      ...(form.allCustomers ? { all: true } : { type: form.selectedTypes }),
+      channel: form.channel,
+    });
   }, [form.allCustomers, form.selectedTypes, form.channel, composing, fetchPreview]);
 
   function openComposer() {
@@ -94,8 +97,16 @@ export function CampaignsPage() {
   }
 
   function validate(): boolean {
-    if (!form.name.trim() || (form.channel === 'email' && !form.subject.trim()) || !form.body.trim()) {
-      setError(form.channel === 'email' ? 'Campaign name, subject, and message are required.' : 'Campaign name and message are required.');
+    if (!form.name.trim() || !form.body.trim()) {
+      setError('Campaign name and message are required.');
+      return false;
+    }
+    if (form.channel !== 'sms' && !form.subject.trim()) {
+      setError('Subject is required for email campaigns.');
+      return false;
+    }
+    if (form.channel !== 'email' && form.body.length > 320) {
+      setError('SMS body should be 320 characters or fewer.');
       return false;
     }
     setError('');
@@ -106,7 +117,13 @@ export function CampaignsPage() {
     if (!validate()) return;
     setSaving(true);
     try {
-      const c = await campaignsApi.create({ name: form.name, channel: form.channel, subject: form.channel === 'email' ? form.subject : undefined, body: form.body, recipient_filter: buildFilter() });
+      const c = await campaignsApi.create({
+        name: form.name,
+        subject: form.channel === 'sms' ? 'SMS' : form.subject,
+        body: form.body,
+        channel: form.channel,
+        recipient_filter: buildFilter(),
+      });
       setCampaigns((p) => [c, ...p]);
       setComposing(false); setSelected(c);
     } catch (e: any) {
@@ -120,7 +137,13 @@ export function CampaignsPage() {
     if (!validate()) return;
     setSending(true);
     try {
-      const c = await campaignsApi.create({ name: form.name, channel: form.channel, subject: form.channel === 'email' ? form.subject : undefined, body: form.body, recipient_filter: buildFilter() });
+      const c = await campaignsApi.create({
+        name: form.name,
+        subject: form.channel === 'sms' ? 'SMS' : form.subject,
+        body: form.body,
+        channel: form.channel,
+        recipient_filter: buildFilter(),
+      });
       const sent = await campaignsApi.send(c.id);
       setCampaigns((p) => [sent, ...p]);
       setComposing(false); setSelected(sent);
@@ -165,7 +188,7 @@ export function CampaignsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Campaigns" subtitle="Send promotional email or SMS announcements to your customers." />
+      <PageHeader title="Campaigns" subtitle="Send promotional emails and product announcements to your customers." />
 
       {/* Stats bar */}
       <section className="card px-4 py-3">
@@ -231,9 +254,7 @@ export function CampaignsPage() {
                       <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{c.name}</p>
                       <StatusBadge tone={STATUS_TONE[c.status]}>{c.status}</StatusBadge>
                     </div>
-                    <p className="mt-0.5 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {c.channel === 'sms' ? 'SMS campaign' : c.subject}
-                    </p>
+                    <p className="mt-0.5 truncate text-xs font-semibold text-slate-500 dark:text-slate-400">{c.subject}</p>
                     <div className="mt-2 flex items-center gap-3 text-[11px] font-semibold text-slate-400 dark:text-slate-500">
                       <span className="flex items-center gap-1"><Users size={11} /> {c.total_recipients} recipients</span>
                       <span className="flex items-center gap-1">
@@ -304,7 +325,7 @@ function Composer({
       <div className="flex items-center justify-between border-b border-slate-100 p-4 dark:border-slate-700/50">
         <div>
           <h3 className="font-heading text-base font-bold text-slate-950 dark:text-white">New Campaign</h3>
-          <p className="mt-0.5 text-xs font-semibold text-brand-text dark:text-slate-400">Compose and send a promotional message to your customers.</p>
+          <p className="mt-0.5 text-xs font-semibold text-brand-text dark:text-slate-400">Compose and send a promotional email or SMS to your customers.</p>
         </div>
         <button onClick={onClose} className="text-slate-400 transition hover:text-slate-700 dark:hover:text-slate-200">
           <X size={18} />
@@ -316,46 +337,41 @@ function Composer({
 
         <div className="space-y-4">
           <div>
-            <p className="mb-2 text-xs font-bold text-slate-600 dark:text-slate-300">Channel</p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {[
-                { value: 'email' as const, label: 'Email', icon: Mail },
-                { value: 'sms' as const, label: 'SMS', icon: MessageSquare },
-              ].map((option) => {
-                const Icon = option.icon;
-                const active = form.channel === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setForm((p) => ({ ...p, channel: option.value }))}
-                    className={clsx(
-                      'flex h-10 items-center justify-center gap-2 rounded-lg border text-xs font-bold transition',
-                      active
-                        ? 'border-brand-green bg-green-50 text-brand-green dark:bg-green-900/30 dark:text-green-300'
-                        : 'border-slate-200 text-slate-500 hover:border-slate-300 dark:border-slate-600 dark:text-slate-300'
-                    )}
-                  >
-                    <Icon size={14} /> {option.label}
-                  </button>
-                );
-              })}
+            <label className="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Channel</label>
+            <div className="flex flex-wrap gap-2">
+              {(['email', 'sms', 'both'] as const).map((ch) => (
+                <button
+                  key={ch}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, channel: ch }))}
+                  className={clsx(
+                    'rounded-lg px-3 py-1.5 text-xs font-bold capitalize',
+                    form.channel === ch
+                      ? 'bg-brand-green text-white'
+                      : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+                  )}
+                >
+                  {ch}
+                </button>
+              ))}
             </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <FormInput label="Campaign Name" placeholder="e.g. May Promotion – Tomatoes" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
-            {form.channel === 'email' && (
+            {form.channel !== 'sms' && (
               <FormInput label="Email Subject" placeholder="e.g. Special offer this week!" value={form.subject} onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))} />
             )}
           </div>
 
           <div>
-            <label className="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">Message</label>
+            <label className="mb-1.5 block text-xs font-bold text-slate-600 dark:text-slate-300">
+              Message {form.channel !== 'email' && <span className="font-normal text-slate-400">({form.body.length}/320 for SMS)</span>}
+            </label>
             <textarea
               className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
               rows={9}
-              placeholder="Write your promotional message here. Be clear about the offer, pricing, and how to order."
+              placeholder={form.channel === 'sms' ? 'Short SMS offer (keep under 160–320 chars).' : 'Write your promotional message here. Be clear about the offer, pricing, and how to order.'}
               value={form.body}
               onChange={(e) => setForm((p) => ({ ...p, body: e.target.value }))}
             />
@@ -370,7 +386,11 @@ function Composer({
                 checked={form.allCustomers}
                 onChange={(e) => setForm((p) => ({ ...p, allCustomers: e.target.checked }))}
               />
-                All customers with {form.channel === 'sms' ? 'a phone number' : 'an email address'}
+              {form.channel === 'sms'
+                ? 'All customers opted in for SMS'
+                : form.channel === 'both'
+                  ? 'All matching email + SMS-opted customers'
+                  : 'All customers with an email address'}
             </label>
 
             {!form.allCustomers && (
@@ -397,7 +417,8 @@ function Composer({
             {previewCount !== null && (
               <p className="mt-3 flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400">
                 <Users size={12} className="text-brand-green" />
-                <span className="text-brand-green dark:text-green-400">{previewCount}</span> customer{previewCount !== 1 ? 's' : ''} will receive this {form.channel}
+                <span className="text-brand-green dark:text-green-400">{previewCount}</span>
+                {' '}recipient{previewCount !== 1 ? 's' : ''} will receive this {form.channel === 'both' ? 'email/SMS' : form.channel}
               </p>
             )}
           </div>
@@ -437,7 +458,7 @@ function CampaignDetail({
 
   const filterLabel = (() => {
     const f = campaign.recipient_filter;
-    if (f.all) return `All customers with ${campaign.channel === 'sms' ? 'phone' : 'email'}`;
+    if (f.all) return 'All customers with email';
     if (f.type?.length) return f.type.map((v) => CUSTOMER_TYPES.find((t) => t.value === v)?.label ?? v).join(', ');
     return '—';
   })();
@@ -452,7 +473,8 @@ function CampaignDetail({
               <StatusBadge tone={STATUS_TONE[campaign.status]}>{campaign.status}</StatusBadge>
             </div>
             <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-              {campaign.channel === 'sms' ? 'SMS campaign' : campaign.subject}
+              {(campaign.channel ?? 'email').toUpperCase()}
+              {campaign.channel !== 'sms' ? ` · ${campaign.subject}` : ''}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -504,7 +526,6 @@ function CampaignDetail({
 
         <div className="grid gap-2 sm:grid-cols-2">
           {[
-            ['Channel', campaign.channel.toUpperCase()],
             ['Recipients filter', filterLabel],
             ['Created by', campaign.creator?.name ?? '—'],
             ['Created', new Date(campaign.created_at).toLocaleString('en-GB')],

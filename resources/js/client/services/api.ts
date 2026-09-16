@@ -45,6 +45,8 @@ export interface StoreCustomer {
   phone: string;
   order_notification_channel?: 'email' | 'sms' | 'both';
   location?: string | null;
+  phone_verified?: boolean;
+  sms_marketing_opt_in?: boolean;
 }
 
 export interface StoreProduct {
@@ -153,7 +155,15 @@ export const storeCatalogApi = {
 };
 
 export const storeAuthApi = {
-  register: async (payload: { name: string; phone: string; location: string; email: string; password: string }) => {
+  register: async (payload: {
+    name: string;
+    phone: string;
+    location: string;
+    email: string;
+    password: string;
+    password_confirmation: string;
+    sms_marketing_opt_in?: boolean;
+  }) => {
     await getCsrfCookie();
     const { data } = await http.post<{ customer: StoreCustomer; message: string }>('/auth/register', payload);
     return data;
@@ -171,6 +181,21 @@ export const storeAuthApi = {
   updateProfile: async (payload: Partial<Pick<StoreCustomer, 'name' | 'phone' | 'email' | 'location' | 'order_notification_channel'>>) => {
     const { data } = await http.put<{ data: StoreCustomer }>('/auth/me', payload);
     return data.data;
+  },
+  forgotPassword: async (phone: string) => {
+    await getCsrfCookie();
+    const { data } = await http.post<{ message: string }>('/auth/forgot-password', { phone });
+    return data;
+  },
+  resetPassword: async (payload: {
+    phone: string;
+    code: string;
+    password: string;
+    password_confirmation: string;
+  }) => {
+    await getCsrfCookie();
+    const { data } = await http.post<{ message: string }>('/auth/reset-password', payload);
+    return data;
   },
 };
 

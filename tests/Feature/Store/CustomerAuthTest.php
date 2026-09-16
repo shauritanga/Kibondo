@@ -18,10 +18,11 @@ class CustomerAuthTest extends TestCase
             'location'              => 'Msasani, Dar es Salaam',
             'email'                 => 'jane@example.com',
             'password'              => 'password123',
+            'password_confirmation' => 'password123',
         ]);
 
         $response->assertStatus(201)
-            ->assertJsonStructure(['customer' => ['id', 'name', 'email', 'phone', 'location']]);
+            ->assertJsonStructure(['customer' => ['id', 'name', 'email', 'phone', 'location'], 'message']);
 
         $this->assertDatabaseHas('customers', [
             'email'    => 'jane@example.com',
@@ -39,6 +40,7 @@ class CustomerAuthTest extends TestCase
             'location'              => 'Msasani, Dar es Salaam',
             'email'                 => 'jane@example.com',
             'password'              => 'password123',
+            'password_confirmation' => 'password123',
         ])->assertUnprocessable()
           ->assertJsonValidationErrors(['email']);
     }
@@ -53,6 +55,7 @@ class CustomerAuthTest extends TestCase
             'location'              => 'Msasani, Dar es Salaam',
             'email'                 => 'unique@example.com',
             'password'              => 'password123',
+            'password_confirmation' => 'password123',
         ])->assertUnprocessable()
           ->assertJsonValidationErrors(['phone']);
     }
@@ -65,7 +68,7 @@ class CustomerAuthTest extends TestCase
             'email'    => 'jane@example.com',
             'password' => 'password',
         ])->assertOk()
-          ->assertJsonStructure(['token', 'customer' => ['id', 'name', 'email', 'phone']]);
+          ->assertJsonStructure(['customer' => ['id', 'name', 'email', 'phone']]);
     }
 
     public function test_login_fails_with_wrong_password(): void
@@ -97,9 +100,8 @@ class CustomerAuthTest extends TestCase
     public function test_customer_can_logout(): void
     {
         $customer = Customer::factory()->create();
-        $token    = $customer->createToken('store')->plainTextToken;
 
-        $this->withToken($token)
+        $this->actingAs($customer, 'customer')
             ->postJson('/api/v1/store/auth/logout')
             ->assertOk();
     }

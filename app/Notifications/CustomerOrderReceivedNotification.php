@@ -3,7 +3,6 @@
 namespace App\Notifications;
 
 use App\Models\Sale;
-use App\Support\Sms\SmsMessage;
 use Illuminate\Notifications\Notification;
 
 class CustomerOrderReceivedNotification extends Notification
@@ -15,8 +14,8 @@ class CustomerOrderReceivedNotification extends Notification
         return ['sms'];
     }
 
-    public function toSms(object $notifiable): SmsMessage
+    public function toSms(object $notifiable): string
     {
-        return new SmsMessage("Dear customer, tumepokea order yako {$this->sale->sale_number}. Tutakutaarifu kila hatua ya order yako.");
+        return "Dear Customer, Thank you for your order {$this->sale->sale_number}. We have received it and it is now being processed. We will confirm your delivery date and tracking details shortly. Thank you for choosing us. Best regards";
     }
 }

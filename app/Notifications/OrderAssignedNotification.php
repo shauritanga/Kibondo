@@ -4,33 +4,25 @@ namespace App\Notifications;
 
 use App\Models\Customer;
 use App\Models\Sale;
-use App\Notifications\Concerns\ResolvesBuyerChannels;
-use App\Support\Sms\SmsMessage;
+use App\Notifications\Concerns\DeterminesSmsChannels;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class OrderAssignedNotification extends Notification
+class OrderAssignedNotification extends Notification implements ShouldQueue
 {
-    use ResolvesBuyerChannels;
+    use DeterminesSmsChannels, Queueable;
 
     public function __construct(private Sale $sale, private string $recipientType) {}
 
     public function via(object $notifiable): array
     {
-        if ($this->recipientType === 'customer') {
-            return $this->buyerChannels($notifiable);
-        }
-
-        return ['database', 'mail', 'fcm', 'sms'];
-    }
-
-    public function toSms(object $notifiable): SmsMessage
-    {
         if ($this->recipientType === 'delivery') {
-            return new SmsMessage("New delivery assignment {$this->sale->sale_number}.");
+            return $this->staffChannels($notifiable);
         }
 
-        return new SmsMessage("Dear customer, your order {$this->sale->sale_number} is out for delivery. Please keep your phone nearby.");
+        return $this->guestOrRoutedChannels($notifiable);
     }
 
     public function toFcm(object $notifiable): array
@@ -94,5 +86,14 @@ class OrderAssignedNotification extends Notification
                 'customer'      => $notifiable instanceof Customer ? $notifiable : null,
                 'customer_name' => $notifiable instanceof Customer ? $notifiable->name : ($this->sale->guest_name ?? 'Customer'),
             ]);
+    }
+
+    public function toSms(object $notifiable): string
+    {
+        if ($this->recipientType === 'delivery') {
+            return "New delivery assignment {$this->sale->sale_number}.";
+        }
+
+        return "Dear customer, your order {$this->sale->sale_number} is out for delivery. Please keep your phone nearby.";
     }
 }

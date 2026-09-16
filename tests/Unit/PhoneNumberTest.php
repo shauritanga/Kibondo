@@ -2,23 +2,35 @@
 
 namespace Tests\Unit;
 
-use App\Services\Sms\PhoneNumber;
-use PHPUnit\Framework\TestCase;
+use App\Support\PhoneNumber;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Tests\TestCase;
 
 class PhoneNumberTest extends TestCase
 {
-    public function test_it_normalizes_tanzanian_phone_numbers(): void
+    #[DataProvider('validNumbers')]
+    public function test_normalizes_valid_numbers(string $input, string $expected): void
     {
-        $this->assertSame('+255712345678', PhoneNumber::normalize('0712 345 678'));
-        $this->assertSame('+255712345678', PhoneNumber::normalize('712345678'));
-        $this->assertSame('+255712345678', PhoneNumber::normalize('255712345678'));
-        $this->assertSame('+255712345678', PhoneNumber::normalize('+255 712 345 678'));
+        $this->assertSame($expected, PhoneNumber::normalize($input));
     }
 
-    public function test_it_returns_null_for_blank_phone_numbers(): void
+    public static function validNumbers(): array
     {
-        $this->assertNull(PhoneNumber::normalize(null));
+        return [
+            ['0712345678', '255712345678'],
+            ['712345678', '255712345678'],
+            ['+255712345678', '255712345678'],
+            ['255712345678', '255712345678'],
+            ['+255 712 345 678', '255712345678'],
+            ['0 712 345 678', '255712345678'],
+        ];
+    }
+
+    public function test_rejects_invalid_numbers(): void
+    {
+        $this->assertNull(PhoneNumber::normalize('123'));
         $this->assertNull(PhoneNumber::normalize(''));
-        $this->assertNull(PhoneNumber::normalize('   '));
+        $this->assertNull(PhoneNumber::normalize(null));
+        $this->assertNull(PhoneNumber::normalize('+254712345678'));
     }
 }

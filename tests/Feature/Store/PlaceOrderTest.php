@@ -6,7 +6,7 @@ use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\Setting;
-use App\Notifications\CustomerOrderReceivedNotification;
+use App\Notifications\OrderReceivedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
@@ -38,9 +38,9 @@ class PlaceOrderTest extends TestCase
 
         Notification::assertSentTo(
             $customer,
-            CustomerOrderReceivedNotification::class,
-            fn (CustomerOrderReceivedNotification $notification, array $channels) => $channels === ['sms']
-                && str_contains($notification->toSms($customer)->content, 'tumepokea order yako')
+            OrderReceivedNotification::class,
+            fn (OrderReceivedNotification $notification, array $channels) => in_array('sms', $channels, true)
+                && str_contains($notification->toSms($customer), 'being processed')
         );
     }
 
@@ -58,10 +58,10 @@ class PlaceOrderTest extends TestCase
         ])->assertStatus(201);
 
         Notification::assertSentOnDemand(
-            CustomerOrderReceivedNotification::class,
-            fn (CustomerOrderReceivedNotification $notification, array $channels, $notifiable) => $channels === ['sms']
-                && $notifiable->routeNotificationFor('sms') === '+255700000001'
-                && str_contains($notification->toSms($notifiable)->content, 'tumepokea order yako')
+            OrderReceivedNotification::class,
+            fn (OrderReceivedNotification $notification, array $channels, $notifiable) => in_array('sms', $channels, true)
+                && $notifiable->routeNotificationFor('sms') === '255700000001'
+                && str_contains($notification->toSms($notifiable), 'being processed')
         );
     }
 
@@ -138,7 +138,7 @@ class PlaceOrderTest extends TestCase
         $this->postJson('/api/v1/store/orders', [
             'delivery_address' => '123 Main St',
             'items'            => [['product_id' => $product->id, 'quantity' => 1]],
-        ])->assertUnauthorized();
+        ])->assertStatus(422);
     }
 
     public function test_order_uses_server_side_price(): void

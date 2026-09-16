@@ -4,18 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\Sale;
 use App\Models\User;
-use App\Notifications\DeliveryConfirmedNotification;
 use App\Notifications\OrderAssignedNotification;
 use App\Notifications\OrderCancelledNotification;
-use App\Notifications\OrderConfirmedNotification;
+use App\Notifications\OrderCompletedNotification;
+// use App\Notifications\OrderConfirmedNotification;
 use App\Notifications\OrderDeliveredNotification;
+use App\Notifications\OrderReceivedNotification;
 use App\Services\AuditService;
 use App\Services\SaleService;
+use App\Support\BuyerNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 
 class SaleController extends Controller
 {
@@ -104,6 +105,8 @@ class SaleController extends Controller
             'new_values'  => ['sale_number' => $sale->sale_number, 'total_amount' => $sale->total_amount, 'status' => $sale->status],
         ]);
 
+        BuyerNotifier::notify($sale->refresh(), new OrderReceivedNotification($sale));
+
         return response()->json(['data' => $sale], 201);
     }
 
@@ -154,7 +157,8 @@ class SaleController extends Controller
             'table_name'  => 'sales',
         ]);
 
-        $this->notifyBuyer($sale->refresh(), new OrderConfirmedNotification($sale));
+        // Temporarily disabled — do not notify on order confirm
+        // BuyerNotifier::notify($sale->refresh(), new OrderConfirmedNotification($sale));
 
         return response()->json(['data' => $sale->refresh()]);
     }
@@ -201,7 +205,7 @@ class SaleController extends Controller
                 'metadata'    => ['delivery_user_id' => $deliveryUser->id, 'delivery_user_name' => $deliveryUser->name],
             ]);
 
-            $this->notifyBuyer($sale, new OrderAssignedNotification($sale, 'customer'));
+            BuyerNotifier::notify($sale->refresh(), new OrderAssignedNotification($sale, 'customer'));
 
             try {
                 $deliveryUser->notify(new OrderAssignedNotification($sale, 'delivery'));
@@ -241,7 +245,7 @@ class SaleController extends Controller
             ],
         ]);
 
-        $this->notifyBuyer($sale, new OrderAssignedNotification($sale, 'customer'));
+        BuyerNotifier::notify($sale->refresh(), new OrderAssignedNotification($sale, 'customer'));
 
         $sale->load('assignedTo:id,name');
 
@@ -270,7 +274,7 @@ class SaleController extends Controller
             'table_name'  => 'sales',
         ]);
 
-        $this->notifyBuyer($sale, new OrderDeliveredNotification($sale));
+        BuyerNotifier::notify($sale, new OrderDeliveredNotification($sale));
 
         return response()->json(['data' => $sale]);
     }
@@ -298,6 +302,8 @@ class SaleController extends Controller
                 'table_name'  => 'sales',
             ]);
 
+            BuyerNotifier::notify($sale->refresh(), new OrderCompletedNotification($sale));
+
             $sale->load('items.product', 'customer', 'assignedTo:id,name', 'payments', 'deliveryZone');
             return response()->json(['data' => $sale]);
         }
@@ -324,40 +330,9 @@ class SaleController extends Controller
             'table_name'  => 'sales',
         ]);
 
-        $this->notifyBuyer($sale, new OrderCancelledNotification($sale));
+        BuyerNotifier::notify($sale, new OrderCancelledNotification($sale));
 
         return response()->json(['data' => $sale]);
-    }
-
-    private function notifyBuyer(Sale $sale, \Illuminate\Notifications\Notification $notification): void
-    {
-        try {
-            if ($sale->customer_id) {
-                $sale->customer->notify($notification);
-                return;
-            }
-
-            $route = Notification::route('mail', []);
-
-            if ($sale->guest_email) {
-                $route = Notification::route('mail', [$sale->guest_email => $sale->guest_name ?? 'Customer']);
-            }
-
-            if ($sale->guest_phone) {
-                $route->route('sms', $sale->guest_phone);
-            }
-
-            if ($sale->guest_email || $sale->guest_phone) {
-                $route->notify($notification);
-            }
-        } catch (\Throwable $e) {
-            Log::warning('Buyer order notification failed.', [
-                'sale_id'      => $sale->id,
-                'sale_number'  => $sale->sale_number,
-                'notification' => $notification::class,
-                'error'        => $e->getMessage(),
-            ]);
-        }
     }
 
     public function destroy(Sale $sale): JsonResponse

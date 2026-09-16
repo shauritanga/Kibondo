@@ -9,13 +9,14 @@ export function StoreRegisterPage() {
   const { register } = useStoreAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    name: '', phone: '', location: '', email: '', password: '',
+    name: '', phone: '', location: '', email: '', password: '', password_confirmation: '',
+    sms_marketing_opt_in: false,
   });
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
-  function field(key: keyof typeof form) {
+  function field(key: 'name' | 'phone' | 'location' | 'email' | 'password' | 'password_confirmation') {
     return {
       value: form[key],
       onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -127,6 +128,22 @@ export function StoreRegisterPage() {
             </div>
             {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm password</label>
+            <input type="password" required className={inputClass('password_confirmation')} placeholder="Repeat password" {...field('password_confirmation')} />
+            {errors.password_confirmation && <p className="text-red-500 text-xs mt-1">{errors.password_confirmation}</p>}
+          </div>
+
+          <label className="flex items-start gap-2 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 rounded accent-green-600"
+              checked={form.sms_marketing_opt_in}
+              onChange={(e) => setForm(f => ({ ...f, sms_marketing_opt_in: e.target.checked }))}
+            />
+            <span>Send me SMS offers and product announcements (optional)</span>
+          </label>
 
           <button
             type="submit"

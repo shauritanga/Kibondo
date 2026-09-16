@@ -2,15 +2,14 @@
 
 namespace App\Channels;
 
-use App\Services\Sms\PhoneNumber;
-use App\Services\Sms\SmsClient;
-use Illuminate\Notifications\AnonymousNotifiable;
+use App\Services\SmsService;
+use App\Support\PhoneNumber;
 use Illuminate\Notifications\Notification;
-use RuntimeException;
+use Illuminate\Support\Facades\Log;
 
 class SmsChannel
 {
-    public function __construct(private SmsClient $sms) {}
+    public function __construct(private SmsService $sms) {}
 
     public function send(mixed $notifiable, Notification $notification): void
     {
@@ -18,31 +17,48 @@ class SmsChannel
             return;
         }
 
-        $message = $notification->toSms($notifiable);
-        $content = is_string($message) ? $message : $message->content;
-        $phone = $this->phoneFor($notifiable);
-
+        $phone = $this->resolvePhone($notifiable);
         if (! $phone) {
             return;
         }
 
-        $result = $this->sms->send($phone, $content);
+        $body = $notification->toSms($notifiable);
+        if (! is_string($body) || trim($body) === '') {
+            return;
+        }
 
-        if (! $result->successful) {
-            throw new RuntimeException($result->error ?: 'SMS delivery failed.');
+        $meta = [
+            'type'              => class_basename($notification),
+            'notifiable_type'   => is_object($notifiable) ? $notifiable::class : null,
+            'notifiable_id'     => is_object($notifiable) ? ($notifiable->id ?? null) : null,
+        ];
+
+        try {
+            $this->sms->send($phone, $body, $meta);
+        } catch (\Throwable $e) {
+            Log::error('SMS channel send failed', ['error' => $e->getMessage()]);
         }
     }
 
-    private function phoneFor(mixed $notifiable): ?string
+    private function resolvePhone(mixed $notifiable): ?string
     {
-        if ($notifiable instanceof AnonymousNotifiable) {
-            return PhoneNumber::normalize($notifiable->routeNotificationFor('sms'));
+        if (is_object($notifiable) && method_exists($notifiable, 'routeNotificationFor')) {
+            $routed = $notifiable->routeNotificationFor('sms', null);
+            if (is_string($routed) && $routed !== '') {
+                return PhoneNumber::normalize($routed) ?? $routed;
+            }
         }
 
-        if (method_exists($notifiable, 'routeNotificationForSms')) {
-            return PhoneNumber::normalize($notifiable->routeNotificationForSms());
+        // On-demand notification: Notification::route('sms', $phone)
+        if (is_object($notifiable) && isset($notifiable->routes['sms'])) {
+            $routed = $notifiable->routes['sms'];
+            if (is_string($routed)) {
+                return PhoneNumber::normalize($routed) ?? $routed;
+            }
         }
 
-        return PhoneNumber::normalize($notifiable->phone ?? null);
+        $phone = is_object($notifiable) ? ($notifiable->phone ?? null) : null;
+
+        return PhoneNumber::normalize($phone);
     }
 }

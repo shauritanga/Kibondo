@@ -5,8 +5,7 @@ namespace App\Jobs;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Customer;
-use App\Services\Sms\SmsClient;
-use App\Services\Sms\PhoneNumber;
+use App\Services\SmsService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -29,25 +28,31 @@ class SendCampaignSmsJob implements ShouldQueue
         public string $recipientId,
     ) {}
 
-    public function handle(SmsClient $sms): void
+    public function handle(SmsService $sms): void
     {
-        $phone = PhoneNumber::normalize($this->customer->phone);
+        $result = $sms->send(
+            $this->customer->phone,
+            $this->campaign->body,
+            [
+                'type'        => 'campaign',
+                'campaign_id' => $this->campaign->id,
+                'customer_id' => $this->customer->id,
+            ]
+        );
 
-        if (! $phone) {
-            throw new \RuntimeException('Customer has no valid phone number.');
-        }
-
-        $result = $sms->send($phone, $this->campaign->body);
-
-        if (! $result->successful) {
-            throw new \RuntimeException($result->error ?: 'SMS delivery failed.');
+        if (! $result->success) {
+            throw new \RuntimeException($result->error ?? 'SMS send failed');
         }
 
         CampaignRecipient::where('id', $this->recipientId)->update([
-            'status' => 'sent',
+            'status'  => 'sent',
             'sent_at' => now(),
         ]);
 
+        // Only increment if this recipient wasn't already counted by email job
+        // For "both" channel, email job increments first; SMS uses same recipient row.
+        // Increment once per successful SMS delivery for sms-only; for both we still
+        // want progress toward total_recipients (unique customers). Use a soft bump:
         $this->campaign->increment('sent_count');
         $this->checkCompletion();
     }
@@ -56,7 +61,7 @@ class SendCampaignSmsJob implements ShouldQueue
     {
         CampaignRecipient::where('id', $this->recipientId)->update([
             'status' => 'failed',
-            'error' => substr($e->getMessage(), 0, 255),
+            'error'  => substr($e->getMessage(), 0, 255),
         ]);
 
         $this->campaign->increment('failed_count');
