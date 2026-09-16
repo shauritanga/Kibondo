@@ -62,10 +62,10 @@ services:
       - bootstrap-cache:/var/www/html/bootstrap/cache
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1/up || exit 1"]
-      interval: 30s
+      interval: 15s
       timeout: 5s
-      retries: 3
-      start_period: 40s
+      retries: 8
+      start_period: 120s
     restart: unless-stopped
 
   queue:

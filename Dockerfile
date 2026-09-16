@@ -109,6 +109,7 @@ COPY --from=frontend /app/public/build ./public/build
 
 COPY docker/nginx/prod.conf /etc/nginx/conf.d/default.conf
 COPY docker/php/opcache-prod.ini /usr/local/etc/php/conf.d/99-opcache-prod.ini
+COPY docker/php/fpm-prod.conf /usr/local/etc/php-fpm.d/zz-kibondo.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/kibondo.conf
 COPY docker/entrypoint-prod.sh /usr/local/bin/entrypoint.sh
 

@@ -29,8 +29,12 @@ return Application::configure(basePath: dirname(__DIR__))
             SecurityHeaders::class,
         ]);
 
-        // Force HTTPS in production
-        if (env('APP_ENV') === 'production') {
+        // Coolify/Traefik terminate TLS and forward HTTP with X-Forwarded-*.
+        $middleware->trustProxies(at: '*');
+
+        // env() is empty after config:cache; read the process environment instead.
+        $appEnv = $_ENV['APP_ENV'] ?? $_SERVER['APP_ENV'] ?? getenv('APP_ENV') ?: null;
+        if ($appEnv === 'production') {
             $middleware->prepend(ForceHttps::class);
         }
     })
