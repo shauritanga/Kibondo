@@ -51,13 +51,15 @@ class OrderNotificationCopyTest extends TestCase
         $customer = Customer::factory()->create();
         $sale = $this->sale(['customer_id' => $customer->id, 'sale_number' => '080626-001']);
 
+        $expected = 'Dear Customer, Thank you for your order 080626-001. We have received it and it is now being processed. We will confirm your delivery date and tracking details shortly. Thank you for choosing us. Best regards';
+
         $this->assertSame(
-            'Dear customer, tumepokea order yako 080626-001. Tutakutaarifu kila hatua ya order yako.',
+            $expected,
             (new CustomerOrderReceivedNotification($sale))->toSms($customer),
         );
 
         $this->assertSame(
-            'Dear customer, we received your order 080626-001. We will confirm delivery soon.',
+            $expected,
             (new OrderReceivedNotification($sale))->toSms($customer),
         );
     }

@@ -40,7 +40,7 @@ class PlaceOrderTest extends TestCase
             $customer,
             OrderReceivedNotification::class,
             fn (OrderReceivedNotification $notification, array $channels) => in_array('sms', $channels, true)
-                && str_contains($notification->toSms($customer), 'received')
+                && str_contains($notification->toSms($customer), 'being processed')
         );
     }
 
@@ -61,7 +61,7 @@ class PlaceOrderTest extends TestCase
             OrderReceivedNotification::class,
             fn (OrderReceivedNotification $notification, array $channels, $notifiable) => in_array('sms', $channels, true)
                 && $notifiable->routeNotificationFor('sms') === '255700000001'
-                && str_contains($notification->toSms($notifiable), 'received')
+                && str_contains($notification->toSms($notifiable), 'being processed')
         );
     }
 

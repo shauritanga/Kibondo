@@ -24,7 +24,7 @@ class OrderReceivedNotification extends Notification implements ShouldQueue
     {
         return [
             'title' => 'Order Received',
-            'body'  => "We received your order {$this->sale->sale_number}. We will confirm delivery soon.",
+            'body'  => "Thank you for your order {$this->sale->sale_number}. We have received it and it is now being processed.",
             'data'  => [
                 'type'        => 'order_received',
                 'sale_id'     => $this->sale->id,
@@ -40,24 +40,26 @@ class OrderReceivedNotification extends Notification implements ShouldQueue
             'type'        => 'order_received',
             'sale_id'     => $this->sale->id,
             'sale_number' => $this->sale->sale_number,
-            'message'     => "We received your order {$this->sale->sale_number}",
+            'message'     => "Thank you for your order {$this->sale->sale_number}. We have received it and it is now being processed.",
         ];
     }
 
     public function toMail(object $notifiable): MailMessage
     {
-        $name = $notifiable instanceof \App\Models\Customer
+        $customerName = $notifiable instanceof \App\Models\Customer
             ? $notifiable->name
             : ($this->sale->guest_name ?? 'Customer');
 
         return (new MailMessage)
-            ->subject("We received your order {$this->sale->sale_number}")
-            ->greeting("Hello {$name},")
-            ->line("Thank you for your order {$this->sale->sale_number}. We will contact you to confirm delivery.");
+            ->subject("Thank you for your order {$this->sale->sale_number}")
+            ->view('emails.notifications.order-received', [
+                'sale'          => $this->sale,
+                'customer_name' => $customerName,
+            ]);
     }
 
     public function toSms(object $notifiable): string
     {
-        return "Dear customer, we received your order {$this->sale->sale_number}. We will confirm delivery soon.";
+        return "Dear Customer, Thank you for your order {$this->sale->sale_number}. We have received it and it is now being processed. We will confirm your delivery date and tracking details shortly. Thank you for choosing us. Best regards";
     }
 }
