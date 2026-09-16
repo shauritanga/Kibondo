@@ -108,7 +108,9 @@ class SmsIntegrationTest extends TestCase
         $this->postJson("/api/v1/sales/{$sale->id}/confirm")
             ->assertOk();
 
-        Notification::assertSentOnDemand(OrderConfirmedNotification::class);
+        // Order confirm notifications temporarily disabled
+        Notification::assertNothingSent();
+        // Notification::assertSentOnDemand(OrderConfirmedNotification::class);
     }
 
     public function test_campaign_sms_preview_respects_opt_in(): void

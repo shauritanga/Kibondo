@@ -7,7 +7,7 @@ use App\Models\User;
 use App\Notifications\OrderAssignedNotification;
 use App\Notifications\OrderCancelledNotification;
 use App\Notifications\OrderCompletedNotification;
-use App\Notifications\OrderConfirmedNotification;
+// use App\Notifications\OrderConfirmedNotification;
 use App\Notifications\OrderDeliveredNotification;
 use App\Notifications\OrderReceivedNotification;
 use App\Services\AuditService;
@@ -157,7 +157,8 @@ class SaleController extends Controller
             'table_name'  => 'sales',
         ]);
 
-        BuyerNotifier::notify($sale->refresh(), new OrderConfirmedNotification($sale));
+        // Temporarily disabled — do not notify on order confirm
+        // BuyerNotifier::notify($sale->refresh(), new OrderConfirmedNotification($sale));
 
         return response()->json(['data' => $sale->refresh()]);
     }
