@@ -171,10 +171,12 @@ cp .env.docker.prod.example .env
 # Set APP_KEY (php artisan key:generate --show) and DB_PASSWORD
 
 make prod-up
-# or: docker compose -f docker-compose.prod.yml up --build -d
+# or: docker compose -f docker-compose.prod.yml -f docker-compose.prod.publish.yml up --build -d
 
 # http://localhost:8080  (override with HTTP_PORT in .env)
 ```
+
+On **Coolify**, use only `docker-compose.prod.yml` (no host port). Set **Ports Exposes** to `80` so the proxy reaches nginx. Do not map host `8080` — that collides with rolling deploys.
 
 Production stack: **web** (nginx + php-fpm), **queue**, **scheduler**, **PostgreSQL 13**. No dev admin seeding. Create users via `AdminUserSeeder` or tinker.
 
@@ -187,7 +189,7 @@ make prod-logs
 make prod-down
 ```
 
-Use a reverse proxy (Caddy, Traefik, host nginx) in front of port `8080` for HTTPS. Set `APP_URL`, `SANCTUM_STATEFUL_DOMAINS`, `CORS_ALLOWED_ORIGINS`, and `SESSION_SECURE_COOKIE=true` in `.env`.
+Standalone Docker: use a reverse proxy (Caddy, Traefik, host nginx) in front of port `8080` for HTTPS. Coolify already provides that proxy on 80/443. Set `APP_URL`, `SANCTUM_STATEFUL_DOMAINS`, `CORS_ALLOWED_ORIGINS`, and `SESSION_SECURE_COOKIE=true` in `.env`.
 
 ### Docker images
 

@@ -1,7 +1,7 @@
 .PHONY: dev-up dev-down dev-logs dev-test dev-seed prod-up prod-down prod-logs prod-build
 
 COMPOSE_DEV  = docker compose -f docker-compose.dev.yml
-COMPOSE_PROD = docker compose -f docker-compose.prod.yml
+COMPOSE_PROD = docker compose -f docker-compose.prod.yml -f docker-compose.prod.publish.yml
 
 # ─── Development ───────────────────────────────────────────────────────────────
 dev-up:
