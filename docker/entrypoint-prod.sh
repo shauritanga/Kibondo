@@ -8,6 +8,17 @@ if [ -z "$APP_KEY" ]; then
     exit 1
 fi
 
+# Named volumes overlay the image's storage/cache dirs and start empty.
+mkdir -p \
+    storage/app/public \
+    storage/framework/cache/data \
+    storage/framework/sessions \
+    storage/framework/views \
+    storage/logs \
+    bootstrap/cache
+chown -R www-data:www-data storage bootstrap/cache
+chmod -R ug+rwx storage bootstrap/cache
+
 echo "Waiting for PostgreSQL..."
 until php -r "
     try {
