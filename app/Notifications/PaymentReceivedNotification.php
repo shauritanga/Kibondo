@@ -23,11 +23,11 @@ class PaymentReceivedNotification extends Notification implements ShouldQueue
 
     public function toFcm(object $notifiable): array
     {
-        $amount = number_format($this->payment->amount);
+        $orderPrice = number_format($this->orderPrice());
 
         return [
             'title' => 'Payment Received',
-            'body'  => "Payment of TZS {$amount} received for {$this->sale->sale_number}",
+            'body'  => "Payment received for {$this->sale->sale_number}. Order amount: TZS {$orderPrice}",
             'data'  => [
                 'type'        => 'payment_received',
                 'sale_id'     => $this->sale->id,
@@ -40,35 +40,60 @@ class PaymentReceivedNotification extends Notification implements ShouldQueue
 
     public function toDatabase(object $notifiable): array
     {
-        $amount = number_format($this->payment->amount);
+        $orderPrice = number_format($this->orderPrice());
 
         return [
             'type'        => 'payment_received',
             'sale_id'     => $this->sale->id,
             'sale_number' => $this->sale->sale_number,
             'payment_id'  => $this->payment->id,
-            'message'     => "Payment of TZS {$amount} received for {$this->sale->sale_number}",
+            'message'     => "Payment received for {$this->sale->sale_number}. Order amount: TZS {$orderPrice}",
         ];
     }
 
     public function toMail(object $notifiable): MailMessage
     {
-        $amount = number_format($this->payment->amount);
-        $name = $notifiable instanceof \App\Models\Customer
+        $customerName = $notifiable instanceof \App\Models\Customer
             ? $notifiable->name
             : ($this->sale->guest_name ?? 'Customer');
 
         return (new MailMessage)
             ->subject("Payment received for {$this->sale->sale_number}")
-            ->greeting("Hello {$name},")
-            ->line("We received your payment of TZS {$amount} for order {$this->sale->sale_number}.")
-            ->line('Outstanding balance: TZS ' . number_format($this->sale->outstanding));
+            ->view('emails.notifications.payment-received', [
+                'sale'          => $this->sale,
+                'payment'       => $this->payment,
+                'customer_name' => $customerName,
+                'order_price'   => $this->orderPrice(),
+                'outstanding'   => $this->orderOutstanding(),
+            ]);
     }
 
     public function toSms(object $notifiable): string
     {
-        $amount = number_format($this->payment->amount);
+        $orderPrice = number_format($this->orderPrice());
+        $message = "Dear customer, Payment received for {$this->sale->sale_number}. Order amount: TZS {$orderPrice}.";
 
-        return "Kibondo: Payment TZS {$amount} received for {$this->sale->sale_number}. Outstanding: TZS " . number_format($this->sale->outstanding);
+        $outstanding = $this->orderOutstanding();
+        if ($outstanding > 0) {
+            $message .= ' Outstanding: TZS ' . number_format($outstanding) . '.';
+        }
+
+        return $message;
+    }
+
+    /**
+     * Merchandise total only — delivery cost is excluded from customer payment messaging.
+     */
+    private function orderPrice(): int
+    {
+        return (int) $this->sale->subtotal;
+    }
+
+    /**
+     * Remaining balance on the order price (excludes delivery cost).
+     */
+    private function orderOutstanding(): int
+    {
+        return max(0, $this->orderPrice() - (int) $this->sale->paid_amount);
     }
 }

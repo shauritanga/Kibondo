@@ -53,11 +53,11 @@ class OrderCompletedNotification extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject("Order {$this->sale->sale_number} completed")
             ->greeting("Hello {$name},")
-            ->line("Your order {$this->sale->sale_number} has been marked complete. Asante!");
+            ->line("Your order {$this->sale->sale_number} has been marked complete. Thank you!");
     }
 
     public function toSms(object $notifiable): string
     {
-        return "Kibondo: Order {$this->sale->sale_number} is complete. Asante!";
+        return "Order {$this->sale->sale_number} is complete. Thank you!";
     }
 }
