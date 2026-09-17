@@ -3,6 +3,8 @@
 #
 # Coolify: this file does not bind a host port. Coolify's proxy reaches nginx
 # on container port 80. Set "Ports Exposes" to 80 (not 8080) in Coolify.
+# Postgres is named kibondo-db and stays on the Compose network so it does
+# not collide with other apps' `db` services on Coolify's shared network.
 # Standalone: `make prod-up` also loads docker-compose.prod.publish.yml.
 #
 # Set APP_KEY and DB_PASSWORD before first deploy.
@@ -18,10 +20,7 @@ x-app-env: &app-env
   LOG_CHANNEL: stderr
   LOG_LEVEL: ${LOG_LEVEL:-error}
   DB_CONNECTION: pgsql
-  # Hardcoded: Coolify/.env often sets DB_HOST=localhost from a host install.
-  # That points at the web container itself, so the entrypoint waits forever
-  # and the health check never passes. Postgres in this stack is `db`.
-  DB_HOST: db
+  DB_HOST: kibondo-db
   DB_PORT: "5432"
   DB_DATABASE: ${DB_DATABASE:-kibondo_db}
   DB_USERNAME: ${DB_USERNAME:-kibondo}
@@ -58,8 +57,11 @@ services:
       - "80"
     environment: *app-env
     depends_on:
-      db:
+      kibondo-db:
         condition: service_healthy
+    networks:
+      - kibondo
+      - coolify
     volumes:
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
@@ -81,10 +83,12 @@ services:
       RUN_MIGRATE: "false"
       RUN_OPTIMIZE: "false"
     depends_on:
-      db:
+      kibondo-db:
         condition: service_healthy
       web:
-        condition: service_healthy
+        condition: service_started
+    networks:
+      - kibondo
     volumes:
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
@@ -101,22 +105,27 @@ services:
       RUN_MIGRATE: "false"
       RUN_OPTIMIZE: "false"
     depends_on:
-      db:
+      kibondo-db:
         condition: service_healthy
       web:
         condition: service_started
+    networks:
+      - kibondo
     volumes:
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
     command: php artisan schedule:work
     restart: unless-stopped
 
-  db:
+  kibondo-db:
     image: postgres:13-alpine
+    hostname: kibondo-db
     environment:
       POSTGRES_USER: ${DB_USERNAME:-kibondo}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
       POSTGRES_DB: ${DB_DATABASE:-kibondo_db}
+    networks:
+      - kibondo
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -130,3 +139,9 @@ volumes:
   postgres_data:
   storage:
   bootstrap-cache:
+
+networks:
+  kibondo:
+    driver: bridge
+  coolify:
+    external: true

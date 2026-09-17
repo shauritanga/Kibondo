@@ -19,19 +19,14 @@ mkdir -p \
 chown -R www-data:www-data storage bootstrap/cache
 chmod -R ug+rwx storage bootstrap/cache
 
-# Host .env files use localhost; that is the web container here, not Postgres.
-case "${DB_HOST:-}" in
-    localhost|127.0.0.1|::1|"")
-        echo "DB_HOST=${DB_HOST:-empty} is not reachable in Docker; using db"
-        export DB_HOST=db
-        export DB_PORT="${DB_PORT:-5432}"
-        ;;
-esac
-case "${DB_URL:-}${DATABASE_URL:-}" in
-    *localhost*|*127.0.0.1*)
-        unset DB_URL DATABASE_URL
-        ;;
-esac
+# Always use this stack's Postgres unless an external DB is intentional.
+# Coolify servers often have other apps with a service named `db`, and host
+# .env files set DB_HOST=localhost — both break connectivity inside Compose.
+if [ "${USE_EXTERNAL_DB:-false}" != "true" ]; then
+    export DB_HOST=kibondo-db
+    export DB_PORT=5432
+    unset DB_URL DATABASE_URL || true
+fi
 
 echo "Waiting for PostgreSQL at ${DB_HOST}:${DB_PORT:-5432}..."
 i=0
