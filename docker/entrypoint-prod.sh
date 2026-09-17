@@ -25,6 +25,8 @@ chmod -R ug+rwx storage bootstrap/cache
 if [ "${USE_EXTERNAL_DB:-false}" != "true" ]; then
     export DB_HOST=kibondo-db
     export DB_PORT=5432
+    export DB_USERNAME=kibondo
+    export DB_DATABASE=kibondo_db
     unset DB_URL DATABASE_URL || true
 fi
 
