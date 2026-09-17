@@ -44,7 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libpq-dev \
         libzip-dev \
         unzip \
-    && docker-php-ext-install -j"$(nproc)" \
+    && docker-php-ext-install -j2 \
         bcmath \
         intl \
         opcache \
@@ -123,33 +123,10 @@ ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
 
 # ─── Production workers (queue, scheduler) ─────────────────────────────────────
-FROM php:8.4-cli-bookworm AS prod-worker
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        libicu-dev \
-        libpq-dev \
-        libzip-dev \
-        unzip \
-    && docker-php-ext-install -j"$(nproc)" \
-        bcmath \
-        intl \
-        opcache \
-        pdo_pgsql \
-        zip \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /var/www/html
-
-COPY --from=vendor-prod /app /var/www/html
-COPY --from=frontend /app/public/build ./public/build
-COPY docker/entrypoint-prod.sh /usr/local/bin/entrypoint.sh
-
-RUN mkdir -p storage/framework/{cache,sessions,views} storage/logs bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache \
-    && chmod +x /usr/local/bin/entrypoint.sh
+# Reuse the prod image so Coolify does not compile PHP extensions twice in
+# parallel (that OOMs a shared VPS). php-fpm's `php` binary is fine for artisan.
+FROM prod AS prod-worker
 
 USER www-data
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--max-time=3600", "--timeout=30"]
