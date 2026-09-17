@@ -187,7 +187,25 @@ class ProductSeeder extends Seeder
 
             Product::updateOrCreate(
                 ['name' => $row['name']],
-                [...$row, 'category_id' => $categoryId, 'is_active' => true],
+                [
+                    'category_id' => $categoryId,
+                    'is_active' => true,
+                    'description' => $row['description'],
+                    'key_benefits' => $row['key_benefits'],
+                    'ingredients' => $row['ingredients'],
+                    'nutrition_info' => $row['nutrition_info'],
+                    'packaging_details' => $row['packaging_details'],
+                    'storage_instructions' => $row['storage_instructions'],
+                    'image_url' => $row['image_url'],
+                    'unit' => $row['unit'],
+                    'price' => $row['price'],
+                    'cost_price' => $row['cost_price'],
+                    'min_stock' => $row['min_stock'],
+                    // Only set stock when creating — never reset live inventory on re-seed.
+                    ...(! Product::where('name', $row['name'])->exists()
+                        ? ['stock_qty' => $row['stock_qty']]
+                        : []),
+                ],
             );
         }
     }
