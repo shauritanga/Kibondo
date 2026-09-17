@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Campaign;
 use App\Services\CampaignService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -34,6 +35,7 @@ class CampaignController extends Controller
             'recipient_filter.sms_group_id' => 'sometimes|uuid|exists:sms_groups,id',
             'recipient_filter.sms_group_ids' => 'sometimes|array',
             'recipient_filter.sms_group_ids.*' => 'uuid|exists:sms_groups,id',
+            'scheduled_at' => 'sometimes|nullable|date|after:now',
         ]);
 
         $data['channel'] = $data['channel'] ?? 'email';
@@ -57,13 +59,69 @@ class CampaignController extends Controller
 
         $campaign = $this->service->createCampaign($data, $request->user());
 
+        if (! empty($data['scheduled_at'])) {
+            $campaign = $this->service->schedule(
+                $campaign,
+                Carbon::parse($data['scheduled_at'], config('app.timezone'))
+            );
+        }
+
         return response()->json(['data' => $campaign], 201);
+    }
+
+    /**
+     * Schedule one SMS per selected group on consecutive days at the same time.
+     */
+    public function scheduleSeries(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'body' => 'required|string|max:1000',
+            'group_ids' => 'required|array|min:1',
+            'group_ids.*' => 'uuid|exists:sms_groups,id',
+            'start_date' => 'required|date',
+            'send_time' => ['required', 'regex:/^\d{2}:\d{2}$/'],
+        ]);
+
+        $campaigns = $this->service->scheduleDailyGroupSeries($data, $request->user());
+
+        return response()->json([
+            'message' => 'Scheduled '.$campaigns->count().' daily group campaign(s).',
+            'data' => $campaigns->values(),
+        ], 201);
+    }
+
+    public function schedule(Request $request, Campaign $campaign): JsonResponse
+    {
+        $data = $request->validate([
+            'scheduled_at' => 'required|date|after:now',
+        ]);
+
+        $updated = $this->service->schedule(
+            $campaign,
+            Carbon::parse($data['scheduled_at'], config('app.timezone'))
+        );
+
+        return response()->json([
+            'message' => 'Campaign scheduled.',
+            'data' => $updated,
+        ]);
+    }
+
+    public function cancelSchedule(Campaign $campaign): JsonResponse
+    {
+        $updated = $this->service->cancelSchedule($campaign);
+
+        return response()->json([
+            'message' => 'Schedule cancelled. Campaign is now a draft.',
+            'data' => $updated,
+        ]);
     }
 
     public function show(Campaign $campaign): JsonResponse
     {
         $campaign->load('creator:id,name');
-        $campaign->loadCount(['recipients', 'recipients as pending_count' => fn($q) => $q->where('status', 'pending')]);
+        $campaign->loadCount(['recipients', 'recipients as pending_count' => fn ($q) => $q->where('status', 'pending')]);
 
         return response()->json(['data' => $campaign]);
     }
@@ -78,7 +136,7 @@ class CampaignController extends Controller
 
     public function send(Request $request, Campaign $campaign): JsonResponse
     {
-        $this->authorize('admin', $request->user());
+        $this->authorizeAdmin($request->user());
         $this->service->send($campaign);
 
         return response()->json(['message' => 'Campaign queued for sending.', 'data' => $campaign->fresh()]);
@@ -104,9 +162,9 @@ class CampaignController extends Controller
         return response()->json(['count' => $count]);
     }
 
-    private function authorize(string $role, $user): void
+    private function authorizeAdmin($user): void
     {
-        if ($user->role !== $role) {
+        if ($user->role !== 'admin') {
             abort(403, 'Only admins can send campaigns.');
         }
     }

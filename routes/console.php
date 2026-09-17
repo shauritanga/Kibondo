@@ -22,6 +22,9 @@ Schedule::call(function () {
 // Cancel pending guest orders older than 24 hours (restores stock)
 Schedule::command('orders:cancel-stale')->hourly();
 
+// Send scheduled campaigns (one group per day series, etc.)
+Schedule::command('campaigns:dispatch-due')->everyMinute()->withoutOverlapping();
+
 // Daily database backup at 02:00 — production only
 Schedule::command('db:backup')
     ->dailyAt('02:00')

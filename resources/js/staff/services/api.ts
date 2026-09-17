@@ -396,6 +396,27 @@ export const campaignsApi = {
     const { data } = await http.post<{ data: Campaign }>(`/campaigns/${id}/send`);
     return data.data;
   },
+  schedule: async (id: string, scheduled_at: string) => {
+    const { data } = await http.post<{ data: Campaign }>(`/campaigns/${id}/schedule`, { scheduled_at });
+    return data.data;
+  },
+  cancelSchedule: async (id: string) => {
+    const { data } = await http.post<{ data: Campaign }>(`/campaigns/${id}/cancel-schedule`);
+    return data.data;
+  },
+  scheduleSeries: async (payload: {
+    name: string;
+    body: string;
+    group_ids: string[];
+    start_date: string;
+    send_time: string;
+  }) => {
+    const { data } = await http.post<{ data: Campaign[]; message: string }>(
+      '/campaigns/schedule-series',
+      payload,
+    );
+    return data;
+  },
   delete: async (id: string) => http.delete(`/campaigns/${id}`),
   recipientPreview: async (filter: {
     all?: boolean;

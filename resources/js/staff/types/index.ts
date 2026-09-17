@@ -281,7 +281,7 @@ export interface Campaign {
     sms_group_id?: string;
     sms_group_ids?: string[];
   };
-  status: 'draft' | 'sending' | 'sent' | 'failed';
+  status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
   scheduled_at: string | null;
   sent_at: string | null;
   total_recipients: number;

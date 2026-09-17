@@ -174,8 +174,11 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('/campaigns/recipient-preview', [CampaignController::class, 'recipientPreview']);
         Route::post('/campaigns', [CampaignController::class, 'store']);
+        Route::post('/campaigns/schedule-series', [CampaignController::class, 'scheduleSeries']);
         Route::delete('/campaigns/{campaign}', [CampaignController::class, 'destroy']);
         Route::post('/campaigns/{campaign}/send', [CampaignController::class, 'send']);
+        Route::post('/campaigns/{campaign}/schedule', [CampaignController::class, 'schedule']);
+        Route::post('/campaigns/{campaign}/cancel-schedule', [CampaignController::class, 'cancelSchedule']);
     });
     Route::get('/campaigns/{campaign}', [CampaignController::class, 'show']);
 

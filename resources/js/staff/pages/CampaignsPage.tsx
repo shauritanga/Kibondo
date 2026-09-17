@@ -22,23 +22,29 @@ const CUSTOMER_TYPES = [
   { value: 'repeat_buyer', label: 'Repeat Buyer' },
 ];
 
-const STATUS_TONE: Record<Campaign['status'], 'slate' | 'amber' | 'green' | 'red'> = {
-  draft: 'slate', sending: 'amber', sent: 'green', failed: 'red',
+const STATUS_TONE: Record<Campaign['status'], 'slate' | 'amber' | 'green' | 'red' | 'blue'> = {
+  draft: 'slate', scheduled: 'blue', sending: 'amber', sent: 'green', failed: 'red',
 };
 
 const STATUS_ICON: Record<Campaign['status'], typeof Clock> = {
-  draft: Clock, sending: Send, sent: CheckCircle2, failed: AlertCircle,
+  draft: Clock, scheduled: Clock, sending: Send, sent: CheckCircle2, failed: AlertCircle,
 };
 
 type ComposerState = {
   name: string; subject: string; body: string; channel: 'email' | 'sms' | 'both';
-  audience: 'customers' | 'group';
+  audience: 'customers' | 'group' | 'series';
   allCustomers: boolean; selectedTypes: string[];
   smsGroupId: string;
+  seriesGroupIds: string[];
+  startDate: string;
+  sendTime: string;
 };
 const EMPTY: ComposerState = {
   name: '', subject: '', body: '', channel: 'email',
   audience: 'customers', allCustomers: true, selectedTypes: [], smsGroupId: '',
+  seriesGroupIds: [],
+  startDate: new Date().toISOString().slice(0, 10),
+  sendTime: '09:00',
 };
 
 export function CampaignsPage() {
@@ -83,6 +89,10 @@ export function CampaignsPage() {
 
   useEffect(() => {
     if (!composing) return;
+    if (form.audience === 'series') {
+      setPreviewCount(form.seriesGroupIds.length || null);
+      return;
+    }
     if (form.audience === 'group') {
       if (!form.smsGroupId) { setPreviewCount(null); return; }
       fetchPreview({ sms_group_id: form.smsGroupId, channel: 'sms' });
@@ -92,10 +102,14 @@ export function CampaignsPage() {
       ...(form.allCustomers ? { all: true } : { type: form.selectedTypes }),
       channel: form.channel,
     });
-  }, [form.allCustomers, form.selectedTypes, form.channel, form.audience, form.smsGroupId, composing, fetchPreview]);
+  }, [form.allCustomers, form.selectedTypes, form.channel, form.audience, form.smsGroupId, form.seriesGroupIds, composing, fetchPreview]);
 
   async function openComposer() {
-    setForm(EMPTY); setSelected(null); setComposing(true); setError(''); setPreviewCount(null);
+    setForm({
+      ...EMPTY,
+      startDate: new Date().toISOString().slice(0, 10),
+    });
+    setSelected(null); setComposing(true); setError(''); setPreviewCount(null);
     try {
       setSmsGroups(await smsGroupsApi.list());
     } catch {
@@ -110,6 +124,27 @@ export function CampaignsPage() {
     }));
   }
 
+  function toggleSeriesGroup(id: string) {
+    setForm((p) => ({
+      ...p,
+      seriesGroupIds: p.seriesGroupIds.includes(id)
+        ? p.seriesGroupIds.filter((g) => g !== id)
+        : [...p.seriesGroupIds, id],
+    }));
+  }
+
+  function moveSeriesGroup(id: string, dir: -1 | 1) {
+    setForm((p) => {
+      const idx = p.seriesGroupIds.indexOf(id);
+      if (idx < 0) return p;
+      const next = [...p.seriesGroupIds];
+      const swap = idx + dir;
+      if (swap < 0 || swap >= next.length) return p;
+      [next[idx], next[swap]] = [next[swap], next[idx]];
+      return { ...p, seriesGroupIds: next };
+    });
+  }
+
   function buildFilter() {
     if (form.audience === 'group') {
       return { sms_group_id: form.smsGroupId };
@@ -121,6 +156,26 @@ export function CampaignsPage() {
     if (!form.name.trim() || !form.body.trim()) {
       setError('Campaign name and message are required.');
       return false;
+    }
+    if (form.audience === 'series') {
+      if (form.channel !== 'sms') {
+        setError('Daily group series requires the SMS channel.');
+        return false;
+      }
+      if (form.seriesGroupIds.length === 0) {
+        setError('Select at least one SMS group for the daily series.');
+        return false;
+      }
+      if (!form.startDate || !form.sendTime) {
+        setError('Start date and send time are required.');
+        return false;
+      }
+      if (form.body.length > 320) {
+        setError('SMS body should be 320 characters or fewer.');
+        return false;
+      }
+      setError('');
+      return true;
     }
     if (form.channel !== 'sms' && !form.subject.trim()) {
       setError('Subject is required for email campaigns.');
@@ -148,6 +203,10 @@ export function CampaignsPage() {
   }
 
   async function handleSaveDraft() {
+    if (form.audience === 'series') {
+      setError('Daily series creates scheduled campaigns — use “Schedule daily series”.');
+      return;
+    }
     if (!validate()) return;
     setSaving(true);
     try {
@@ -168,6 +227,10 @@ export function CampaignsPage() {
   }
 
   async function handleSendNow() {
+    if (form.audience === 'series') {
+      setError('Use “Schedule daily series” for multi-group daily sends.');
+      return;
+    }
     if (!validate()) return;
     setSending(true);
     try {
@@ -188,6 +251,31 @@ export function CampaignsPage() {
     }
   }
 
+  async function handleScheduleSeries() {
+    if (!validate()) return;
+    setSending(true);
+    setError('');
+    try {
+      const res = await campaignsApi.scheduleSeries({
+        name: form.name.trim(),
+        body: form.body.trim(),
+        group_ids: form.seriesGroupIds,
+        start_date: form.startDate,
+        send_time: form.sendTime,
+      });
+      setCampaigns((p) => [...res.data, ...p]);
+      setComposing(false);
+      setSelected(res.data[0] ?? null);
+    } catch (e: any) {
+      const firstError = e?.response?.data?.errors
+        ? Object.values(e.response.data.errors as Record<string, string[]>)[0]?.[0]
+        : undefined;
+      setError(e?.response?.data?.message ?? firstError ?? 'Failed to schedule series.');
+    } finally {
+      setSending(false);
+    }
+  }
+
   async function handleSendDraft(c: Campaign) {
     setSending(true); setError('');
     try {
@@ -196,6 +284,19 @@ export function CampaignsPage() {
       setSelected(sent);
     } catch (e: any) {
       setError(e?.response?.data?.message ?? 'Failed to send campaign.');
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleCancelSchedule(c: Campaign) {
+    setSending(true); setError('');
+    try {
+      const updated = await campaignsApi.cancelSchedule(c.id);
+      setCampaigns((p) => p.map((x) => (x.id === updated.id ? updated : x)));
+      setSelected(updated);
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? 'Failed to cancel schedule.');
     } finally {
       setSending(false);
     }
@@ -222,16 +323,17 @@ export function CampaignsPage() {
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Campaigns" subtitle="Send promotional emails and product announcements to your customers." />
+      <PageHeader title="Campaigns" subtitle="Send now, or schedule one SMS group per day at a set time." />
 
       {/* Stats bar */}
       <section className="card px-4 py-3">
-        <div className="grid gap-3 text-sm md:grid-cols-4">
+        <div className="grid gap-3 text-sm md:grid-cols-5">
           {[
             ['Total Campaigns', campaigns.length],
             ['Sent This Month', sentThisMonth],
             ['Recipient Sends', totalRecipientSends],
             ['Draft', campaigns.filter((c) => c.status === 'draft').length],
+            ['Scheduled', campaigns.filter((c) => c.status === 'scheduled').length],
           ].map(([label, value]) => (
             <div key={label as string} className="flex items-center justify-between border-slate-100 md:border-r md:pr-3 last:md:border-r-0 dark:border-slate-700/50">
               <span className="text-xs font-bold uppercase tracking-wide text-slate-400 dark:text-slate-500">{label}</span>
@@ -293,7 +395,9 @@ export function CampaignsPage() {
                       <span className="flex items-center gap-1"><Users size={11} /> {c.total_recipients} recipients</span>
                       <span className="flex items-center gap-1">
                         <Icon size={11} />
-                        {new Date(c.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {c.status === 'scheduled' && c.scheduled_at
+                          ? new Date(c.scheduled_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                          : new Date(c.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </span>
                     </div>
                   </button>
@@ -310,13 +414,20 @@ export function CampaignsPage() {
               form={form} setForm={setForm} previewCount={previewCount}
               smsGroups={smsGroups}
               saving={saving} sending={sending} error={error}
-              onToggleType={toggleType} onSaveDraft={handleSaveDraft}
-              onSendNow={handleSendNow} onClose={() => { setComposing(false); setError(''); }}
+              onToggleType={toggleType}
+              onToggleSeriesGroup={toggleSeriesGroup}
+              onMoveSeriesGroup={moveSeriesGroup}
+              onSaveDraft={handleSaveDraft}
+              onSendNow={handleSendNow}
+              onScheduleSeries={handleScheduleSeries}
+              onClose={() => { setComposing(false); setError(''); }}
             />
           ) : selected ? (
             <CampaignDetail
               campaign={selected} isAdmin={isAdmin} sending={sending} error={error}
-              onSendDraft={handleSendDraft} onDelete={handleDelete}
+              onSendDraft={handleSendDraft}
+              onCancelSchedule={handleCancelSchedule}
+              onDelete={handleDelete}
             />
           ) : (
             <div className="flex h-full min-h-[360px] flex-col items-center justify-center gap-3 text-center">
@@ -344,7 +455,8 @@ export function CampaignsPage() {
 
 function Composer({
   form, setForm, previewCount, smsGroups, saving, sending, error,
-  onToggleType, onSaveDraft, onSendNow, onClose,
+  onToggleType, onToggleSeriesGroup, onMoveSeriesGroup,
+  onSaveDraft, onSendNow, onScheduleSeries, onClose,
 }: {
   form: ComposerState;
   setForm: React.Dispatch<React.SetStateAction<ComposerState>>;
@@ -352,16 +464,34 @@ function Composer({
   smsGroups: SmsGroup[];
   saving: boolean; sending: boolean; error: string;
   onToggleType: (v: string) => void;
+  onToggleSeriesGroup: (id: string) => void;
+  onMoveSeriesGroup: (id: string, dir: -1 | 1) => void;
   onSaveDraft: () => void;
   onSendNow: () => void;
+  onScheduleSeries: () => void;
   onClose: () => void;
 }) {
+  const seriesPreview = form.seriesGroupIds.map((id, i) => {
+    const g = smsGroups.find((x) => x.id === id);
+    const day = new Date(`${form.startDate}T${form.sendTime}:00`);
+    day.setDate(day.getDate() + i);
+    return {
+      id,
+      name: g?.name ?? id,
+      when: day.toLocaleString('en-GB', {
+        weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+      }),
+    };
+  });
+
   return (
     <>
       <div className="flex items-center justify-between border-b border-slate-100 p-4 dark:border-slate-700/50">
         <div>
           <h3 className="font-heading text-base font-bold text-slate-950 dark:text-white">New Campaign</h3>
-          <p className="mt-0.5 text-xs font-semibold text-brand-text dark:text-slate-400">Compose and send a promotional email or SMS to your customers.</p>
+          <p className="mt-0.5 text-xs font-semibold text-brand-text dark:text-slate-400">
+            Compose now, or schedule one SMS group per day at a fixed time.
+          </p>
         </div>
         <button onClick={onClose} className="text-slate-400 transition hover:text-slate-700 dark:hover:text-slate-200">
           <X size={18} />
@@ -410,8 +540,8 @@ function Composer({
             </label>
             <textarea
               className="w-full resize-none rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold outline-none focus:border-brand-green dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder:text-slate-400"
-              rows={9}
-              placeholder={form.channel === 'sms' ? 'Short SMS offer (keep under 160–320 chars).' : 'Write your promotional message here. Be clear about the offer, pricing, and how to order.'}
+              rows={7}
+              placeholder={form.channel === 'sms' ? 'Short SMS offer (keep under 160–320 chars).' : 'Write your promotional message here.'}
               value={form.body}
               onChange={(e) => setForm((p) => ({ ...p, body: e.target.value }))}
             />
@@ -424,7 +554,8 @@ function Composer({
               <div className="mb-3 flex flex-wrap gap-2">
                 {([
                   { id: 'customers' as const, label: 'System customers' },
-                  { id: 'group' as const, label: 'SMS group' },
+                  { id: 'group' as const, label: 'One SMS group' },
+                  { id: 'series' as const, label: 'Daily group series' },
                 ]).map((opt) => (
                   <button
                     key={opt.id}
@@ -443,7 +574,7 @@ function Composer({
               </div>
             )}
 
-            {form.audience === 'group' ? (
+            {form.audience === 'group' && (
               <select
                 className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
                 value={form.smsGroupId}
@@ -456,7 +587,62 @@ function Composer({
                   </option>
                 ))}
               </select>
-            ) : (
+            )}
+
+            {form.audience === 'series' && (
+              <div className="space-y-3">
+                <p className="text-[11px] font-semibold text-slate-500">
+                  Select groups in send order. Day 1 = start date, Day 2 = next day, etc. Same time every day.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormInput
+                    label="Start date"
+                    type="date"
+                    value={form.startDate}
+                    onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
+                  />
+                  <FormInput
+                    label="Send time"
+                    type="time"
+                    value={form.sendTime}
+                    onChange={(e) => setForm((p) => ({ ...p, sendTime: e.target.value }))}
+                  />
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {smsGroups.map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => onToggleSeriesGroup(g.id)}
+                      className={clsx(
+                        'rounded-full border px-2.5 py-1 text-[11px] font-bold',
+                        form.seriesGroupIds.includes(g.id)
+                          ? 'border-brand-green bg-green-50 text-brand-green'
+                          : 'border-slate-200 text-slate-500 dark:border-slate-600',
+                      )}
+                    >
+                      {g.name} ({g.members_count ?? 0})
+                    </button>
+                  ))}
+                </div>
+                {seriesPreview.length > 0 && (
+                  <ol className="space-y-1.5 rounded-lg bg-slate-50 p-3 dark:bg-slate-800/50">
+                    {seriesPreview.map((row, i) => (
+                      <li key={row.id} className="flex items-center justify-between gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                        <span>Day {i + 1}: {row.name}</span>
+                        <span className="text-slate-400">{row.when}</span>
+                        <span className="flex gap-1">
+                          <button type="button" className="rounded px-1.5 hover:bg-white dark:hover:bg-slate-700" onClick={() => onMoveSeriesGroup(row.id, -1)}>↑</button>
+                          <button type="button" className="rounded px-1.5 hover:bg-white dark:hover:bg-slate-700" onClick={() => onMoveSeriesGroup(row.id, 1)}>↓</button>
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            )}
+
+            {form.audience === 'customers' && (
               <>
                 <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
                   <input
@@ -495,31 +681,49 @@ function Composer({
               </>
             )}
 
-            {previewCount !== null && (
+            {previewCount !== null && form.audience !== 'series' && (
               <p className="mt-3 flex items-center gap-1.5 text-[11px] font-bold text-slate-500 dark:text-slate-400">
                 <Users size={12} className="text-brand-green" />
                 <span className="text-brand-green dark:text-green-400">{previewCount}</span>
                 {' '}recipient{previewCount !== 1 ? 's' : ''} will receive this {form.channel === 'both' ? 'email/SMS' : form.channel}
               </p>
             )}
+            {form.audience === 'series' && previewCount !== null && (
+              <p className="mt-3 text-[11px] font-bold text-brand-green">
+                {previewCount} scheduled send{previewCount === 1 ? '' : 's'} (one group per day)
+              </p>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 dark:border-slate-700/50">
-        <button
-          onClick={onSaveDraft} disabled={saving || sending}
-          className="h-9 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
-        >
-          {saving ? 'Saving…' : 'Save as Draft'}
-        </button>
-        <button
-          onClick={onSendNow} disabled={saving || sending}
-          className="flex h-9 items-center gap-2 rounded-lg bg-brand-green px-5 text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-50"
-        >
-          <Send size={13} />
-          {sending ? 'Sending…' : 'Send Now'}
-        </button>
+      <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 px-4 py-3 dark:border-slate-700/50">
+        {form.audience !== 'series' && (
+          <>
+            <button
+              onClick={onSaveDraft} disabled={saving || sending}
+              className="h-9 rounded-lg border border-slate-200 px-4 text-xs font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              {saving ? 'Saving…' : 'Save as Draft'}
+            </button>
+            <button
+              onClick={onSendNow} disabled={saving || sending}
+              className="flex h-9 items-center gap-2 rounded-lg bg-brand-green px-5 text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+            >
+              <Send size={13} />
+              {sending ? 'Sending…' : 'Send Now'}
+            </button>
+          </>
+        )}
+        {form.audience === 'series' && (
+          <button
+            onClick={onScheduleSeries} disabled={saving || sending}
+            className="flex h-9 items-center gap-2 rounded-lg bg-brand-green px-5 text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-50"
+          >
+            <Clock size={13} />
+            {sending ? 'Scheduling…' : 'Schedule daily series'}
+          </button>
+        )}
       </div>
     </>
   );
@@ -528,10 +732,12 @@ function Composer({
 // ─── Detail ───────────────────────────────────────────────────────────────────
 
 function CampaignDetail({
-  campaign, isAdmin, sending, error, onSendDraft, onDelete,
+  campaign, isAdmin, sending, error, onSendDraft, onCancelSchedule, onDelete,
 }: {
   campaign: Campaign; isAdmin: boolean; sending: boolean; error: string;
-  onSendDraft: (c: Campaign) => void; onDelete: (c: Campaign) => void;
+  onSendDraft: (c: Campaign) => void;
+  onCancelSchedule: (c: Campaign) => void;
+  onDelete: (c: Campaign) => void;
 }) {
   const progress = campaign.total_recipients > 0
     ? Math.round(((campaign.sent_count + campaign.failed_count) / campaign.total_recipients) * 100)
@@ -557,6 +763,9 @@ function CampaignDetail({
             <p className="mt-0.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
               {(campaign.channel ?? 'email').toUpperCase()}
               {campaign.channel !== 'sms' ? ` · ${campaign.subject}` : ''}
+              {campaign.status === 'scheduled' && campaign.scheduled_at
+                ? ` · sends ${new Date(campaign.scheduled_at).toLocaleString('en-GB')}`
+                : ''}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -567,6 +776,22 @@ function CampaignDetail({
               >
                 <Send size={13} /> {sending ? 'Sending…' : 'Send Now'}
               </button>
+            )}
+            {isAdmin && campaign.status === 'scheduled' && (
+              <>
+                <button
+                  onClick={() => onSendDraft(campaign)} disabled={sending}
+                  className="flex h-9 items-center gap-2 rounded-lg bg-brand-green px-4 text-xs font-bold text-white disabled:opacity-50"
+                >
+                  <Send size={13} /> Send now
+                </button>
+                <button
+                  onClick={() => onCancelSchedule(campaign)} disabled={sending}
+                  className="h-9 rounded-lg border border-slate-200 px-3 text-xs font-bold text-slate-600 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300"
+                >
+                  Cancel schedule
+                </button>
+              </>
             )}
             {isAdmin && campaign.status !== 'sending' && (
               <button
@@ -603,7 +828,7 @@ function CampaignDetail({
         )}
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="space-y-4 p-4">
         {error && <ErrorBanner message={error} />}
 
         <div className="grid gap-2 sm:grid-cols-2">
@@ -611,6 +836,7 @@ function CampaignDetail({
             ['Recipients filter', filterLabel],
             ['Created by', campaign.creator?.name ?? '—'],
             ['Created', new Date(campaign.created_at).toLocaleString('en-GB')],
+            ['Scheduled', campaign.scheduled_at ? new Date(campaign.scheduled_at).toLocaleString('en-GB') : '—'],
             ['Sent', campaign.sent_at ? new Date(campaign.sent_at).toLocaleString('en-GB') : '—'],
           ].map(([label, value]) => (
             <div key={label as string} className="rounded-lg border border-slate-100 px-3 py-2 dark:border-slate-700/50">
@@ -630,3 +856,4 @@ function CampaignDetail({
     </>
   );
 }
+

@@ -7,10 +7,13 @@ use App\Jobs\SendCampaignSmsBatchJob;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
 use App\Models\Customer;
+use App\Models\SmsGroup;
 use App\Models\SmsGroupMember;
 use App\Models\User;
 use App\Support\PhoneNumber;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CampaignService
@@ -30,11 +33,161 @@ class CampaignService
         ]);
     }
 
+    public function schedule(Campaign $campaign, Carbon $when): Campaign
+    {
+        if (! in_array($campaign->status, ['draft', 'scheduled'], true)) {
+            throw ValidationException::withMessages([
+                'campaign' => 'Only draft or scheduled campaigns can be (re)scheduled.',
+            ]);
+        }
+
+        if ($when->lessThanOrEqualTo(now())) {
+            throw ValidationException::withMessages([
+                'scheduled_at' => 'Schedule time must be in the future.',
+            ]);
+        }
+
+        $campaign->update([
+            'status' => 'scheduled',
+            'scheduled_at' => $when,
+        ]);
+
+        return $campaign->fresh();
+    }
+
+    /**
+     * Create one scheduled SMS campaign per group on consecutive days at the same clock time.
+     * Day 0 = start_date at send_time, day 1 = next day, etc. (ordered by group_ids).
+     *
+     * @param  list<string>  $groupIds
+     * @return Collection<int, Campaign>
+     */
+    public function scheduleDailyGroupSeries(array $data, User $user): Collection
+    {
+        $groupIds = array_values(array_unique($data['group_ids'] ?? []));
+        if ($groupIds === []) {
+            throw ValidationException::withMessages(['group_ids' => 'Select at least one SMS group.']);
+        }
+
+        $groups = SmsGroup::whereIn('id', $groupIds)->get()->keyBy('id');
+        foreach ($groupIds as $id) {
+            if (! $groups->has($id)) {
+                throw ValidationException::withMessages(['group_ids' => "Unknown SMS group: {$id}"]);
+            }
+        }
+
+        $startDate = Carbon::parse($data['start_date'], config('app.timezone'))->startOfDay();
+        [$hour, $minute] = array_map('intval', explode(':', $data['send_time']));
+
+        $body = trim((string) $data['body']);
+        $baseName = trim((string) $data['name']);
+
+        $campaigns = collect();
+
+        DB::transaction(function () use ($groupIds, $groups, $startDate, $hour, $minute, $body, $baseName, $user, &$campaigns) {
+            foreach ($groupIds as $index => $groupId) {
+                $when = $startDate->copy()->addDays($index)->setTime($hour, $minute, 0);
+
+                if ($when->lessThanOrEqualTo(now())) {
+                    throw ValidationException::withMessages([
+                        'start_date' => 'First send time must be in the future. Pick a later date or time.',
+                    ]);
+                }
+
+                $group = $groups->get($groupId);
+                $campaigns->push(Campaign::create([
+                    'name' => sprintf('%s — %s (Day %d)', $baseName, $group->name, $index + 1),
+                    'subject' => 'SMS',
+                    'body' => $body,
+                    'channel' => 'sms',
+                    'recipient_filter' => ['sms_group_id' => $groupId],
+                    'status' => 'scheduled',
+                    'scheduled_at' => $when,
+                    'created_by' => $user->id,
+                ]));
+            }
+        });
+
+        return $campaigns;
+    }
+
+    /**
+     * Dispatch all due scheduled campaigns. Returns how many were started.
+     */
+    public function dispatchDue(): int
+    {
+        $dueIds = Campaign::query()
+            ->where('status', 'scheduled')
+            ->whereNotNull('scheduled_at')
+            ->where('scheduled_at', '<=', now())
+            ->orderBy('scheduled_at')
+            ->pluck('id');
+
+        $started = 0;
+
+        foreach ($dueIds as $id) {
+            $campaign = Campaign::query()
+                ->where('id', $id)
+                ->where('status', 'scheduled')
+                ->first();
+
+            if (! $campaign) {
+                continue;
+            }
+
+            try {
+                $this->send($campaign);
+                $started++;
+            } catch (\Throwable $e) {
+                // Re-load in case status already moved past scheduled.
+                $campaign->refresh();
+                if ($campaign->status === 'scheduled' || $campaign->status === 'draft') {
+                    $campaign->update([
+                        'status' => 'failed',
+                        'failed_count' => max(1, (int) $campaign->failed_count),
+                    ]);
+                }
+                report($e);
+            }
+        }
+
+        return $started;
+    }
+
+    public function cancelSchedule(Campaign $campaign): Campaign
+    {
+        if ($campaign->status !== 'scheduled') {
+            throw ValidationException::withMessages([
+                'campaign' => 'Only scheduled campaigns can be cancelled back to draft.',
+            ]);
+        }
+
+        $campaign->update([
+            'status' => 'draft',
+            'scheduled_at' => null,
+        ]);
+
+        return $campaign->fresh();
+    }
+
     public function send(Campaign $campaign): void
     {
-        if ($campaign->status !== 'draft') {
-            throw ValidationException::withMessages(['campaign' => 'Only draft campaigns can be sent.']);
+        $claimed = Campaign::query()
+            ->where('id', $campaign->id)
+            ->whereIn('status', ['draft', 'scheduled'])
+            ->update([
+                'status' => 'sending',
+                'sent_count' => 0,
+                'failed_count' => 0,
+            ]);
+
+        if ($claimed !== 1) {
+            throw ValidationException::withMessages([
+                'campaign' => 'Only draft or scheduled campaigns can be sent.',
+            ]);
         }
+
+        $campaign->refresh();
 
         $channel = $campaign->channel ?? 'email';
         $filter = $campaign->recipient_filter ?? [];
@@ -48,19 +201,14 @@ class CampaignService
             : collect();
 
         if ($emailRecipients->isEmpty() && $smsTargets->isEmpty()) {
+            $campaign->update(['status' => 'failed']);
             throw ValidationException::withMessages([
                 'campaign' => 'No matching recipients for the selected channel and filter.',
             ]);
         }
 
         $jobCount = $emailRecipients->count() + $smsTargets->count();
-
-        $campaign->update([
-            'status' => 'sending',
-            'total_recipients' => $jobCount,
-            'sent_count' => 0,
-            'failed_count' => 0,
-        ]);
+        $campaign->update(['total_recipients' => $jobCount]);
 
         foreach ($emailRecipients as $customer) {
             $recipient = CampaignRecipient::create([
