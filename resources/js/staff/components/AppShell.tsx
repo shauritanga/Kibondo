@@ -6,6 +6,7 @@ import {
   Home,
   LogOut,
   Mail,
+  MessageSquare,
   Moon,
   Package,
   PanelLeft,
@@ -35,6 +36,8 @@ const navItems = [
   { label: 'Dashboard',      path: '/',               icon: Home,          adminOnly: false, roles: null },
   { label: 'Sales',          path: '/pos',             icon: ShoppingCart,  adminOnly: false, roles: null },
   { label: 'Customers',      path: '/customers',       icon: Users,         adminOnly: false, roles: NON_DELIVERY },
+  { label: 'SMS',            path: '/sms',             icon: MessageSquare, adminOnly: true,  roles: null },
+  { label: 'SMS Groups',     path: '/sms/groups',      icon: Users,         adminOnly: true,  roles: null },
   { label: 'Campaigns',      path: '/campaigns',       icon: Mail,          adminOnly: false, roles: NON_DELIVERY },
   { label: 'Packages',       path: '/products',        icon: Package,       adminOnly: false, roles: ['admin', 'sales', 'stock_manager', 'accountant'] },
   { label: 'Categories',     path: '/categories',      icon: Tags,          adminOnly: false, roles: ['admin', 'sales', 'stock_manager', 'accountant'] },
@@ -153,7 +156,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <NavLink
                 key={item.label}
                 to={item.path}
-                end={item.path === '/'}
+                end={item.path === '/' || item.path === '/sms'}
                 onClick={() => setOpen(false)}
                 title={collapsed ? item.label : undefined}
                 className={({ isActive }) =>

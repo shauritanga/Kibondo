@@ -46,7 +46,9 @@ class SendCampaignSmsBatchJob implements ShouldQueue
         $phones = [];
 
         foreach ($recipients as $recipient) {
-            $phone = PhoneNumber::normalize($recipient->customer?->phone);
+            $phone = PhoneNumber::normalize($recipient->destination)
+                ?: PhoneNumber::normalize($recipient->customer?->phone);
+
             if (! $phone) {
                 $recipient->update([
                     'status' => 'failed',

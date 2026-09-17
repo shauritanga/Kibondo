@@ -26,6 +26,8 @@ use App\Http\Controllers\Store\CustomerNotificationController;
 use App\Http\Controllers\Store\OrderController;
 use App\Http\Controllers\Store\StoreController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\SmsComposeController;
+use App\Http\Controllers\SmsGroupController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -176,6 +178,24 @@ Route::middleware(['auth:sanctum', 'throttle:staff-api'])->group(function () {
         Route::post('/campaigns/{campaign}/send', [CampaignController::class, 'send']);
     });
     Route::get('/campaigns/{campaign}', [CampaignController::class, 'show']);
+
+    // SMS compose + groups (admin)
+    Route::middleware('role:admin')->group(function () {
+        Route::post('/sms/send', [SmsComposeController::class, 'send']);
+        Route::post('/sms/send-bulk', [SmsComposeController::class, 'sendBulk']);
+        Route::post('/sms/preview', [SmsComposeController::class, 'preview']);
+        Route::get('/sms/recent', [SmsComposeController::class, 'recent']);
+
+        Route::get('/sms-groups', [SmsGroupController::class, 'index']);
+        Route::post('/sms-groups', [SmsGroupController::class, 'store']);
+        Route::get('/sms-groups/{smsGroup}', [SmsGroupController::class, 'show']);
+        Route::put('/sms-groups/{smsGroup}', [SmsGroupController::class, 'update']);
+        Route::delete('/sms-groups/{smsGroup}', [SmsGroupController::class, 'destroy']);
+        Route::post('/sms-groups/{smsGroup}/members', [SmsGroupController::class, 'addMembers']);
+        Route::post('/sms-groups/{smsGroup}/members/import', [SmsGroupController::class, 'importMembers']);
+        Route::delete('/sms-groups/{smsGroup}/members', [SmsGroupController::class, 'clearMembers']);
+        Route::delete('/sms-groups/{smsGroup}/members/{member}', [SmsGroupController::class, 'destroyMember']);
+    });
 
     // Audit logs (admin only)
     Route::middleware('role:admin')->prefix('audit-logs')->group(function () {

@@ -272,11 +272,15 @@ export interface AuditLog {
 export interface Campaign {
   id: string;
   name: string;
-  channel: 'email' | 'sms';
   subject?: string | null;
   body: string;
   channel: 'email' | 'sms' | 'both';
-  recipient_filter: { all?: boolean; type?: string[] };
+  recipient_filter: {
+    all?: boolean;
+    type?: string[];
+    sms_group_id?: string;
+    sms_group_ids?: string[];
+  };
   status: 'draft' | 'sending' | 'sent' | 'failed';
   scheduled_at: string | null;
   sent_at: string | null;
@@ -284,6 +288,36 @@ export interface Campaign {
   sent_count: number;
   failed_count: number;
   creator?: Pick<User, 'id' | 'name'>;
+  created_at: string;
+}
+
+export interface SmsGroup {
+  id: string;
+  name: string;
+  description: string | null;
+  members_count?: number;
+  members?: SmsGroupMember[];
+  creator?: Pick<User, 'id' | 'name'>;
+  created_at: string;
+}
+
+export interface SmsGroupMember {
+  id: string;
+  sms_group_id: string;
+  phone: string;
+  name: string | null;
+  customer_id: string | null;
+  created_at: string;
+}
+
+export interface SmsMessageLog {
+  id: string;
+  provider: string;
+  to: string;
+  body: string;
+  status: 'queued' | 'sent' | 'failed';
+  error: string | null;
+  context?: Record<string, unknown> | null;
   created_at: string;
 }
 

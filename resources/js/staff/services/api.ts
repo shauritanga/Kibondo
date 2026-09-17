@@ -2,7 +2,7 @@ import axios from 'axios';
 import type {
   AppNotification, AuditLog, Campaign, Category, Customer, CustomerNote, CustomerTask,
   DashboardData, DeliveryZone, Expense, Material, MaterialMovement, PackagingRun, Paginated,
-  Payment, Product, ProductRecipe, Sale, StockMovement, User
+  Payment, Product, ProductRecipe, Sale, SmsGroup, SmsMessageLog, StockMovement, User
 } from '../types';
 
 export const http = axios.create({
@@ -379,11 +379,15 @@ export const campaignsApi = {
   },
   create: async (payload: {
     name: string;
-    channel: 'email' | 'sms';
     subject?: string;
     body: string;
     channel?: 'email' | 'sms' | 'both';
-    recipient_filter: { all?: boolean; type?: string[] };
+    recipient_filter: {
+      all?: boolean;
+      type?: string[];
+      sms_group_id?: string;
+      sms_group_ids?: string[];
+    };
   }) => {
     const { data } = await http.post<{ data: Campaign }>('/campaigns', payload);
     return data.data;
@@ -393,10 +397,86 @@ export const campaignsApi = {
     return data.data;
   },
   delete: async (id: string) => http.delete(`/campaigns/${id}`),
-  recipientPreview: async (filter: { all?: boolean; type?: string[]; channel?: string }) => {
+  recipientPreview: async (filter: {
+    all?: boolean;
+    type?: string[];
+    sms_group_id?: string;
+    sms_group_ids?: string[];
+    channel?: string;
+  }) => {
     const { data } = await http.get<{ count: number }>('/campaigns/recipient-preview', { params: filter });
     return data.count;
   },
+};
+
+// ─── SMS compose + groups ────────────────────────────────────────────────────
+export const smsApi = {
+  send: async (payload: { to: string; body: string }) => {
+    const { data } = await http.post<{ message: string }>('/sms/send', payload);
+    return data;
+  },
+  sendBulk: async (payload: FormData | Record<string, unknown>) => {
+    const { data } = await http.post<{
+      message: string;
+      total: number;
+      success: number;
+      failed: number;
+    }>('/sms/send-bulk', payload);
+    return data;
+  },
+  preview: async (payload: FormData | Record<string, unknown>) => {
+    const { data } = await http.post<{ count: number }>('/sms/preview', payload);
+    return data.count;
+  },
+  recent: async () => {
+    const { data } = await http.get<{ data: SmsMessageLog[] }>('/sms/recent');
+    return data.data;
+  },
+};
+
+export const smsGroupsApi = {
+  list: async () => {
+    const { data } = await http.get<{ data: SmsGroup[] }>('/sms-groups');
+    return data.data;
+  },
+  get: async (id: string) => {
+    const { data } = await http.get<{ data: SmsGroup }>(`/sms-groups/${id}`);
+    return data.data;
+  },
+  create: async (payload: { name: string; description?: string }) => {
+    const { data } = await http.post<{ data: SmsGroup }>('/sms-groups', payload);
+    return data.data;
+  },
+  update: async (id: string, payload: { name?: string; description?: string | null }) => {
+    const { data } = await http.put<{ data: SmsGroup }>(`/sms-groups/${id}`, payload);
+    return data.data;
+  },
+  delete: async (id: string) => http.delete(`/sms-groups/${id}`),
+  addMembers: async (id: string, payload: {
+    customer_ids?: string[];
+    phones?: { phone: string; name?: string }[];
+  }) => {
+    const { data } = await http.post<{
+      added: number;
+      skipped: number;
+      members_count: number;
+    }>(`/sms-groups/${id}/members`, payload);
+    return data;
+  },
+  importMembers: async (id: string, file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    const { data } = await http.post<{
+      added: number;
+      skipped: number;
+      total_parsed: number;
+      members_count: number;
+    }>(`/sms-groups/${id}/members/import`, fd);
+    return data;
+  },
+  removeMember: async (groupId: string, memberId: string) =>
+    http.delete(`/sms-groups/${groupId}/members/${memberId}`),
+  clearMembers: async (id: string) => http.delete(`/sms-groups/${id}/members`),
 };
 
 // ─── Notifications ───────────────────────────────────────────────────────────

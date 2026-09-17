@@ -31,11 +31,28 @@ class CampaignController extends Controller
             'recipient_filter.all' => 'sometimes|boolean',
             'recipient_filter.type' => 'sometimes|array',
             'recipient_filter.type.*' => 'in:retail,wholesale,distributor,hotel,restaurant,repeat_buyer',
+            'recipient_filter.sms_group_id' => 'sometimes|uuid|exists:sms_groups,id',
+            'recipient_filter.sms_group_ids' => 'sometimes|array',
+            'recipient_filter.sms_group_ids.*' => 'uuid|exists:sms_groups,id',
         ]);
 
         $data['channel'] = $data['channel'] ?? 'email';
         if ($data['channel'] === 'sms' && empty($data['subject'])) {
             $data['subject'] = 'SMS';
+        }
+
+        $filter = $data['recipient_filter'];
+        $hasGroup = ! empty($filter['sms_group_id']) || ! empty($filter['sms_group_ids']);
+        $hasType = ! empty($filter['all']) || ! empty($filter['type']);
+        if (! $hasGroup && ! $hasType) {
+            return response()->json([
+                'message' => 'Select customer types, all customers, or an SMS group.',
+            ], 422);
+        }
+        if ($hasGroup && in_array($data['channel'], ['email', 'both'], true)) {
+            return response()->json([
+                'message' => 'SMS groups can only be used with the SMS channel.',
+            ], 422);
         }
 
         $campaign = $this->service->createCampaign($data, $request->user());
@@ -73,6 +90,9 @@ class CampaignController extends Controller
             'all' => 'sometimes|boolean',
             'type' => 'sometimes|array',
             'type.*' => 'in:retail,wholesale,distributor,hotel,restaurant,repeat_buyer',
+            'sms_group_id' => 'sometimes|uuid|exists:sms_groups,id',
+            'sms_group_ids' => 'sometimes|array',
+            'sms_group_ids.*' => 'uuid|exists:sms_groups,id',
             'channel' => 'sometimes|in:email,sms,both',
         ]);
 

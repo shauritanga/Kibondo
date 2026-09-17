@@ -13,6 +13,8 @@ import { CategoriesPage } from './pages/CategoriesPage';
 import { CustomersPage } from './pages/CustomersPage';
 import { CustomerDetailPage } from './pages/CustomerDetailPage';
 import { CampaignsPage } from './pages/CampaignsPage';
+import { SmsPage } from './pages/SmsPage';
+import { SmsGroupsPage } from './pages/SmsGroupsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { UsersPage } from './pages/UsersPage';
@@ -42,6 +44,8 @@ export default function App() {
                       <Route path="/categories" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><CategoriesPage /></ProtectedRoute>} />
                       <Route path="/customers" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><CustomersPage /></ProtectedRoute>} />
                       <Route path="/customers/:id" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><CustomerDetailPage /></ProtectedRoute>} />
+                      <Route path="/sms" element={<ProtectedRoute allowedRoles={['admin']}><SmsPage /></ProtectedRoute>} />
+                      <Route path="/sms/groups" element={<ProtectedRoute allowedRoles={['admin']}><SmsGroupsPage /></ProtectedRoute>} />
                       <Route path="/campaigns" element={<ProtectedRoute allowedRoles={['admin', 'sales', 'stock_manager', 'accountant']}><CampaignsPage /></ProtectedRoute>} />
                       <Route path="/reports" element={<ProtectedRoute allowedRoles={['admin', 'stock_manager', 'accountant']}><ReportsPage /></ProtectedRoute>} />
                       <Route path="/users" element={<ProtectedRoute allowedRoles={['admin']}><UsersPage /></ProtectedRoute>} />

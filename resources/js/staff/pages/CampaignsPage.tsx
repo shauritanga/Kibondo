@@ -10,8 +10,8 @@ import { FormInput } from '../components/FormInput';
 import { PageHeader } from '../components/PageHeader';
 import { StatusBadge } from '../components/StatusBadge';
 import { useAuth } from '../contexts/AuthContext';
-import { campaignsApi } from '../services/api';
-import type { Campaign } from '../types';
+import { campaignsApi, smsGroupsApi } from '../services/api';
+import type { Campaign, SmsGroup } from '../types';
 
 const CUSTOMER_TYPES = [
   { value: 'retail', label: 'Retail' },
@@ -32,9 +32,14 @@ const STATUS_ICON: Record<Campaign['status'], typeof Clock> = {
 
 type ComposerState = {
   name: string; subject: string; body: string; channel: 'email' | 'sms' | 'both';
+  audience: 'customers' | 'group';
   allCustomers: boolean; selectedTypes: string[];
+  smsGroupId: string;
 };
-const EMPTY: ComposerState = { name: '', subject: '', body: '', channel: 'email', allCustomers: true, selectedTypes: [] };
+const EMPTY: ComposerState = {
+  name: '', subject: '', body: '', channel: 'email',
+  audience: 'customers', allCustomers: true, selectedTypes: [], smsGroupId: '',
+};
 
 export function CampaignsPage() {
   const { user } = useAuth();
@@ -49,6 +54,7 @@ export function CampaignsPage() {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  const [smsGroups, setSmsGroups] = useState<SmsGroup[]>([]);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { load(); }, []);
@@ -66,7 +72,9 @@ export function CampaignsPage() {
     }
   }
 
-  const fetchPreview = useCallback((filter: { all?: boolean; type?: string[]; channel?: string }) => {
+  const fetchPreview = useCallback((filter: {
+    all?: boolean; type?: string[]; sms_group_id?: string; channel?: string;
+  }) => {
     if (debounce.current) clearTimeout(debounce.current);
     debounce.current = setTimeout(async () => {
       try { setPreviewCount(await campaignsApi.recipientPreview(filter)); } catch { setPreviewCount(null); }
@@ -75,14 +83,24 @@ export function CampaignsPage() {
 
   useEffect(() => {
     if (!composing) return;
+    if (form.audience === 'group') {
+      if (!form.smsGroupId) { setPreviewCount(null); return; }
+      fetchPreview({ sms_group_id: form.smsGroupId, channel: 'sms' });
+      return;
+    }
     fetchPreview({
       ...(form.allCustomers ? { all: true } : { type: form.selectedTypes }),
       channel: form.channel,
     });
-  }, [form.allCustomers, form.selectedTypes, form.channel, composing, fetchPreview]);
+  }, [form.allCustomers, form.selectedTypes, form.channel, form.audience, form.smsGroupId, composing, fetchPreview]);
 
-  function openComposer() {
+  async function openComposer() {
     setForm(EMPTY); setSelected(null); setComposing(true); setError(''); setPreviewCount(null);
+    try {
+      setSmsGroups(await smsGroupsApi.list());
+    } catch {
+      setSmsGroups([]);
+    }
   }
 
   function toggleType(val: string) {
@@ -93,6 +111,9 @@ export function CampaignsPage() {
   }
 
   function buildFilter() {
+    if (form.audience === 'group') {
+      return { sms_group_id: form.smsGroupId };
+    }
     return form.allCustomers ? { all: true } : { type: form.selectedTypes };
   }
 
@@ -107,6 +128,19 @@ export function CampaignsPage() {
     }
     if (form.channel !== 'email' && form.body.length > 320) {
       setError('SMS body should be 320 characters or fewer.');
+      return false;
+    }
+    if (form.audience === 'group') {
+      if (form.channel !== 'sms') {
+        setError('SMS groups require the SMS channel.');
+        return false;
+      }
+      if (!form.smsGroupId) {
+        setError('Select an SMS group.');
+        return false;
+      }
+    } else if (!form.allCustomers && form.selectedTypes.length === 0) {
+      setError('Select customer types or all customers.');
       return false;
     }
     setError('');
@@ -274,6 +308,7 @@ export function CampaignsPage() {
           {composing ? (
             <Composer
               form={form} setForm={setForm} previewCount={previewCount}
+              smsGroups={smsGroups}
               saving={saving} sending={sending} error={error}
               onToggleType={toggleType} onSaveDraft={handleSaveDraft}
               onSendNow={handleSendNow} onClose={() => { setComposing(false); setError(''); }}
@@ -308,12 +343,13 @@ export function CampaignsPage() {
 // ─── Composer ─────────────────────────────────────────────────────────────────
 
 function Composer({
-  form, setForm, previewCount, saving, sending, error,
+  form, setForm, previewCount, smsGroups, saving, sending, error,
   onToggleType, onSaveDraft, onSendNow, onClose,
 }: {
   form: ComposerState;
   setForm: React.Dispatch<React.SetStateAction<ComposerState>>;
   previewCount: number | null;
+  smsGroups: SmsGroup[];
   saving: boolean; sending: boolean; error: string;
   onToggleType: (v: string) => void;
   onSaveDraft: () => void;
@@ -343,7 +379,11 @@ function Composer({
                 <button
                   key={ch}
                   type="button"
-                  onClick={() => setForm((p) => ({ ...p, channel: ch }))}
+                  onClick={() => setForm((p) => ({
+                    ...p,
+                    channel: ch,
+                    audience: ch === 'sms' ? p.audience : 'customers',
+                  }))}
                   className={clsx(
                     'rounded-lg px-3 py-1.5 text-xs font-bold capitalize',
                     form.channel === ch
@@ -379,39 +419,80 @@ function Composer({
 
           <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-700/50">
             <p className="mb-2.5 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Recipients</p>
-            <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
-              <input
-                type="checkbox"
-                className="h-3.5 w-3.5 rounded accent-brand-green"
-                checked={form.allCustomers}
-                onChange={(e) => setForm((p) => ({ ...p, allCustomers: e.target.checked }))}
-              />
-              {form.channel === 'sms'
-                ? 'All customers opted in for SMS'
-                : form.channel === 'both'
-                  ? 'All matching email + SMS-opted customers'
-                  : 'All customers with an email address'}
-            </label>
 
-            {!form.allCustomers && (
-              <div className="mt-3">
-                <p className="mb-2 text-[11px] font-bold text-slate-400 dark:text-slate-500">Filter by customer type</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {CUSTOMER_TYPES.map((t) => (
-                    <button
-                      key={t.value} type="button" onClick={() => onToggleType(t.value)}
-                      className={clsx(
-                        'rounded-full border px-2.5 py-1 text-[11px] font-bold transition',
-                        form.selectedTypes.includes(t.value)
-                          ? 'border-brand-green bg-green-50 text-brand-green dark:bg-green-900/30 dark:text-green-400'
-                          : 'border-slate-200 text-slate-500 hover:border-slate-400 dark:border-slate-600 dark:text-slate-400 dark:hover:border-slate-400'
-                      )}
-                    >
-                      {t.label}
-                    </button>
-                  ))}
-                </div>
+            {form.channel === 'sms' && (
+              <div className="mb-3 flex flex-wrap gap-2">
+                {([
+                  { id: 'customers' as const, label: 'System customers' },
+                  { id: 'group' as const, label: 'SMS group' },
+                ]).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, audience: opt.id }))}
+                    className={clsx(
+                      'rounded-lg px-3 py-1.5 text-xs font-bold',
+                      form.audience === opt.id
+                        ? 'bg-brand-green text-white'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+                    )}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
+            )}
+
+            {form.audience === 'group' ? (
+              <select
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-semibold dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                value={form.smsGroupId}
+                onChange={(e) => setForm((p) => ({ ...p, smsGroupId: e.target.value }))}
+              >
+                <option value="">Select SMS group…</option>
+                {smsGroups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name} ({g.members_count ?? 0})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <>
+                <label className="flex cursor-pointer items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    className="h-3.5 w-3.5 rounded accent-brand-green"
+                    checked={form.allCustomers}
+                    onChange={(e) => setForm((p) => ({ ...p, allCustomers: e.target.checked }))}
+                  />
+                  {form.channel === 'sms'
+                    ? 'All customers opted in for SMS'
+                    : form.channel === 'both'
+                      ? 'All matching email + SMS-opted customers'
+                      : 'All customers with an email address'}
+                </label>
+
+                {!form.allCustomers && (
+                  <div className="mt-3">
+                    <p className="mb-2 text-[11px] font-bold text-slate-400 dark:text-slate-500">Filter by customer type</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {CUSTOMER_TYPES.map((t) => (
+                        <button
+                          key={t.value} type="button" onClick={() => onToggleType(t.value)}
+                          className={clsx(
+                            'rounded-full border px-2.5 py-1 text-[11px] font-bold transition',
+                            form.selectedTypes.includes(t.value)
+                              ? 'border-brand-green bg-green-50 text-brand-green dark:bg-green-900/30 dark:text-green-400'
+                              : 'border-slate-200 text-slate-500 hover:border-slate-400 dark:border-slate-600 dark:text-slate-400 dark:hover:border-slate-400'
+                          )}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {previewCount !== null && (
@@ -458,6 +539,7 @@ function CampaignDetail({
 
   const filterLabel = (() => {
     const f = campaign.recipient_filter;
+    if (f.sms_group_id || f.sms_group_ids?.length) return 'SMS group';
     if (f.all) return 'All customers with email';
     if (f.type?.length) return f.type.map((v) => CUSTOMER_TYPES.find((t) => t.value === v)?.label ?? v).join(', ');
     return '—';
